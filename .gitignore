@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.vite/
+.parcel-cache/
+
+# tests / coverage
+coverage/
+
+# user-supplied real art/audio (never committed, see docs/06)
+assets/local/
+
+# env / logs
+.env
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
