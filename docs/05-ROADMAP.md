@@ -16,21 +16,21 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] End-of-interview review delivered; **user signs off explicitly**
 
 ## M0 — Scaffold
-- [ ] pnpm workspace: `sim`, `content`, `shared`, `client`, `server` (server may be empty)
-- [ ] `tsconfig.base.json` strict, project references, Biome, Vitest
-- [ ] GitHub Actions CI (typecheck, lint, test, build)
-- [ ] `.gitignore` includes `assets/local/`, `node_modules`, `dist`
-- [ ] `locales/en.json` + `t(key)` helper; `docs/adr/` with ADR template
-- [ ] `pnpm dev` shows a pixel-perfect canvas (see M2) placeholder and an FPS counter
+- [x] pnpm workspace: `sim`, `content`, `shared`, `client`, `server` (server may be empty)
+- [x] `tsconfig.base.json` strict, Biome, Vitest (uses `extends` per-package, not composite references)
+- [x] GitHub Actions CI (typecheck, lint, test, build)
+- [x] `.gitignore` includes `assets/local/`, `node_modules`, `dist`
+- [x] `locales/en.json` + `t(key)` helper; `docs/adr/` with ADR template
+- [x] `pnpm dev` shows a pixel-perfect canvas (see M2) placeholder and an FPS counter
 
 ## M1 — Sim kernel (the seams)
-- [ ] Seeded `Rng` (xoshiro128**) + tests
-- [ ] Schema-driven stores (`sim/schema`) with pooling/free-list; generated snapshot codec + inspector
-- [ ] Registries (weapon behaviors, enemy behaviors, systems, progression, triggers, conditions, actions, rule keys, stats)
-- [ ] `RulesetDef` (default id `classic`) + system pipeline runner; `createWorld`, `step`, `snapshot`
-- [ ] Event queue; modifier stack (`stat()`/`param()` accessors); rule-override accessor
-- [ ] Spatial hash + tests; determinism test per ruleset
-- [ ] CI fitness tests scaffolded (see 12): `no-content-in-engine`, `registry-complete`
+- [x] Seeded `Rng` (xoshiro128**) + tests
+- [x] Schema-driven stores (`sim/schema`) with pooling/free-list; generated snapshot codec (inspector deferred to M2 debug pass)
+- [x] Registries (weapon behaviors, enemy behaviors, systems, progression, triggers, conditions, actions, rule keys, stats)
+- [x] `RulesetDef` (default id `classic`) + system pipeline runner; `createWorld`, `step`, `snapshot`, `applyChoice`
+- [x] Event queue; modifier stack (`stat()`/`param()` accessors); rule-override accessor (`rule()`/`num()`)
+- [x] Spatial hash + tests; determinism test per ruleset
+- [x] CI fitness tests scaffolded (see 12): `no-content-in-engine`, `registry-complete`
 
 ## M2 — Pixel-perfect renderer & movement
 - [ ] Internal-resolution render target (≈480×270), integer upscaling, nearest filtering, letterboxing
@@ -104,4 +104,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Gamepad, rebinding, accessibility; performance pass on M1 (500+ enemies); optional replays
 
 ## Notes
-_(Agent: write deferred items, decisions, ADR links and known issues here.)_
+- **pnpm on PATH:** `corepack enable` failed (no admin on `C:\Program Files\nodejs`). Use `corepack pnpm …`
+  or run `npm i -g pnpm@9.15.0` (or `corepack enable` as admin) so the root `pnpm …` scripts work directly.
+- **Deferred from M1:** store debug inspector (M2), full `ruleOverride` modifier wiring (M4), generated
+  network codec + delta compression (M11).
+- **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.
