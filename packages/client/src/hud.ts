@@ -1,6 +1,7 @@
+// Screen-space HUD: timer, level, XP bar, and a game-over overlay.
 import type { WorldSnapshot } from "@rift/sim";
-// Screen-space HUD: timer, level, XP bar placeholder, and a game-over overlay.
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
+import { PixelText } from "./assets/pixel-font";
 import { t } from "./i18n";
 import { VIEW_H, VIEW_W } from "./renderer";
 
@@ -12,50 +13,38 @@ function formatTime(tick: number): string {
 }
 
 export class Hud {
-  private readonly timer: Text;
-  private readonly level: Text;
+  private readonly timer: PixelText;
+  private readonly level: PixelText;
   private readonly xpBar: Graphics;
   private readonly results: Container;
-  private readonly resultsTitle: Text;
-  private readonly resultsTime: Text;
+  private readonly resultsTitle: PixelText;
+  private readonly resultsTime: PixelText;
 
   constructor(stage: Container) {
     this.xpBar = new Graphics();
     stage.addChild(this.xpBar);
 
-    this.timer = new Text({
-      text: "0:00",
-      style: { fontFamily: "monospace", fontSize: 8, fill: 0xffffff },
-    });
-    this.timer.anchor.set(0.5, 0);
-    this.timer.position.set(VIEW_W / 2, 5);
-    stage.addChild(this.timer);
+    this.timer = new PixelText("0:00", 1);
+    this.timer.display.anchor.set(0.5, 0);
+    this.timer.display.position.set(VIEW_W / 2, 5);
+    stage.addChild(this.timer.display);
 
-    this.level = new Text({
-      text: t("hud.level", { level: 1 }),
-      style: { fontFamily: "monospace", fontSize: 8, fill: 0xffffff },
-    });
-    this.level.position.set(2, 5);
-    stage.addChild(this.level);
+    this.level = new PixelText(t("hud.level", { level: 1 }), 1);
+    this.level.display.position.set(2, 5);
+    stage.addChild(this.level.display);
 
     this.results = new Container();
     const bg = new Graphics().rect(0, 0, VIEW_W, VIEW_H).fill(0x000000);
     bg.alpha = 0.65;
     this.results.addChild(bg);
-    this.resultsTitle = new Text({
-      text: "GAME OVER",
-      style: { fontFamily: "monospace", fontSize: 16, fill: 0xff4444 },
-    });
-    this.resultsTitle.anchor.set(0.5, 0.5);
-    this.resultsTitle.position.set(VIEW_W / 2, VIEW_H / 2 - 12);
-    this.results.addChild(this.resultsTitle);
-    this.resultsTime = new Text({
-      text: "",
-      style: { fontFamily: "monospace", fontSize: 8, fill: 0xffffff },
-    });
-    this.resultsTime.anchor.set(0.5, 0.5);
-    this.resultsTime.position.set(VIEW_W / 2, VIEW_H / 2 + 8);
-    this.results.addChild(this.resultsTime);
+    this.resultsTitle = new PixelText("GAME OVER", 2, 0xff4444);
+    this.resultsTitle.display.anchor.set(0.5, 0.5);
+    this.resultsTitle.display.position.set(VIEW_W / 2, VIEW_H / 2 - 12);
+    this.results.addChild(this.resultsTitle.display);
+    this.resultsTime = new PixelText("", 1);
+    this.resultsTime.display.anchor.set(0.5, 0.5);
+    this.resultsTime.display.position.set(VIEW_W / 2, VIEW_H / 2 + 8);
+    this.results.addChild(this.resultsTime.display);
     this.results.visible = false;
     stage.addChild(this.results);
   }
@@ -85,7 +74,7 @@ export class Hud {
 
     if (s.over) {
       this.results.visible = true;
-      this.resultsTime.text = `Survived ${formatTime(s.tick)}`;
+      this.resultsTime.text = `TIME ${formatTime(s.tick)}`;
     } else {
       this.results.visible = false;
     }

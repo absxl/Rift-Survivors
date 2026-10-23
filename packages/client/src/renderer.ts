@@ -2,8 +2,9 @@ import type { SimEvent, StoreSnapshot, WorldSnapshot } from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
 // the local player, interpolating between the two most recent snapshots. Also
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
-import { Container, Graphics, Sprite, Text, TilingSprite } from "pixi.js";
+import { Container, Graphics, Sprite, TilingSprite } from "pixi.js";
 import type { Texture } from "pixi.js";
+import { renderPixelTextSprite } from "./assets/pixel-font";
 import { type PlaceholderTextures, createPlaceholderTextures } from "./assets/placeholder";
 
 export const VIEW_W = 480;
@@ -30,8 +31,7 @@ interface PlayerView {
 }
 
 interface DamageEntry {
-  text: Text;
-  active: boolean;
+  sprite: Sprite;
   x: number;
   y: number;
   life: number;
@@ -84,17 +84,6 @@ export class GameRenderer {
 
     this.hpBar = new Graphics();
     this.stage.addChild(this.hpBar);
-
-    for (let i = 0; i < MAX_DAMAGE; i++) {
-      const text = new Text({
-        text: "",
-        style: { fontFamily: "monospace", fontSize: 7, fill: 0xffffff },
-      });
-      text.anchor.set(0.5, 0.5);
-      text.visible = false;
-      this.stage.addChild(text);
-      this.damage.push({ text, active: false, x: 0, y: 0, life: 0 });
-    }
   }
 
   get latest(): WorldSnapshot | null {
@@ -217,28 +206,26 @@ export class GameRenderer {
   }
 
   private spawnDamage(x: number, y: number, amount: number): void {
-    for (const d of this.damage) {
-      if (d.active) continue;
-      d.active = true;
-      d.x = x;
-      d.y = y;
-      d.life = 40;
-      d.text.text = String(Math.round(amount));
-      d.text.visible = true;
-      return;
+    if (this.damage.length >= MAX_DAMAGE) {
+      const oldest = this.damage.shift();
+      if (oldest) oldest.sprite.destroy();
     }
+    const sprite = renderPixelTextSprite(String(Math.round(amount)), 1);
+    sprite.anchor.set(0.5, 0.5);
+    this.stage.addChild(sprite);
+    this.damage.push({ sprite, x, y, life: 40 });
   }
 
   private updateDamageNumbers(ox: number, oy: number): void {
-    for (const d of this.damage) {
-      if (!d.active) continue;
+    for (let i = this.damage.length - 1; i >= 0; i--) {
+      const d = this.damage[i];
       d.y -= 0.4;
       d.life -= 1;
       if (d.life <= 0) {
-        d.active = false;
-        d.text.visible = false;
+        d.sprite.destroy();
+        this.damage.splice(i, 1);
       } else {
-        d.text.position.set(d.x - ox, d.y - oy);
+        d.sprite.position.set(d.x - ox, d.y - oy);
       }
     }
   }
