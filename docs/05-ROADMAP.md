@@ -111,4 +111,6 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Deferred from M4:** reroll/skip/banish tokens (offer carries the counts; token sources + UI buttons land
   with meta, M8); full per-minute stage timeline (M7 — currently a simple ring/stream director).
 - **Pending:** M4 milestone playtest (user plays ~5 min and confirms the classic loop feel).
+- **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
+  letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

@@ -69,6 +69,7 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "x", type: "f32" },
     { name: "y", type: "f32" },
     { name: "hp", type: "f32" },
+    { name: "maxHp", type: "f32" },
     { name: "kind", type: "u16" },
     { name: "vx", type: "f32" },
     { name: "vy", type: "f32" },

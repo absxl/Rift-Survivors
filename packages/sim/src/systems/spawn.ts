@@ -21,7 +21,10 @@ function spawnDirector(world: World): void {
   const maxEnemies = world.num("director.maxEnemies");
   const interval = world.num("director.spawnInterval");
   if (world.tick % interval === 0 && alive < maxEnemies) {
-    const batch = world.num("director.batchSize");
+    // Gentle early ramp: start sparse, grow to the full batch over `rampTicks`.
+    const rampTicks = world.num("director.rampTicks");
+    const ramp = rampTicks > 0 ? Math.min(1, world.tick / rampTicks) : 1;
+    const batch = Math.max(1, Math.round(world.num("director.batchSize") * ramp));
     const ring = (world.tick / interval) % 2 === 0;
     const def = world.content.enemies[0];
     for (let i = 0; i < batch && alive < maxEnemies; i++) {
@@ -34,6 +37,7 @@ function spawnDirector(world: World): void {
       enemies.field("x")[slot] = px + Math.cos(angle) * dist;
       enemies.field("y")[slot] = py + Math.sin(angle) * dist;
       enemies.field("hp")[slot] = def.hp;
+      enemies.field("maxHp")[slot] = def.hp;
       enemies.field("kind")[slot] = 0;
       enemies.field("vx")[slot] = 0;
       enemies.field("vy")[slot] = 0;

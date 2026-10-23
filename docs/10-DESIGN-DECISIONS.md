@@ -129,6 +129,13 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
 - Decision: Procedural pixel-art placeholders first (real art → `assets/local/` later). 480×270 internal
   resolution, integer scale. Chiptune music + 8-bit SFX (self-generated/CC0). English only, i18n-ready.
 
+### D-028 · Full-screen scaling (deviation from integer rule)
+- Round: R9 follow-up · Date: 2026-10-23 · Status: decided
+- Decision: The canvas scales to **fill the window with a fractional factor** (nearest filtering kept), rather
+  than the kit's "integer scale + letterbox, never fractional" rule (docs/02, 13 §14).
+- Consequences: no black bars on typical 16:9 windows; pixels can be slightly uneven on non-integer scales.
+  Revert to integer scale by flooring the scale factor if crispness is ever preferred over fill.
+
 ## Active ruleset(s)
 `classic` — configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 

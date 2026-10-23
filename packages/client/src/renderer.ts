@@ -54,6 +54,7 @@ export class GameRenderer {
   private readonly projectileSprites = new Map<number, Sprite>();
   private readonly enemySprites = new Map<number, Sprite>();
   private readonly enemyFlash = new Map<number, number>();
+  private readonly enemyHpBar: Graphics;
   private readonly damage: DamageEntry[] = [];
   private readonly textures: PlaceholderTextures;
 
@@ -73,6 +74,9 @@ export class GameRenderer {
     this.stage.addChild(this.gemLayer);
     this.stage.addChild(this.projectileLayer);
     this.stage.addChild(this.enemyLayer);
+
+    this.enemyHpBar = new Graphics();
+    this.enemyLayer.addChild(this.enemyHpBar);
 
     this.playerSprite = new Sprite(this.textures.player);
     this.playerSprite.anchor.set(0.5, 0.5);
@@ -198,6 +202,8 @@ export class GameRenderer {
       }
     }
 
+    this.drawEnemyHealthBars(getStore(this.curr, "enemy"));
+
     if (player) {
       this.playerSprite.visible = true;
       this.playerSprite.position.set(player.x - ox, player.y - oy);
@@ -243,6 +249,23 @@ export class GameRenderer {
     const w = 16;
     this.hpBar.rect(x - w / 2, y + 9, w, 2).fill(0x000000);
     this.hpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
+  }
+
+  /** Thin bar above any enemy that has taken damage. */
+  private drawEnemyHealthBars(store: StoreSnapshot | undefined): void {
+    this.enemyHpBar.clear();
+    if (!store) return;
+    const w = 12;
+    for (let i = 0; i < store.slots.length; i++) {
+      const hp = store.fields.hp[i];
+      const maxHp = store.fields.maxHp[i];
+      if (hp >= maxHp) continue;
+      const x = store.fields.x[i];
+      const y = store.fields.y[i];
+      const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+      this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(0x000000);
+      this.enemyHpBar.rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1).fill(0xff4444);
+    }
   }
 
   private syncEntities(

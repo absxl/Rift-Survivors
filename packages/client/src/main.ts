@@ -20,12 +20,9 @@ async function main(): Promise<void> {
   const root = document.getElementById("app");
   if (root) root.appendChild(app.canvas);
 
-  // Pixel-perfect: integer upscale with nearest filtering, letterboxed.
+  // Fill the window (fractional scale, nearest filtering — see D-028).
   const fitCanvas = (): void => {
-    const scale = Math.max(
-      1,
-      Math.floor(Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H)),
-    );
+    const scale = Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H);
     app.canvas.style.width = `${VIEW_W * scale}px`;
     app.canvas.style.height = `${VIEW_H * scale}px`;
     app.canvas.style.imageRendering = "pixelated";
