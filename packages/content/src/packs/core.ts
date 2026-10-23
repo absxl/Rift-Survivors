@@ -1,16 +1,7 @@
-// The `core` pack: generic enemies, weapons, passives and characters. Names are
-// generic behavior ids; League-flavored names live in a later `lol-pack` (docs/06).
-import type { ContentPack, StatDelta } from "@rift/sim";
+// The `core` pack: generic enemies and passive items (stat sticks). Champions and
+// ability weapons live in the `lol` pack. Names are generic; League flavor is data.
+import type { ContentPack } from "@rift/sim";
 import { contentPackSchema } from "../schema";
-
-function levels(deltas: StatDelta[]): { delta: StatDelta }[] {
-  return deltas.map((delta) => ({ delta }));
-}
-
-/** 4 damage-only level deltas (max level 5). */
-function lv4(d: [number, number, number, number]): { delta: StatDelta }[] {
-  return levels(d.map((damage) => ({ damage })));
-}
 
 const corePack: ContentPack = {
   id: "core",
@@ -28,211 +19,7 @@ const corePack: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
-    {
-      id: "blade",
-      behavior: "sweep",
-      params: { arc: 1.2 },
-      maxLevel: 5,
-      base: {
-        damage: 10,
-        cooldown: 60,
-        area: 44,
-        speed: 0,
-        duration: 0,
-        amount: 1,
-        pierce: 99,
-        hitCooldown: 12,
-        knockback: 4,
-        lifetime: 0,
-      },
-      levels: lv4([4, 4, 6, 8]),
-      damageType: "physical",
-    },
-    {
-      id: "bolt",
-      behavior: "shoot-nearest",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 8,
-        cooldown: 45,
-        area: 5,
-        speed: 5,
-        duration: 0,
-        amount: 1,
-        pierce: 0,
-        hitCooldown: 10,
-        knockback: 2,
-        lifetime: 90,
-      },
-      levels: lv4([3, 3, 5, 7]),
-      damageType: "magic",
-    },
-    {
-      id: "repeater",
-      behavior: "shoot-nearest",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 5,
-        cooldown: 25,
-        area: 5,
-        speed: 5,
-        duration: 0,
-        amount: 1,
-        pierce: 0,
-        hitCooldown: 8,
-        knockback: 1,
-        lifetime: 70,
-      },
-      levels: lv4([2, 2, 3, 4]),
-      damageType: "physical",
-    },
-    {
-      id: "nova",
-      behavior: "aura",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 4,
-        cooldown: 40,
-        area: 40,
-        speed: 0,
-        duration: 0,
-        amount: 1,
-        pierce: 99,
-        hitCooldown: 8,
-        knockback: 1,
-        lifetime: 0,
-      },
-      levels: lv4([2, 2, 3, 4]),
-      damageType: "magic",
-      status: { id: "slow", ticks: 60 },
-    },
-    {
-      id: "halo",
-      behavior: "aura",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 3,
-        cooldown: 35,
-        area: 34,
-        speed: 0,
-        duration: 0,
-        amount: 1,
-        pierce: 99,
-        hitCooldown: 8,
-        knockback: 1,
-        lifetime: 0,
-      },
-      levels: lv4([1, 2, 2, 3]),
-      damageType: "magic",
-      status: { id: "slow", ticks: 45 },
-    },
-    {
-      id: "spark",
-      behavior: "strike-random",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 7,
-        cooldown: 50,
-        area: 90,
-        speed: 0,
-        duration: 0,
-        amount: 2,
-        pierce: 99,
-        hitCooldown: 10,
-        knockback: 2,
-        lifetime: 0,
-      },
-      levels: lv4([3, 3, 4, 6]),
-      damageType: "magic",
-    },
-    {
-      id: "inferno",
-      behavior: "ground-pool",
-      params: { scatter: 70 },
-      maxLevel: 5,
-      base: {
-        damage: 6,
-        cooldown: 90,
-        area: 20,
-        speed: 0,
-        duration: 120,
-        amount: 3,
-        pierce: 99,
-        hitCooldown: 6,
-        knockback: 0,
-        lifetime: 0,
-      },
-      levels: lv4([2, 2, 3, 5]),
-      damageType: "magic",
-      status: { id: "burn", ticks: 90 },
-    },
-    {
-      id: "gyro",
-      behavior: "orbit",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 5,
-        cooldown: 80,
-        area: 36,
-        speed: 0,
-        duration: 200,
-        amount: 2,
-        pierce: 99,
-        hitCooldown: 10,
-        knockback: 2,
-        lifetime: 0,
-      },
-      levels: lv4([2, 2, 3, 4]),
-      damageType: "physical",
-    },
-    {
-      id: "ricochet",
-      behavior: "bounce",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 9,
-        cooldown: 60,
-        area: 5,
-        speed: 5,
-        duration: 0,
-        amount: 1,
-        pierce: 2,
-        hitCooldown: 10,
-        knockback: 3,
-        lifetime: 200,
-      },
-      levels: lv4([3, 3, 5, 7]),
-      damageType: "physical",
-    },
-    {
-      id: "boomerang",
-      behavior: "boomerang",
-      params: {},
-      maxLevel: 5,
-      base: {
-        damage: 12,
-        cooldown: 75,
-        area: 90,
-        speed: 6,
-        duration: 0,
-        amount: 1,
-        pierce: 99,
-        hitCooldown: 12,
-        knockback: 4,
-        lifetime: 0,
-      },
-      levels: lv4([4, 4, 6, 9]),
-      damageType: "physical",
-    },
-  ],
+  weapons: [],
   passives: [
     { id: "might", maxLevel: 5, perLevel: { might: 0.2 } },
     { id: "boots", maxLevel: 5, perLevel: { moveSpeed: 0.1 } },
@@ -243,14 +30,10 @@ const corePack: ContentPack = {
     { id: "plate", maxLevel: 5, perLevel: { armor: 1 } },
     { id: "charm", maxLevel: 5, perLevel: { luck: 0.1 } },
   ],
-  characters: [
-    { id: "champion", startingWeapon: "blade", baseStats: { maxHp: 0.2, armor: 1 } },
-    { id: "caster", startingWeapon: "bolt", baseStats: { might: 0.1, cooldown: 0.1 } },
-    { id: "warden", startingWeapon: "halo", baseStats: { maxHp: 0.5, moveSpeed: 0.05 } },
-  ],
+  characters: [],
 };
 
-/** Load and validate the core pack against its Zod schema. */
+/** Load and validate the core pack (enemies + items). */
 export function loadCorePack(): ContentPack {
   return contentPackSchema.parse(corePack);
 }

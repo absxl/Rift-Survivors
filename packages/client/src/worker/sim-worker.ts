@@ -1,7 +1,7 @@
 // Solo-mode simulation host: runs packages/sim at a fixed 30 Hz in a Web Worker.
 // Waits for a "start" message (with characterId), then ticks; pauses on a pending
 // offer (level-up) and resumes when the main thread sends a choice.
-import { loadCorePack } from "@rift/content";
+import { loadGamePack } from "@rift/content";
 import { DEFAULT_RULESET, TICK_MS, applyChoice, createWorld, snapshot, step } from "@rift/sim";
 import type { PlayerInput, World } from "@rift/sim";
 
@@ -12,7 +12,7 @@ interface WorkerScope {
 const ctx = self as unknown as WorkerScope;
 
 const SEED = 20261023;
-const pack = loadCorePack();
+const pack = loadGamePack();
 
 let world: World | null = null;
 let currentInput: PlayerInput = { playerId: 0, moveX: 0, moveY: 0 };
