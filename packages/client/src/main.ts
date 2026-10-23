@@ -1,14 +1,15 @@
-import { Application, Container, Graphics, Text } from "pixi.js";
-import { t } from "./i18n";
-
-const INTERNAL_W = 480;
-const INTERNAL_H = 270;
+// Client entry: pixel-perfect Pixi app + worker-hosted sim + input + renderer.
+import { Application, Container } from "pixi.js";
+import { WorkerHost } from "./host";
+import { Hud } from "./hud";
+import { Input } from "./input";
+import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 
 async function main(): Promise<void> {
   const app = new Application();
   await app.init({
-    width: INTERNAL_W,
-    height: INTERNAL_H,
+    width: VIEW_W,
+    height: VIEW_H,
     resolution: 1,
     autoDensity: false,
     antialias: false,
@@ -18,56 +19,38 @@ async function main(): Promise<void> {
   const root = document.getElementById("app");
   if (root) root.appendChild(app.canvas);
 
-  // Pixel-perfect: integer upscale with nearest-neighbour filtering, letterboxed.
+  // Pixel-perfect: integer upscale with nearest filtering, letterboxed.
   const fitCanvas = (): void => {
     const scale = Math.max(
       1,
-      Math.floor(Math.min(window.innerWidth / INTERNAL_W, window.innerHeight / INTERNAL_H)),
+      Math.floor(Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H)),
     );
-    app.canvas.style.width = `${INTERNAL_W * scale}px`;
-    app.canvas.style.height = `${INTERNAL_H * scale}px`;
+    app.canvas.style.width = `${VIEW_W * scale}px`;
+    app.canvas.style.height = `${VIEW_H * scale}px`;
     app.canvas.style.imageRendering = "pixelated";
   };
   window.addEventListener("resize", fitCanvas);
   fitCanvas();
 
-  // Placeholder scene (real rendering + movement arrives in M2).
-  const world = new Container();
-  app.stage.addChild(world);
+  const worldLayer = new Container();
+  const hudLayer = new Container();
+  app.stage.addChild(worldLayer);
+  app.stage.addChild(hudLayer);
 
-  const player = new Graphics().rect(0, 0, 16, 16).fill(0x44aaff);
-  player.position.set(INTERNAL_W / 2 - 8, INTERNAL_H / 2 - 8);
-  world.addChild(player);
+  const renderer = new GameRenderer(worldLayer);
+  const hud = new Hud(hudLayer);
+  const input = new Input();
+  input.attach();
 
-  const enemy = new Graphics().rect(0, 0, 16, 16).fill(0xff5544);
-  enemy.position.set(60, 60);
-  world.addChild(enemy);
+  const host = new WorkerHost();
+  host.onSnapshot((snap) => renderer.receive(snap));
 
-  // HUD
-  const title = new Text({
-    text: t("game.title"),
-    style: { fontFamily: "monospace", fontSize: 8, fill: 0xffffff },
-  });
-  title.position.set(2, 2);
-  app.stage.addChild(title);
+  window.setInterval(() => host.sendInput(input.read()), 1000 / 30);
 
-  const fpsText = new Text({
-    text: t("hud.fps", { value: 0 }),
-    style: { fontFamily: "monospace", fontSize: 8, fill: 0xffffff },
-  });
-  fpsText.position.set(2, 12);
-  app.stage.addChild(fpsText);
-
-  let frames = 0;
-  let last = performance.now();
   app.ticker.add(() => {
-    frames++;
-    const now = performance.now();
-    if (now - last >= 500) {
-      fpsText.text = t("hud.fps", { value: Math.round((frames * 1000) / (now - last)) });
-      frames = 0;
-      last = now;
-    }
+    renderer.render();
+    const snap = renderer.latest;
+    if (snap) hud.update(snap);
   });
 }
 

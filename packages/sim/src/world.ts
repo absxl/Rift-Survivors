@@ -99,6 +99,8 @@ export interface WorldSnapshot {
   over: boolean;
   rngState: RngState;
   modifiers: Record<string, number>;
+  worldWidth: number;
+  worldHeight: number;
   stores: StoreSnapshot[];
 }
 
@@ -132,10 +134,12 @@ export class World {
     this.modifiers = new ModifierStack();
     this.spatialHash = new SpatialHash();
 
+    const fieldW = Number(this.ruleset.rules["core.fieldWidth"] ?? 480);
+    const fieldH = Number(this.ruleset.rules["core.fieldHeight"] ?? 270);
     for (let i = 0; i < playerCount; i++) {
       const slot = this.stores.players.alloc();
-      this.stores.players.field("x")[slot] = 100 + i * 40;
-      this.stores.players.field("y")[slot] = 120;
+      this.stores.players.field("x")[slot] = fieldW / 2 + i * 40;
+      this.stores.players.field("y")[slot] = fieldH / 2;
       this.stores.players.field("hp")[slot] = 100;
       this.stores.players.field("level")[slot] = 1;
     }
@@ -203,6 +207,8 @@ export function snapshot(world: World): WorldSnapshot {
     over: world.over,
     rngState: world.rng.getState(),
     modifiers: world.modifiers.snapshot(),
+    worldWidth: Number(world.ruleset.rules["core.fieldWidth"] ?? 0),
+    worldHeight: Number(world.ruleset.rules["core.fieldHeight"] ?? 0),
     stores: [
       world.stores.players.snapshot(),
       world.stores.enemies.snapshot(),

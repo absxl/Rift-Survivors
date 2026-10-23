@@ -14,6 +14,8 @@ export function registerCoreSystems(reg: Registries): void {
 function coreMovement(world: World): void {
   const players = world.stores.players;
   const speed = world.num("core.moveSpeed");
+  const maxX = world.num("core.fieldWidth");
+  const maxY = world.num("core.fieldHeight");
 
   players.forEachAlive((slot) => {
     const input = world.inputs.find((i) => i.playerId === slot);
@@ -30,8 +32,11 @@ function coreMovement(world: World): void {
       }
     }
 
-    players.field("x")[slot] += mx * speed;
-    players.field("y")[slot] += my * speed;
+    const nx = Math.max(0, Math.min(maxX, players.field("x")[slot] + mx * speed));
+    const ny = Math.max(0, Math.min(maxY, players.field("y")[slot] + my * speed));
+    players.field("x")[slot] = nx;
+    players.field("y")[slot] = ny;
+
     if (mx !== 0 || my !== 0) {
       players.field("facingX")[slot] = mx;
       players.field("facingY")[slot] = my;
@@ -39,19 +44,37 @@ function coreMovement(world: World): void {
   });
 }
 
-/** Placeholder spawner: periodically adds an enemy at a random spot via the RNG. */
+/** Placeholder spawner: periodically adds enemies and gems around the local player. */
 function coreDemoSpawn(world: World): void {
-  const interval = world.num("core.spawnInterval");
-  if (world.tick % interval !== 0) return;
+  const players = world.stores.players;
+  if (players.count === 0) return;
+  const playerX = players.field("x")[0];
+  const playerY = players.field("y")[0];
 
+  const enemyInterval = world.num("core.spawnInterval");
   const enemies = world.stores.enemies;
-  const slot = enemies.alloc();
-  if (slot < 0) return;
+  if (world.tick % enemyInterval === 0 && enemies.count < world.num("core.maxDemoEnemies")) {
+    const slot = enemies.alloc();
+    if (slot >= 0) {
+      const angle = world.rng.range(0, Math.PI * 2);
+      const dist = world.rng.range(120, 280);
+      enemies.field("x")[slot] = playerX + Math.cos(angle) * dist;
+      enemies.field("y")[slot] = playerY + Math.sin(angle) * dist;
+      enemies.field("hp")[slot] = 10;
+      enemies.field("kind")[slot] = 1;
+    }
+  }
 
-  enemies.field("x")[slot] = world.rng.range(0, world.num("core.fieldWidth"));
-  enemies.field("y")[slot] = world.rng.range(0, world.num("core.fieldHeight"));
-  enemies.field("hp")[slot] = 10;
-  enemies.field("kind")[slot] = 1;
+  const gemInterval = world.num("core.gemInterval");
+  if (world.tick % gemInterval === 0) {
+    const gems = world.stores.gems;
+    const slot = gems.alloc();
+    if (slot >= 0) {
+      gems.field("x")[slot] = playerX + world.rng.range(-150, 150);
+      gems.field("y")[slot] = playerY + world.rng.range(-150, 150);
+      gems.field("value")[slot] = 1;
+    }
+  }
 }
 
 export const DEFAULT_RULESET: RulesetDef = {
@@ -65,8 +88,10 @@ export const DEFAULT_RULESET: RulesetDef = {
   rules: {
     "core.moveSpeed": 2.5,
     "core.spawnInterval": 10,
-    "core.fieldWidth": 480,
-    "core.fieldHeight": 270,
+    "core.gemInterval": 20,
+    "core.fieldWidth": 1280,
+    "core.fieldHeight": 720,
+    "core.maxDemoEnemies": 300,
   },
   features: {},
   contentPacks: [],

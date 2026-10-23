@@ -33,11 +33,11 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] CI fitness tests scaffolded (see 12): `no-content-in-engine`, `registry-complete`
 
 ## M2 — Pixel-perfect renderer & movement
-- [ ] Internal-resolution render target (≈480×270), integer upscaling, nearest filtering, letterboxing
-- [ ] Worker host running the sim at 30 Hz; interpolation at display rate
-- [ ] Move-only controls (keyboard/gamepad), camera follow, facing direction
-- [ ] Tiled scrolling stage background; procedural placeholder pixel sprites (player, enemies, gems)
-- [ ] Minimal pixel-font HUD skeleton (timer, XP bar, HP bar under feet)
+- [x] Internal-resolution render target (≈480×270), integer upscaling, nearest filtering, letterboxing
+- [x] Worker host running the sim at 30 Hz; interpolation at display rate
+- [x] Move-only controls (keyboard/gamepad), camera follow, facing direction
+- [x] Tiled scrolling stage background; procedural placeholder pixel sprites (player, enemies, gems)
+- [x] Minimal pixel-font HUD skeleton (timer, XP bar, HP bar under feet)
 
 ## M3 — Swarm, first weapon, gems
 - [ ] Content package + Zod validation + pack loader

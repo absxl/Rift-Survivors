@@ -5,6 +5,7 @@
 const en: Record<string, string> = {
   "game.title": "Rift Survivors",
   "hud.fps": "FPS: {value}",
+  "hud.level": "LV {level}",
   disclaimer: "Unofficial fan project. Not affiliated with or endorsed by Riot Games.",
 };
 
