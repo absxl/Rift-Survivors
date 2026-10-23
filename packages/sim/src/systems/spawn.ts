@@ -46,6 +46,28 @@ function spawnDirector(world: World): void {
     }
   }
 
+  // Occasionally spawn an elite (drops a chest on death).
+  const eliteInterval = world.num("director.eliteInterval");
+  if (world.tick % eliteInterval === 0 && world.tick > 0) {
+    const eliteIndex = world.content.enemies.findIndex((e) => e.category === "elite");
+    if (eliteIndex >= 0) {
+      const eliteDef = world.content.enemies[eliteIndex];
+      const slot = enemies.alloc();
+      if (slot >= 0) {
+        const angle = world.rng.range(0, Math.PI * 2);
+        const dist = world.rng.range(160, 240);
+        enemies.field("x")[slot] = px + Math.cos(angle) * dist;
+        enemies.field("y")[slot] = py + Math.sin(angle) * dist;
+        enemies.field("hp")[slot] = eliteDef.hp;
+        enemies.field("maxHp")[slot] = eliteDef.hp;
+        enemies.field("kind")[slot] = eliteIndex;
+        enemies.field("vx")[slot] = 0;
+        enemies.field("vy")[slot] = 0;
+        enemies.field("hitCooldown")[slot] = 0;
+      }
+    }
+  }
+
   // Recycle enemies that drifted far from the player.
   const recycleDist = world.num("director.recycleDistance");
   const recycleDist2 = recycleDist * recycleDist;

@@ -18,7 +18,7 @@ export class LevelUpUI {
 
     const title = document.createElement("div");
     title.className = "levelup-title";
-    title.textContent = "LEVEL UP";
+    title.textContent = offer.kind === "chest" ? "CHEST" : "LEVEL UP";
     this.root.appendChild(title);
 
     const row = document.createElement("div");
@@ -27,8 +27,9 @@ export class LevelUpUI {
     offer.options.forEach((option, index) => {
       const card = document.createElement("button");
       card.className = "levelup-card";
-      card.textContent =
-        option.level === undefined
+      card.textContent = option.isEvolution
+        ? `EVOLVE: ${option.ref.id}`
+        : option.level === undefined
           ? `${option.ref.type}: ${option.ref.id} (new)`
           : `${option.ref.type}: ${option.ref.id} Lv${option.level}`;
       card.addEventListener("click", () => this.choose(index));

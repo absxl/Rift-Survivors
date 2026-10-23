@@ -5,6 +5,7 @@ import type { Registries } from "./registry";
 import { registerCombatSystems } from "./systems/combat";
 import { registerEnemySystems } from "./systems/enemy";
 import { registerGemSystem } from "./systems/gems";
+import { registerPickupSystem } from "./systems/pickups";
 import { registerProgression } from "./systems/progression";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
@@ -21,6 +22,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerCombatSystems(reg);
   registerZoneSystem(reg);
   registerGemSystem(reg);
+  registerPickupSystem(reg);
   registerProgression(reg);
 }
 
@@ -72,6 +74,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "contact-damage",
     "deaths",
     "gems",
+    "pickups",
     "progression",
   ],
   progression: "xp-cards",
@@ -87,10 +90,16 @@ export const DEFAULT_RULESET: RulesetDef = {
     "director.batchSize": 2,
     "director.rampTicks": 600,
     "director.recycleDistance": 500,
+    "director.eliteInterval": 900,
     "player.iFrames": 15,
     "pickup.radius": 10,
     "pickup.magnetRadius": 60,
     "pickup.magnetSpeed": 3,
+    "pickup.dropChance": 0.04,
+    "pickup.healAmount": 30,
+    "pickup.nukeDamage": 50,
+    "pickup.freezeTicks": 120,
+    "pickup.goldAmount": 10,
     "loadout.weaponSlots": 6,
     "loadout.passiveSlots": 6,
     "levelUp.choices": 3,

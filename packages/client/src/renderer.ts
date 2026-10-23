@@ -12,6 +12,8 @@ export const VIEW_H = 270;
 
 const MAX_DAMAGE = 96;
 const FLASH_FRAMES = 5;
+// Pickup kind → tint (heal, vacuum, nuke, freeze, chest, gold).
+const PICKUP_COLORS = [0x44ff66, 0x44ffff, 0xff8844, 0x4488ff, 0xffcc44, 0xffdd44];
 
 function getStore(s: WorldSnapshot, kind: string): StoreSnapshot | undefined {
   return s.stores.find((st) => st.kind === kind);
@@ -48,9 +50,11 @@ export class GameRenderer {
   private readonly playerSprite: Sprite;
   private readonly hpBar: Graphics;
   private readonly gemLayer: Container;
+  private readonly pickupLayer: Container;
   private readonly projectileLayer: Container;
   private readonly enemyLayer: Container;
   private readonly gemSprites = new Map<number, Sprite>();
+  private readonly pickupSprites = new Map<number, Sprite>();
   private readonly projectileSprites = new Map<number, Sprite>();
   private readonly enemySprites = new Map<number, Sprite>();
   private readonly enemyFlash = new Map<number, number>();
@@ -69,9 +73,11 @@ export class GameRenderer {
     this.stage.addChild(this.ground);
 
     this.gemLayer = new Container();
+    this.pickupLayer = new Container();
     this.projectileLayer = new Container();
     this.enemyLayer = new Container();
     this.stage.addChild(this.gemLayer);
+    this.stage.addChild(this.pickupLayer);
     this.stage.addChild(this.projectileLayer);
     this.stage.addChild(this.enemyLayer);
 
@@ -157,6 +163,7 @@ export class GameRenderer {
 
     this.ground.tilePosition.set(-ox, -oy);
     this.gemLayer.position.set(-ox, -oy);
+    this.pickupLayer.position.set(-ox, -oy);
     this.projectileLayer.position.set(-ox, -oy);
     this.enemyLayer.position.set(-ox, -oy);
 
@@ -166,6 +173,7 @@ export class GameRenderer {
       getStore(this.curr, "gem"),
       this.textures.gem,
     );
+    this.syncPickups(getStore(this.curr, "pickup"));
     this.syncEntities(
       this.projectileSprites,
       this.projectileLayer,
@@ -280,6 +288,32 @@ export class GameRenderer {
       if (!seen.has(slot)) {
         layer.removeChild(sprite);
         map.delete(slot);
+      }
+    }
+  }
+
+  /** Sync floor pickups (heal/vacuum/nuke/freeze/chest/gold), tinted by kind. */
+  private syncPickups(store: StoreSnapshot | undefined): void {
+    const seen = new Set<number>();
+    if (store) {
+      for (let i = 0; i < store.slots.length; i++) {
+        const slot = store.slots[i];
+        seen.add(slot);
+        let sprite = this.pickupSprites.get(slot);
+        if (!sprite) {
+          sprite = new Sprite(this.textures.gem);
+          sprite.anchor.set(0.5, 0.5);
+          this.pickupSprites.set(slot, sprite);
+          this.pickupLayer.addChild(sprite);
+        }
+        sprite.position.set(store.fields.x[i], store.fields.y[i]);
+        sprite.tint = PICKUP_COLORS[store.fields.kind[i]] ?? 0xffffff;
+      }
+    }
+    for (const [slot, sprite] of this.pickupSprites) {
+      if (!seen.has(slot)) {
+        this.pickupLayer.removeChild(sprite);
+        this.pickupSprites.delete(slot);
       }
     }
   }

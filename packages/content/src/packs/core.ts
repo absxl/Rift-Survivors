@@ -18,6 +18,18 @@ const corePack: ContentPack = {
       behavior: "chase",
       params: {},
     },
+    {
+      id: "brute",
+      category: "elite",
+      hp: 40,
+      damage: 10,
+      moveSpeed: 0.4,
+      radius: 10,
+      xp: 5,
+      behavior: "chase",
+      params: {},
+      dropsChest: true,
+    },
   ],
   weapons: [],
   passives: [

@@ -60,10 +60,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Status effects (`slow`, `burn`) as needed by weapons
 
 ## M6 — Chests, evolutions & pickups
-- [ ] Elite enemies + chests with reveal animation (1/3/5 items by luck)
-- [ ] Evolution + union logic from data; recipe hints in UI; ≥ 4 evolutions
-- [ ] Floor pickups (heal, vacuum, nuke, freeze, gold); destructible props that drop them
-- [ ] Offer UI is generic (level-up and chest share it)
+- [x] Elite enemies + chests (1/3/5 items by luck)
+- [x] Evolution logic from data; ≥ 4 evolutions (union + recipe hints deferred)
+- [x] Floor pickups (heal, vacuum, nuke, freeze, gold)
+- [x] Offer UI is generic (level-up and chest share it)
 
 ## M7 — Full stage run
 - [ ] Full 30-minute stage timeline (per-minute tables, patterns incl. `wall`/`swarm`)
@@ -111,7 +111,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Deferred from M4:** reroll/skip/banish tokens (offer carries the counts; token sources + UI buttons land
   with meta, M8); full per-minute stage timeline (M7 — currently a simple ring/stream director).
 - **Deferred from M5:** `arc-throw` + `summon` weapon archetypes; character **growth** bonuses; `stun`/`mark`
-  statuses. Reconcile max level 5 (D-016) — weapons/passives already cap at 5.
+  statuses.
+- **Deferred from M6:** chest reveal animation (M9 juice), union logic, recipe hints, destructible
+  props.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

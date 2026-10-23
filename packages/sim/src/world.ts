@@ -61,6 +61,7 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "xp", type: "f32" },
     { name: "xpToNext", type: "f32" },
     { name: "maxHp", type: "f32" },
+    { name: "gold", type: "f32" },
   ],
 };
 
@@ -78,6 +79,7 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "hitCooldown", type: "u8" },
     { name: "slowTicks", type: "u8" },
     { name: "burnTicks", type: "u8" },
+    { name: "freezeTicks", type: "u8" },
   ],
 };
 
@@ -144,6 +146,17 @@ const ZONE_SCHEMA: EntitySchema = {
   ],
 };
 
+const PICKUP_SCHEMA: EntitySchema = {
+  kind: "pickup",
+  capacity: 500,
+  fields: [
+    { name: "x", type: "f32" },
+    { name: "y", type: "f32" },
+    { name: "kind", type: "u8" },
+    { name: "value", type: "f32" },
+  ],
+};
+
 export interface WorldStores {
   players: EntityStore;
   enemies: EntityStore;
@@ -152,6 +165,7 @@ export interface WorldStores {
   passives: EntityStore;
   gems: EntityStore;
   zones: EntityStore;
+  pickups: EntityStore;
 }
 
 export interface WorldSnapshot {
@@ -200,6 +214,7 @@ export class World {
       passives: new EntityStore(PASSIVE_SCHEMA),
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
+      pickups: new EntityStore(PICKUP_SCHEMA),
     };
     this.modifiers = new ModifierStack();
     this.spatialHash = new SpatialHash();
@@ -420,6 +435,7 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.passives.snapshot(),
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),
+      world.stores.pickups.snapshot(),
     ],
   };
 }

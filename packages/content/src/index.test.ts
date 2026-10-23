@@ -40,4 +40,20 @@ describe("content packs", () => {
       expect(w.levels.length).toBe(w.maxLevel - 1);
     }
   });
+
+  it("every evolution recipe resolves", () => {
+    const game = loadGamePack();
+    const weaponIds = new Set(game.weapons.map((w) => w.id));
+    const passiveIds = new Set(game.passives.map((p) => p.id));
+    let evolutions = 0;
+    for (const w of game.weapons) {
+      if (!w.evolution) continue;
+      evolutions++;
+      expect(passiveIds.has(w.evolution.requiresPassive)).toBe(true);
+      expect(weaponIds.has(w.evolution.evolvesTo)).toBe(true);
+      const evolved = game.weapons.find((e) => e.id === w.evolution?.evolvesTo);
+      expect(evolved?.isEvolved).toBe(true);
+    }
+    expect(evolutions).toBeGreaterThanOrEqual(4);
+  });
 });

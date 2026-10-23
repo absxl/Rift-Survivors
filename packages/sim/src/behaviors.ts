@@ -21,6 +21,7 @@ export function registerWeaponBehaviors(reg: Registries): void {
 /** Move toward the nearest player (player 0 for now), slowed by the slow status. */
 function chase(world: World, slot: number, def: EnemyDef): void {
   const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return; // frozen solid
   const players = world.stores.players;
   const px = players.field("x")[0];
   const py = players.field("y")[0];

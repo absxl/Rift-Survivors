@@ -46,6 +46,8 @@ const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
   levels: z.array(z.object({ delta: statDeltaSchema })),
   damageType: z.enum(["physical", "magic", "true"]).optional(),
   status: z.object({ id: z.enum(["burn", "slow"]), ticks: z.number().int().positive() }).optional(),
+  isEvolved: z.boolean().optional(),
+  evolution: z.object({ requiresPassive: z.string(), evolvesTo: z.string() }).optional(),
 });
 
 const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
@@ -58,6 +60,7 @@ const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
   xp: z.number(),
   behavior: z.string(),
   params: z.record(z.union([z.number(), z.string()])),
+  dropsChest: z.boolean().optional(),
 });
 
 const passiveDefSchema: z.ZodType<PassiveDef> = z.object({

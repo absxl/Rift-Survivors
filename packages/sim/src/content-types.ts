@@ -44,6 +44,10 @@ export interface WeaponDef {
   levels: { delta: StatDelta }[]; // length = maxLevel - 1
   damageType?: DamageType;
   status?: StatusApply;
+  /** Evolved forms are never offered in level-up pools. */
+  isEvolved?: boolean;
+  /** Evolve this weapon (maxed) + the required passive → the evolved weapon. */
+  evolution?: { requiresPassive: string; evolvesTo: string };
 }
 
 export interface EnemyDef {
@@ -56,6 +60,8 @@ export interface EnemyDef {
   xp: number;
   behavior: string; // registry id: "chase" | ...
   params: Record<string, number | string>;
+  /** Elites/bosses drop a chest on death. */
+  dropsChest?: boolean;
 }
 
 export interface PassiveDef {

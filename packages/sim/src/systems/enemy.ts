@@ -1,7 +1,15 @@
-// Enemy lifecycle: steering (via registered behavior) + knockback decay, and
-// death → gem drop + free.
+// Enemy lifecycle: steering (via registered behavior) + knockback/status decay,
+// and death → gem drop (+ chest/pickup drops for elites and lucky kills).
 import type { Registries } from "../registry";
 import type { World } from "../world";
+import {
+  PICKUP_CHEST,
+  PICKUP_FREEZE,
+  PICKUP_HEAL,
+  PICKUP_NUKE,
+  PICKUP_VACUUM,
+  dropPickup,
+} from "./pickups";
 
 export function registerEnemySystems(reg: Registries): void {
   reg.systems.register("enemy-ai", enemyAi);
@@ -25,6 +33,8 @@ function enemyAi(world: World): void {
       enemies.field("burnTicks")[slot] = burn - 1;
       enemies.field("hp")[slot] -= world.num("status.burnDps");
     }
+    const freeze = enemies.field("freezeTicks")[slot];
+    if (freeze > 0) enemies.field("freezeTicks")[slot] = freeze - 1;
 
     const def = world.content.enemies[enemies.field("kind")[slot]];
     if (!def) return;
@@ -44,12 +54,21 @@ function deaths(world: World): void {
     const def = world.content.enemies[enemies.field("kind")[slot]];
     const x = enemies.field("x")[slot];
     const y = enemies.field("y")[slot];
+
     const gemSlot = gems.alloc();
     if (gemSlot >= 0) {
       gems.field("x")[gemSlot] = x;
       gems.field("y")[gemSlot] = y;
       gems.field("value")[gemSlot] = def ? def.xp : 1;
     }
+
+    if (def?.dropsChest) {
+      dropPickup(world, x, y, PICKUP_CHEST);
+    } else if (world.rng.chance(world.num("pickup.dropChance"))) {
+      const kinds = [PICKUP_HEAL, PICKUP_VACUUM, PICKUP_NUKE, PICKUP_FREEZE];
+      dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
+    }
+
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);
   });
