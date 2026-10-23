@@ -5,6 +5,7 @@ export type SimEvent =
   | { type: "enemy-died"; slot: number; gen: number; x: number; y: number }
   | {
       type: "hit";
+      target: "enemy" | "player";
       targetSlot: number;
       targetGen: number;
       x: number;

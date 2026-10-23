@@ -2,6 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
+import type { ContentPack } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -28,7 +29,11 @@ export interface RulesetDef {
 
 export interface RunConfig {
   playerCount: number;
+  /** Validated content (enemies + weapons). Defaults to an empty pack. */
+  content?: ContentPack;
 }
+
+const EMPTY_PACK: ContentPack = { id: "empty", schemaVersion: 1, enemies: [], weapons: [] };
 
 const PLAYER_SCHEMA: EntitySchema = {
   kind: "player",
@@ -40,6 +45,8 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "level", type: "u8" },
     { name: "facingX", type: "f32" },
     { name: "facingY", type: "f32" },
+    { name: "iFrames", type: "u8" },
+    { name: "xp", type: "f32" },
   ],
 };
 
@@ -51,6 +58,9 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "y", type: "f32" },
     { name: "hp", type: "f32" },
     { name: "kind", type: "u16" },
+    { name: "vx", type: "f32" },
+    { name: "vy", type: "f32" },
+    { name: "hitCooldown", type: "u8" },
   ],
 };
 
@@ -63,6 +73,22 @@ const PROJECTILE_SCHEMA: EntitySchema = {
     { name: "vx", type: "f32" },
     { name: "vy", type: "f32" },
     { name: "damage", type: "f32" },
+    { name: "pierce", type: "i16" },
+    { name: "hitCooldown", type: "u8" },
+    { name: "knockback", type: "f32" },
+    { name: "lifetime", type: "u16" },
+    { name: "owner", type: "u8" },
+  ],
+};
+
+const WEAPON_SCHEMA: EntitySchema = {
+  kind: "weapon",
+  capacity: 24,
+  fields: [
+    { name: "owner", type: "u8" },
+    { name: "defIndex", type: "u16" },
+    { name: "cooldown", type: "f32" },
+    { name: "level", type: "u8" },
   ],
 };
 
@@ -90,6 +116,7 @@ export interface WorldStores {
   players: EntityStore;
   enemies: EntityStore;
   projectiles: EntityStore;
+  weapons: EntityStore;
   gems: EntityStore;
   zones: EntityStore;
 }
@@ -112,6 +139,7 @@ export class World {
   readonly stores: WorldStores;
   readonly modifiers: ModifierStack;
   readonly spatialHash: SpatialHash;
+  readonly content: ContentPack;
 
   tick = 0;
   inputs: PlayerInput[] = [];
@@ -119,15 +147,22 @@ export class World {
   over = false;
   private readonly offers: Offer[] = [];
 
-  constructor(ruleset: RulesetDef, seed: number, playerCount: number) {
+  constructor(
+    ruleset: RulesetDef,
+    seed: number,
+    playerCount: number,
+    content: ContentPack = EMPTY_PACK,
+  ) {
     this.seed = seed;
     this.ruleset = ruleset;
     this.registries = createRegistries();
     this.rng = new Rng(seed);
+    this.content = content;
     this.stores = {
       players: new EntityStore(PLAYER_SCHEMA),
       enemies: new EntityStore(ENEMY_SCHEMA),
       projectiles: new EntityStore(PROJECTILE_SCHEMA),
+      weapons: new EntityStore(WEAPON_SCHEMA),
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
     };
@@ -142,6 +177,15 @@ export class World {
       this.stores.players.field("y")[slot] = fieldH / 2;
       this.stores.players.field("hp")[slot] = 100;
       this.stores.players.field("level")[slot] = 1;
+    }
+
+    // Give player 0 the pack's weapons (M4 replaces this with a proper loadout).
+    for (let i = 0; i < content.weapons.length; i++) {
+      const slot = this.stores.weapons.alloc();
+      this.stores.weapons.field("owner")[slot] = 0;
+      this.stores.weapons.field("defIndex")[slot] = i;
+      this.stores.weapons.field("cooldown")[slot] = i * 15;
+      this.stores.weapons.field("level")[slot] = 1;
     }
 
     registerCoreSystems(this.registries);
@@ -175,23 +219,77 @@ export class World {
   pendingOffers(): readonly Offer[] {
     return this.offers;
   }
+
+  /** Nearest enemy slot within maxDist, or -1. */
+  nearestEnemy(x: number, y: number, maxDist: number): number {
+    let best = -1;
+    let bestDist = maxDist * maxDist;
+    const enemies = this.stores.enemies;
+    this.spatialHash.queryCircle(x, y, maxDist, (slot) => {
+      if (!enemies.isAlive(slot)) return;
+      const dx = enemies.field("x")[slot] - x;
+      const dy = enemies.field("y")[slot] - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestDist) {
+        bestDist = d2;
+        best = slot;
+      }
+    });
+    return best;
+  }
+
+  /** Visit enemies whose center is within `radius` of (x, y). */
+  enemiesInCircle(x: number, y: number, radius: number, cb: (slot: number) => void): void {
+    const enemies = this.stores.enemies;
+    const r2 = radius * radius;
+    this.spatialHash.queryCircle(x, y, radius, (slot) => {
+      if (!enemies.isAlive(slot)) return;
+      const dx = enemies.field("x")[slot] - x;
+      const dy = enemies.field("y")[slot] - y;
+      if (dx * dx + dy * dy <= r2) cb(slot);
+    });
+  }
+
+  /** True if the enemy can be hit again this tick (per-enemy hit cooldown). */
+  canHit(slot: number): boolean {
+    return this.stores.enemies.field("hitCooldown")[slot] <= 0;
+  }
+
+  /** Apply damage + knockback to an enemy and emit a hit event. */
+  applyHit(
+    slot: number,
+    amount: number,
+    dirX: number,
+    dirY: number,
+    knockback: number,
+    hitCooldown: number,
+  ): void {
+    const enemies = this.stores.enemies;
+    enemies.field("hp")[slot] -= amount;
+    enemies.field("vx")[slot] += dirX * knockback;
+    enemies.field("vy")[slot] += dirY * knockback;
+    enemies.field("hitCooldown")[slot] = hitCooldown;
+    this.emit({
+      type: "hit",
+      target: "enemy",
+      targetSlot: slot,
+      targetGen: enemies.gen(slot),
+      x: enemies.field("x")[slot],
+      y: enemies.field("y")[slot],
+      amount,
+      kind: "physical",
+    });
+  }
 }
 
 export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number): World {
-  return new World(ruleset, seed, config.playerCount);
+  return new World(ruleset, seed, config.playerCount, config.content);
 }
 
 /** Advance exactly one tick. Returns the events produced this tick. */
 export function step(world: World, inputs: PlayerInput[]): SimEvent[] {
   world.inputs = inputs;
   world.events = [];
-
-  // Rebuild the spatial hash for enemies (queryable by collision/aura systems).
-  world.spatialHash.clear();
-  const enemies = world.stores.enemies;
-  enemies.forEachAlive((slot) => {
-    world.spatialHash.insert(slot, enemies.field("x")[slot], enemies.field("y")[slot]);
-  });
 
   for (const systemId of world.ruleset.pipeline) {
     world.registries.systems.get(systemId)(world);
@@ -213,6 +311,7 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.players.snapshot(),
       world.stores.enemies.snapshot(),
       world.stores.projectiles.snapshot(),
+      world.stores.weapons.snapshot(),
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),
     ],

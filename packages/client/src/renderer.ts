@@ -1,12 +1,16 @@
-import type { StoreSnapshot, WorldSnapshot } from "@rift/sim";
+import type { SimEvent, StoreSnapshot, WorldSnapshot } from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
-// the local player, interpolating between the two most recent snapshots.
-import { Container, Graphics, Sprite, TilingSprite } from "pixi.js";
+// the local player, interpolating between the two most recent snapshots. Also
+// renders projectiles, hit flashes and pooled damage numbers from sim events.
+import { Container, Graphics, Sprite, Text, TilingSprite } from "pixi.js";
 import type { Texture } from "pixi.js";
 import { type PlaceholderTextures, createPlaceholderTextures } from "./assets/placeholder";
 
 export const VIEW_W = 480;
 export const VIEW_H = 270;
+
+const MAX_DAMAGE = 96;
+const FLASH_FRAMES = 5;
 
 function getStore(s: WorldSnapshot, kind: string): StoreSnapshot | undefined {
   return s.stores.find((st) => st.kind === kind);
@@ -24,19 +28,32 @@ interface PlayerView {
   hp: number;
 }
 
+interface DamageEntry {
+  text: Text;
+  active: boolean;
+  x: number;
+  y: number;
+  life: number;
+}
+
 export class GameRenderer {
   private prev: WorldSnapshot | null = null;
   private curr: WorldSnapshot | null = null;
   private prevTime = 0;
   private currTime = 0;
+  private events: SimEvent[] = [];
 
   private readonly ground: TilingSprite;
   private readonly playerSprite: Sprite;
   private readonly hpBar: Graphics;
   private readonly gemLayer: Container;
+  private readonly projectileLayer: Container;
   private readonly enemyLayer: Container;
   private readonly gemSprites = new Map<number, Sprite>();
+  private readonly projectileSprites = new Map<number, Sprite>();
   private readonly enemySprites = new Map<number, Sprite>();
+  private readonly enemyFlash = new Map<number, number>();
+  private readonly damage: DamageEntry[] = [];
   private readonly textures: PlaceholderTextures;
 
   constructor(private readonly stage: Container) {
@@ -50,8 +67,10 @@ export class GameRenderer {
     this.stage.addChild(this.ground);
 
     this.gemLayer = new Container();
+    this.projectileLayer = new Container();
     this.enemyLayer = new Container();
     this.stage.addChild(this.gemLayer);
+    this.stage.addChild(this.projectileLayer);
     this.stage.addChild(this.enemyLayer);
 
     this.playerSprite = new Sprite(this.textures.player);
@@ -60,17 +79,29 @@ export class GameRenderer {
 
     this.hpBar = new Graphics();
     this.stage.addChild(this.hpBar);
+
+    for (let i = 0; i < MAX_DAMAGE; i++) {
+      const text = new Text({
+        text: "",
+        style: { fontFamily: "monospace", fontSize: 7, fill: 0xffffff },
+      });
+      text.anchor.set(0.5, 0.5);
+      text.visible = false;
+      this.stage.addChild(text);
+      this.damage.push({ text, active: false, x: 0, y: 0, life: 0 });
+    }
   }
 
   get latest(): WorldSnapshot | null {
     return this.curr;
   }
 
-  receive(s: WorldSnapshot): void {
+  receive(s: WorldSnapshot, events: SimEvent[]): void {
     this.prev = this.curr;
     this.curr = s;
     this.prevTime = this.currTime;
     this.currTime = performance.now();
+    this.events = events;
   }
 
   private alpha(): number {
@@ -111,7 +142,6 @@ export class GameRenderer {
     const w = this.curr.worldWidth || VIEW_W;
     const h = this.curr.worldHeight || VIEW_H;
 
-    // Camera locked to the player, clamped to the world, snapped to whole pixels.
     let camX = player ? player.x : w / 2;
     let camY = player ? player.y : h / 2;
     if (w > VIEW_W) camX = Math.max(VIEW_W / 2, Math.min(w - VIEW_W / 2, camX));
@@ -122,8 +152,17 @@ export class GameRenderer {
     const ox = Math.round(camX - VIEW_W / 2);
     const oy = Math.round(camY - VIEW_H / 2);
 
+    // Process events → hit flash + damage numbers.
+    for (const e of this.events) {
+      if (e.type === "hit") {
+        if (e.target === "enemy") this.enemyFlash.set(e.targetSlot, FLASH_FRAMES);
+        this.spawnDamage(e.x, e.y, e.amount);
+      }
+    }
+
     this.ground.tilePosition.set(-ox, -oy);
     this.gemLayer.position.set(-ox, -oy);
+    this.projectileLayer.position.set(-ox, -oy);
     this.enemyLayer.position.set(-ox, -oy);
 
     this.syncEntities(
@@ -133,11 +172,29 @@ export class GameRenderer {
       this.textures.gem,
     );
     this.syncEntities(
+      this.projectileSprites,
+      this.projectileLayer,
+      getStore(this.curr, "projectile"),
+      this.textures.projectile,
+    );
+    this.syncEntities(
       this.enemySprites,
       this.enemyLayer,
       getStore(this.curr, "enemy"),
       this.textures.enemy,
     );
+
+    // Enemy hit flash (brief scale pop).
+    for (const [slot, sprite] of this.enemySprites) {
+      const flash = this.enemyFlash.get(slot) ?? 0;
+      if (flash > 0) {
+        sprite.scale.set(1.2);
+        this.enemyFlash.set(slot, flash - 1);
+      } else {
+        sprite.scale.set(1);
+        this.enemyFlash.delete(slot);
+      }
+    }
 
     if (player) {
       this.playerSprite.visible = true;
@@ -146,6 +203,35 @@ export class GameRenderer {
       this.drawHpBar(player.x - ox, player.y - oy, player.hp, 100);
     } else {
       this.playerSprite.visible = false;
+    }
+
+    this.updateDamageNumbers(ox, oy);
+  }
+
+  private spawnDamage(x: number, y: number, amount: number): void {
+    for (const d of this.damage) {
+      if (d.active) continue;
+      d.active = true;
+      d.x = x;
+      d.y = y;
+      d.life = 40;
+      d.text.text = String(Math.round(amount));
+      d.text.visible = true;
+      return;
+    }
+  }
+
+  private updateDamageNumbers(ox: number, oy: number): void {
+    for (const d of this.damage) {
+      if (!d.active) continue;
+      d.y -= 0.4;
+      d.life -= 1;
+      if (d.life <= 0) {
+        d.active = false;
+        d.text.visible = false;
+      } else {
+        d.text.position.set(d.x - ox, d.y - oy);
+      }
     }
   }
 

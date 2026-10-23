@@ -43,7 +43,7 @@ async function main(): Promise<void> {
   input.attach();
 
   const host = new WorkerHost();
-  host.onSnapshot((snap) => renderer.receive(snap));
+  host.onSnapshot((snap, events) => renderer.receive(snap, events));
 
   window.setInterval(() => host.sendInput(input.read()), 1000 / 30);
 

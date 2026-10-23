@@ -40,11 +40,11 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Minimal pixel-font HUD skeleton (timer, XP bar, HP bar under feet)
 
 ## M3 — Swarm, first weapon, gems
-- [ ] Content package + Zod validation + pack loader
-- [ ] First enemy (`chase`), spawn director with `stream`/`ring` patterns, **enemy recycling**
-- [ ] Contact damage with i-frames, player death → results screen
-- [ ] First weapon behaviors (`shoot-nearest`, `sweep`) with the **per-enemy hit cooldown** and knockback
-- [ ] XP gems + magnet, hit flash, damage numbers (pooled, capped)
+- [x] Content package + Zod validation + pack loader
+- [x] First enemy (`chase`), spawn director with `stream`/`ring` patterns, **enemy recycling**
+- [x] Contact damage with i-frames, player death → results screen
+- [x] First weapon behaviors (`shoot-nearest`, `sweep`) with the **per-enemy hit cooldown** and knockback
+- [x] XP gems + magnet, hit flash, damage numbers (pooled, capped)
 
 ## M4 — Level-up & items (VERTICAL SLICE)
 - [ ] XP curve, level-up pause, **3-card level-up UI** (weapon/passive new or upgrade), reroll/skip/banish

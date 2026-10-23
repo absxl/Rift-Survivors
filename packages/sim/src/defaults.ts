@@ -1,13 +1,23 @@
-// Core (generic) systems and the default ruleset. These exist to prove the kernel
-// works deterministically; the real gameplay systems land in M3+ and are selected
-// by the ruleset pipeline, never hard-coded.
-
+// Core registration: movement + generic behaviors + systems. The default ruleset
+// wires them into a pipeline; the real gameplay is driven by content data.
+import { registerEnemyBehaviors, registerWeaponBehaviors } from "./behaviors";
 import type { Registries } from "./registry";
+import { registerCombatSystems } from "./systems/combat";
+import { registerEnemySystems } from "./systems/enemy";
+import { registerGemSystem } from "./systems/gems";
+import { registerSpatialHash } from "./systems/spatial-hash";
+import { registerSpawn } from "./systems/spawn";
 import type { RulesetDef, World } from "./world";
 
 export function registerCoreSystems(reg: Registries): void {
   reg.systems.register("core-movement", coreMovement);
-  reg.systems.register("core-demo-spawn", coreDemoSpawn);
+  registerEnemyBehaviors(reg);
+  registerWeaponBehaviors(reg);
+  registerSpatialHash(reg);
+  registerSpawn(reg);
+  registerEnemySystems(reg);
+  registerCombatSystems(reg);
+  registerGemSystem(reg);
 }
 
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
@@ -44,54 +54,36 @@ function coreMovement(world: World): void {
   });
 }
 
-/** Placeholder spawner: periodically adds enemies and gems around the local player. */
-function coreDemoSpawn(world: World): void {
-  const players = world.stores.players;
-  if (players.count === 0) return;
-  const playerX = players.field("x")[0];
-  const playerY = players.field("y")[0];
-
-  const enemyInterval = world.num("core.spawnInterval");
-  const enemies = world.stores.enemies;
-  if (world.tick % enemyInterval === 0 && enemies.count < world.num("core.maxDemoEnemies")) {
-    const slot = enemies.alloc();
-    if (slot >= 0) {
-      const angle = world.rng.range(0, Math.PI * 2);
-      const dist = world.rng.range(120, 280);
-      enemies.field("x")[slot] = playerX + Math.cos(angle) * dist;
-      enemies.field("y")[slot] = playerY + Math.sin(angle) * dist;
-      enemies.field("hp")[slot] = 10;
-      enemies.field("kind")[slot] = 1;
-    }
-  }
-
-  const gemInterval = world.num("core.gemInterval");
-  if (world.tick % gemInterval === 0) {
-    const gems = world.stores.gems;
-    const slot = gems.alloc();
-    if (slot >= 0) {
-      gems.field("x")[slot] = playerX + world.rng.range(-150, 150);
-      gems.field("y")[slot] = playerY + world.rng.range(-150, 150);
-      gems.field("value")[slot] = 1;
-    }
-  }
-}
-
 export const DEFAULT_RULESET: RulesetDef = {
   id: "classic",
   schemaVersion: 1,
-  pipeline: ["core-movement", "core-demo-spawn"],
+  pipeline: [
+    "core-movement",
+    "spawn-director",
+    "enemy-ai",
+    "spatial-hash",
+    "weapons",
+    "projectiles",
+    "contact-damage",
+    "deaths",
+    "gems",
+  ],
   progression: "xp-cards",
   world: "endless-field",
   director: "timeline",
   economy: "gold-shop",
   rules: {
     "core.moveSpeed": 2.5,
-    "core.spawnInterval": 10,
-    "core.gemInterval": 20,
     "core.fieldWidth": 1280,
     "core.fieldHeight": 720,
-    "core.maxDemoEnemies": 300,
+    "director.maxEnemies": 300,
+    "director.spawnInterval": 30,
+    "director.batchSize": 5,
+    "director.recycleDistance": 500,
+    "player.iFrames": 15,
+    "pickup.radius": 10,
+    "pickup.magnetRadius": 60,
+    "pickup.magnetSpeed": 3,
   },
   features: {},
   contentPacks: [],

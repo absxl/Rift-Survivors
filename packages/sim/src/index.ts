@@ -31,3 +31,11 @@ export {
   type WorldStores,
 } from "./world";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
+export type {
+  ContentPack,
+  DamageType,
+  EnemyDef,
+  StatDelta,
+  WeaponDef,
+  WeaponStats,
+} from "./content-types";

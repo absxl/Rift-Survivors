@@ -22,6 +22,7 @@ export interface PlaceholderTextures {
   player: Texture;
   enemy: Texture;
   gem: Texture;
+  projectile: Texture;
   ground: Texture;
 }
 
@@ -53,6 +54,13 @@ export function createPlaceholderTextures(): PlaceholderTextures {
     ctx.fillRect(3, 2, 1, 1);
   });
 
+  const projectile = makeTexture(4, (ctx) => {
+    ctx.fillStyle = "#ffe066";
+    ctx.fillRect(1, 0, 2, 4);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(1, 1, 2, 2);
+  });
+
   const ground = makeTexture(PX, (ctx) => {
     ctx.fillStyle = "#101820";
     ctx.fillRect(0, 0, PX, PX);
@@ -64,5 +72,5 @@ export function createPlaceholderTextures(): PlaceholderTextures {
     ctx.fillRect(0, PX - 1, PX, 1);
   });
 
-  return { player, enemy, gem, ground };
+  return { player, enemy, gem, projectile, ground };
 }
