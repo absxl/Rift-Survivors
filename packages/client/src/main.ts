@@ -3,6 +3,7 @@ import { Application, Container } from "pixi.js";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
 import { Input } from "./input";
+import { LevelUpUI } from "./levelup";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 
 async function main(): Promise<void> {
@@ -44,6 +45,10 @@ async function main(): Promise<void> {
 
   const host = new WorkerHost();
   host.onSnapshot((snap, events) => renderer.receive(snap, events));
+
+  const levelUp = new LevelUpUI();
+  host.onOffer((offer) => levelUp.show(offer));
+  levelUp.onChoose((index) => host.sendChoice(index));
 
   window.setInterval(() => host.sendInput(input.read()), 1000 / 30);
 

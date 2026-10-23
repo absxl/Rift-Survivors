@@ -52,9 +52,24 @@ export interface EnemyDef {
   params: Record<string, number | string>;
 }
 
+export interface PassiveDef {
+  id: string;
+  maxLevel: number; // ≈5
+  /** Stat key → additive amount per level (applied through the modifier stack). */
+  perLevel: Record<string, number>;
+}
+
+export interface CharacterDef {
+  id: string;
+  /** Content weapon id the character starts with. */
+  startingWeapon: string;
+}
+
 export interface ContentPack {
   id: string;
   schemaVersion: number;
   enemies: EnemyDef[];
   weapons: WeaponDef[];
+  passives: PassiveDef[];
+  characters: CharacterDef[];
 }

@@ -32,9 +32,11 @@ export {
 } from "./world";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
 export type {
+  CharacterDef,
   ContentPack,
   DamageType,
   EnemyDef,
+  PassiveDef,
   StatDelta,
   WeaponDef,
   WeaponStats,

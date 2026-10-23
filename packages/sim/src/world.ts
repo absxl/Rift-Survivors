@@ -2,7 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
-import type { ContentPack } from "./content-types";
+import type { ContentPack, WeaponDef } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -10,6 +10,7 @@ import { type Registries, createRegistries } from "./registry";
 import { Rng, type RngState } from "./rng";
 import { type EntitySchema, EntityStore, type StoreSnapshot } from "./schema";
 import { SpatialHash } from "./spatial-hash";
+import { applyOfferOption } from "./systems/progression";
 import type { Offer, PlayerInput } from "./types";
 
 export const TICK_MS = 1000 / 30; // 30 Hz fixed timestep
@@ -25,6 +26,8 @@ export interface RulesetDef {
   rules: Record<string, number | boolean | string>;
   features: Record<string, boolean>;
   contentPacks: string[];
+  /** XP required per level: xpCurve[level-1] = XP to go from `level` to `level+1`. */
+  xpCurve: number[];
 }
 
 export interface RunConfig {
@@ -33,7 +36,14 @@ export interface RunConfig {
   content?: ContentPack;
 }
 
-const EMPTY_PACK: ContentPack = { id: "empty", schemaVersion: 1, enemies: [], weapons: [] };
+const EMPTY_PACK: ContentPack = {
+  id: "empty",
+  schemaVersion: 1,
+  enemies: [],
+  weapons: [],
+  passives: [],
+  characters: [],
+};
 
 const PLAYER_SCHEMA: EntitySchema = {
   kind: "player",
@@ -47,6 +57,8 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "facingY", type: "f32" },
     { name: "iFrames", type: "u8" },
     { name: "xp", type: "f32" },
+    { name: "xpToNext", type: "f32" },
+    { name: "maxHp", type: "f32" },
   ],
 };
 
@@ -92,6 +104,16 @@ const WEAPON_SCHEMA: EntitySchema = {
   ],
 };
 
+const PASSIVE_SCHEMA: EntitySchema = {
+  kind: "passive",
+  capacity: 24,
+  fields: [
+    { name: "owner", type: "u8" },
+    { name: "defIndex", type: "u16" },
+    { name: "level", type: "u8" },
+  ],
+};
+
 const GEM_SCHEMA: EntitySchema = {
   kind: "gem",
   capacity: 2000,
@@ -117,6 +139,7 @@ export interface WorldStores {
   enemies: EntityStore;
   projectiles: EntityStore;
   weapons: EntityStore;
+  passives: EntityStore;
   gems: EntityStore;
   zones: EntityStore;
 }
@@ -163,6 +186,7 @@ export class World {
       enemies: new EntityStore(ENEMY_SCHEMA),
       projectiles: new EntityStore(PROJECTILE_SCHEMA),
       weapons: new EntityStore(WEAPON_SCHEMA),
+      passives: new EntityStore(PASSIVE_SCHEMA),
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
     };
@@ -176,16 +200,22 @@ export class World {
       this.stores.players.field("x")[slot] = fieldW / 2 + i * 40;
       this.stores.players.field("y")[slot] = fieldH / 2;
       this.stores.players.field("hp")[slot] = 100;
+      this.stores.players.field("maxHp")[slot] = 100;
       this.stores.players.field("level")[slot] = 1;
+      this.stores.players.field("xpToNext")[slot] = this.ruleset.xpCurve[0] ?? 5;
     }
 
-    // Give player 0 the pack's weapons (M4 replaces this with a proper loadout).
-    for (let i = 0; i < content.weapons.length; i++) {
-      const slot = this.stores.weapons.alloc();
-      this.stores.weapons.field("owner")[slot] = 0;
-      this.stores.weapons.field("defIndex")[slot] = i;
-      this.stores.weapons.field("cooldown")[slot] = i * 15;
-      this.stores.weapons.field("level")[slot] = 1;
+    // Give player 0 the character's starting weapon.
+    const character = content.characters[0];
+    if (character) {
+      const weaponIndex = content.weapons.findIndex((w) => w.id === character.startingWeapon);
+      if (weaponIndex >= 0) {
+        const slot = this.stores.weapons.alloc();
+        this.stores.weapons.field("owner")[slot] = 0;
+        this.stores.weapons.field("defIndex")[slot] = weaponIndex;
+        this.stores.weapons.field("cooldown")[slot] = 0;
+        this.stores.weapons.field("level")[slot] = 1;
+      }
     }
 
     registerCoreSystems(this.registries);
@@ -216,8 +246,26 @@ export class World {
     this.events.push(event);
   }
 
+  queueOffer(offer: Offer): void {
+    this.offers.push(offer);
+  }
+
   pendingOffers(): readonly Offer[] {
     return this.offers;
+  }
+
+  clearOffers(): void {
+    this.offers.length = 0;
+  }
+
+  /** Effective weapon damage: base + level deltas, scaled by the "might" stat. */
+  weaponDamage(def: WeaponDef, level: number): number {
+    let damage = def.base.damage;
+    for (let i = 0; i < level - 1 && i < def.levels.length; i++) {
+      const delta = def.levels[i].delta.damage;
+      if (delta !== undefined) damage += delta;
+    }
+    return damage * this.stat("might", 1);
   }
 
   /** Nearest enemy slot within maxDist, or -1. */
@@ -312,13 +360,14 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.enemies.snapshot(),
       world.stores.projectiles.snapshot(),
       world.stores.weapons.snapshot(),
+      world.stores.passives.snapshot(),
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),
     ],
   };
 }
 
-/** Apply a level-up/chest choice. Handled by the progression system (M4); kept in the API now. */
-export function applyChoice(_world: World, _playerId: number, _choiceIndex: number): void {
-  // Intentionally a no-op until the progression system lands in M4.
+/** Apply a level-up/chest choice via the progression system. */
+export function applyChoice(world: World, playerId: number, choiceIndex: number): void {
+  applyOfferOption(world, playerId, choiceIndex);
 }

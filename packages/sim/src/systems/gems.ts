@@ -14,7 +14,7 @@ function gems(world: World): void {
   const py = players.field("y")[0];
 
   const pickup2 = world.num("pickup.radius") ** 2;
-  const magnet2 = world.num("pickup.magnetRadius") ** 2;
+  const magnet2 = (world.num("pickup.magnetRadius") * world.stat("magnet", 1)) ** 2;
   const speed = world.num("pickup.magnetSpeed");
 
   gems.forEachAlive((slot) => {
@@ -25,7 +25,9 @@ function gems(world: World): void {
     const d2 = dx * dx + dy * dy;
 
     if (d2 <= pickup2) {
-      world.emit({ type: "gem-pickup", playerId: 0, value: gems.field("value")[slot] });
+      const value = gems.field("value")[slot];
+      players.field("xp")[0] += value;
+      world.emit({ type: "gem-pickup", playerId: 0, value });
       gems.free(slot);
       return;
     }

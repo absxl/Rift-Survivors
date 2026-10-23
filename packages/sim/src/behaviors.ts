@@ -10,6 +10,7 @@ export function registerEnemyBehaviors(reg: Registries): void {
 export function registerWeaponBehaviors(reg: Registries): void {
   reg.weaponBehaviors.register("sweep", sweep);
   reg.weaponBehaviors.register("shoot-nearest", shootNearest);
+  reg.weaponBehaviors.register("aura", aura);
 }
 
 /** Move toward the nearest player (player 0 for now). */
@@ -36,6 +37,7 @@ function sweep(world: World, weaponSlot: number, def: WeaponDef): void {
   const facingAngle = Math.atan2(players.field("facingY")[owner], players.field("facingX")[owner]);
   const arc = typeof def.params.arc === "number" ? def.params.arc : 1.2;
   const range = def.base.area;
+  const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot]);
 
   world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
 
@@ -49,14 +51,7 @@ function sweep(world: World, weaponSlot: number, def: WeaponDef): void {
     const dx = ex - px;
     const dy = ey - py;
     const dist = Math.hypot(dx, dy) || 1;
-    world.applyHit(
-      slot,
-      def.base.damage,
-      dx / dist,
-      dy / dist,
-      def.base.knockback,
-      def.base.hitCooldown,
-    );
+    world.applyHit(slot, damage, dx / dist, dy / dist, def.base.knockback, def.base.hitCooldown);
   });
 }
 
@@ -91,7 +86,10 @@ function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
   p.field("y")[proj] = py;
   p.field("vx")[proj] = dirX * def.base.speed;
   p.field("vy")[proj] = dirY * def.base.speed;
-  p.field("damage")[proj] = def.base.damage;
+  p.field("damage")[proj] = world.weaponDamage(
+    def,
+    world.stores.weapons.field("level")[weaponSlot],
+  );
   p.field("pierce")[proj] = def.base.pierce;
   p.field("hitCooldown")[proj] = def.base.hitCooldown;
   p.field("knockback")[proj] = def.base.knockback;
@@ -99,4 +97,24 @@ function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
   p.field("owner")[proj] = owner;
 
   world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+}
+
+/** Radial pulse: damages every enemy within `area` radius. */
+function aura(world: World, weaponSlot: number, def: WeaponDef): void {
+  const weapons = world.stores.weapons;
+  const owner = weapons.field("owner")[weaponSlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot]);
+
+  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+
+  world.enemiesInCircle(px, py, def.base.area, (slot) => {
+    if (!world.canHit(slot)) return;
+    const dx = world.stores.enemies.field("x")[slot] - px;
+    const dy = world.stores.enemies.field("y")[slot] - py;
+    const dist = Math.hypot(dx, dy) || 1;
+    world.applyHit(slot, damage, dx / dist, dy / dist, def.base.knockback, def.base.hitCooldown);
+  });
 }

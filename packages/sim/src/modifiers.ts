@@ -35,6 +35,15 @@ export class ModifierStack {
     }
   }
 
+  /** Remove every modifier whose source starts with `prefix` (e.g. "passive:"). */
+  removeSourcePrefix(prefix: string): void {
+    for (const list of this.entries.values()) {
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i].source.startsWith(prefix)) list.splice(i, 1);
+      }
+    }
+  }
+
   has(key: string): boolean {
     const list = this.entries.get(key);
     return list !== undefined && list.length > 0;

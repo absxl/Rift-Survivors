@@ -42,6 +42,8 @@ const TEST_PACK: ContentPack = {
       damageType: "physical",
     },
   ],
+  passives: [],
+  characters: [{ id: "champion", startingWeapon: "blade" }],
 };
 
 function run(

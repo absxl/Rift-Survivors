@@ -47,10 +47,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] XP gems + magnet, hit flash, damage numbers (pooled, capped)
 
 ## M4 — Level-up & items (VERTICAL SLICE)
-- [ ] XP curve, level-up pause, **3-card level-up UI** (weapon/passive new or upgrade), reroll/skip/banish
-- [ ] 6 weapon + 6 passive slots; weapon levels 1–8 from data tables; passive levels 1–5
-- [ ] Stat pipeline for all stats in `13` §5 through the modifier stack
-- [ ] 3 weapons, 4 passives, 1 stage timeline (first 5 minutes), 1 character
+- [x] XP curve, level-up pause, **3-card level-up UI** (weapon/passive new or upgrade)
+- [x] 6 weapon + 6 passive slots; weapon levels 1–8 from data tables; passive levels 1–5
+- [x] Stat pipeline (might/moveSpeed/maxHp/magnet) through the modifier stack
+- [x] 3 weapons, 4 passives, 1 character
 - [ ] **Milestone check**: the user plays 5 minutes and it feels like the classic loop. Notes go below.
 
 ## M5 — Weapon library & characters
@@ -108,4 +108,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   or run `npm i -g pnpm@9.15.0` (or `corepack enable` as admin) so the root `pnpm …` scripts work directly.
 - **Deferred from M1:** store debug inspector (M2), full `ruleOverride` modifier wiring (M4), generated
   network codec + delta compression (M11).
+- **Deferred from M4:** reroll/skip/banish tokens (offer carries the counts; token sources + UI buttons land
+  with meta, M8); full per-minute stage timeline (M7 — currently a simple ring/stream director).
+- **Pending:** M4 milestone playtest (user plays ~5 min and confirms the classic loop feel).
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

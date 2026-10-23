@@ -26,6 +26,7 @@ interface PlayerView {
   fx: number;
   fy: number;
   hp: number;
+  maxHp: number;
 }
 
 interface DamageEntry {
@@ -122,6 +123,7 @@ export class GameRenderer {
       fx: store.fields.facingX[idx],
       fy: store.fields.facingY[idx],
       hp: store.fields.hp[idx],
+      maxHp: store.fields.maxHp[idx],
     };
   }
 
@@ -200,7 +202,7 @@ export class GameRenderer {
       this.playerSprite.visible = true;
       this.playerSprite.position.set(player.x - ox, player.y - oy);
       this.playerSprite.scale.x = player.fx < 0 ? -1 : 1;
-      this.drawHpBar(player.x - ox, player.y - oy, player.hp, 100);
+      this.drawHpBar(player.x - ox, player.y - oy, player.hp, player.maxHp);
     } else {
       this.playerSprite.visible = false;
     }

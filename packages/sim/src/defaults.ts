@@ -5,6 +5,7 @@ import type { Registries } from "./registry";
 import { registerCombatSystems } from "./systems/combat";
 import { registerEnemySystems } from "./systems/enemy";
 import { registerGemSystem } from "./systems/gems";
+import { registerProgression } from "./systems/progression";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
 import type { RulesetDef, World } from "./world";
@@ -18,12 +19,13 @@ export function registerCoreSystems(reg: Registries): void {
   registerEnemySystems(reg);
   registerCombatSystems(reg);
   registerGemSystem(reg);
+  registerProgression(reg);
 }
 
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
 function coreMovement(world: World): void {
   const players = world.stores.players;
-  const speed = world.num("core.moveSpeed");
+  const speed = world.num("core.moveSpeed") * world.stat("moveSpeed", 1);
   const maxX = world.num("core.fieldWidth");
   const maxY = world.num("core.fieldHeight");
 
@@ -67,6 +69,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "contact-damage",
     "deaths",
     "gems",
+    "progression",
   ],
   progression: "xp-cards",
   world: "endless-field",
@@ -84,7 +87,13 @@ export const DEFAULT_RULESET: RulesetDef = {
     "pickup.radius": 10,
     "pickup.magnetRadius": 60,
     "pickup.magnetSpeed": 3,
+    "loadout.weaponSlots": 6,
+    "loadout.passiveSlots": 6,
+    "levelUp.choices": 3,
   },
   features: {},
   contentPacks: [],
+  xpCurve: [
+    5, 8, 12, 18, 25, 35, 50, 70, 100, 140, 190, 260, 350, 470, 620, 820, 1080, 1420, 1860, 2440,
+  ],
 };

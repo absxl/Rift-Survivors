@@ -62,11 +62,26 @@ export class Hud {
 
   update(s: WorldSnapshot): void {
     this.timer.text = formatTime(s.tick);
-    this.level.text = t("hud.level", { level: 1 });
 
+    const playerStore = s.stores.find((st) => st.kind === "player");
+    let level = 1;
+    let xp = 0;
+    let xpToNext = 1;
+    if (playerStore) {
+      const idx = playerStore.slots.indexOf(0);
+      if (idx >= 0) {
+        level = playerStore.fields.level[idx];
+        xp = playerStore.fields.xp[idx];
+        xpToNext = playerStore.fields.xpToNext[idx];
+      }
+    }
+
+    this.level.text = t("hud.level", { level });
+
+    const pct = xpToNext > 0 ? Math.max(0, Math.min(1, xp / xpToNext)) : 0;
     this.xpBar.clear();
     this.xpBar.rect(0, 0, VIEW_W, 4).fill(0x000000);
-    this.xpBar.rect(1, 1, VIEW_W - 2, 2).fill(0x1d2a3a);
+    this.xpBar.rect(1, 1, (VIEW_W - 2) * pct, 2).fill(0x44aaff);
 
     if (s.over) {
       this.results.visible = true;
