@@ -96,4 +96,19 @@ describe("gameplay integration", () => {
     }
     expect(world.over).toBe(true);
   });
+
+  it("burn status damages an enemy over time", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: TEST_PACK }, 3);
+    const slot = world.stores.enemies.alloc();
+    world.stores.enemies.field("x")[slot] = 200;
+    world.stores.enemies.field("y")[slot] = 200;
+    world.stores.enemies.field("hp")[slot] = 1000;
+    world.stores.enemies.field("maxHp")[slot] = 1000;
+    world.stores.enemies.field("kind")[slot] = 0;
+    world.applyStatus(slot, { id: "burn", ticks: 30 });
+
+    const before = world.stores.enemies.field("hp")[slot];
+    for (let t = 0; t < 30; t++) step(world, []);
+    expect(world.stores.enemies.field("hp")[slot]).toBeLessThan(before);
+  });
 });

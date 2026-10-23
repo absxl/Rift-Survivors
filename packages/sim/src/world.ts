@@ -2,7 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
-import type { ContentPack, WeaponDef } from "./content-types";
+import type { ContentPack, StatusApply, WeaponDef } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -34,6 +34,8 @@ export interface RunConfig {
   playerCount: number;
   /** Validated content (enemies + weapons). Defaults to an empty pack. */
   content?: ContentPack;
+  /** Character id to start as; defaults to the first character. */
+  characterId?: string;
 }
 
 const EMPTY_PACK: ContentPack = {
@@ -74,6 +76,8 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "vx", type: "f32" },
     { name: "vy", type: "f32" },
     { name: "hitCooldown", type: "u8" },
+    { name: "slowTicks", type: "u8" },
+    { name: "burnTicks", type: "u8" },
   ],
 };
 
@@ -91,6 +95,9 @@ const PROJECTILE_SCHEMA: EntitySchema = {
     { name: "knockback", type: "f32" },
     { name: "lifetime", type: "u16" },
     { name: "owner", type: "u8" },
+    { name: "mode", type: "u8" },
+    { name: "p1", type: "f32" },
+    { name: "p2", type: "f32" },
   ],
 };
 
@@ -132,6 +139,8 @@ const ZONE_SCHEMA: EntitySchema = {
     { name: "x", type: "f32" },
     { name: "y", type: "f32" },
     { name: "radius", type: "f32" },
+    { name: "damage", type: "f32" },
+    { name: "lifetime", type: "u16" },
   ],
 };
 
@@ -176,6 +185,7 @@ export class World {
     seed: number,
     playerCount: number,
     content: ContentPack = EMPTY_PACK,
+    characterId?: string,
   ) {
     this.seed = seed;
     this.ruleset = ruleset;
@@ -206,8 +216,10 @@ export class World {
       this.stores.players.field("xpToNext")[slot] = this.ruleset.xpCurve[0] ?? 5;
     }
 
-    // Give player 0 the character's starting weapon.
-    const character = content.characters[0];
+    // Give player 0 the character's starting weapon and apply base stats.
+    const character = characterId
+      ? content.characters.find((c) => c.id === characterId)
+      : content.characters[0];
     if (character) {
       const weaponIndex = content.weapons.findIndex((w) => w.id === character.startingWeapon);
       if (weaponIndex >= 0) {
@@ -217,6 +229,23 @@ export class World {
         this.stores.weapons.field("cooldown")[slot] = 0;
         this.stores.weapons.field("level")[slot] = 1;
       }
+      if (character.baseStats) {
+        for (const [key, value] of Object.entries(character.baseStats)) {
+          this.modifiers.add(key, { op: "add", value, source: `character:${character.id}` });
+        }
+      }
+      // Sync maxHp (character base stats may grant +maxHp).
+      this.stores.players.forEachAlive((slot) => {
+        const oldMax = this.stores.players.field("maxHp")[slot];
+        const newMax = 100 * this.stat("maxHp", 1);
+        this.stores.players.field("maxHp")[slot] = newMax;
+        if (newMax > oldMax) {
+          this.stores.players.field("hp")[slot] = Math.min(
+            newMax,
+            this.stores.players.field("hp")[slot] + (newMax - oldMax),
+          );
+        }
+      });
     }
 
     registerCoreSystems(this.registries);
@@ -259,14 +288,31 @@ export class World {
     this.offers.length = 0;
   }
 
-  /** Effective weapon damage: base + level deltas, scaled by the "might" stat. */
-  weaponDamage(def: WeaponDef, level: number): number {
-    let damage = def.base.damage;
+  /** Effective weapon stat: base + level deltas, scaled by the relevant stat. */
+  weaponStat(def: WeaponDef, level: number, key: "damage" | "area" | "cooldown"): number {
+    let value = def.base[key];
     for (let i = 0; i < level - 1 && i < def.levels.length; i++) {
-      const delta = def.levels[i].delta.damage;
-      if (delta !== undefined) damage += delta;
+      const delta = def.levels[i].delta[key];
+      if (delta !== undefined) value += delta;
     }
-    return damage * this.stat("might", 1);
+    if (key === "damage") return value * this.stat("might", 1);
+    if (key === "area") return value * this.stat("area", 1);
+    return value / this.stat("cooldown", 1);
+  }
+
+  /** Effective weapon damage: base + level deltas, scaled by "might". */
+  weaponDamage(def: WeaponDef, level: number): number {
+    return this.weaponStat(def, level, "damage");
+  }
+
+  /** Effective weapon area/range, scaled by "area". */
+  weaponArea(def: WeaponDef, level: number): number {
+    return this.weaponStat(def, level, "area");
+  }
+
+  /** Effective weapon cooldown (ticks), divided by "cooldown" (fire-rate). */
+  weaponCooldown(def: WeaponDef, level: number): number {
+    return this.weaponStat(def, level, "cooldown");
   }
 
   /** Nearest enemy slot within maxDist, or -1. */
@@ -329,10 +375,20 @@ export class World {
       kind: "physical",
     });
   }
+
+  /** Apply a status effect to an enemy (burn/slow), refreshing to the longer duration. */
+  applyStatus(slot: number, status: StatusApply): void {
+    const enemies = this.stores.enemies;
+    if (status.id === "burn") {
+      enemies.field("burnTicks")[slot] = Math.max(enemies.field("burnTicks")[slot], status.ticks);
+    } else if (status.id === "slow") {
+      enemies.field("slowTicks")[slot] = Math.max(enemies.field("slowTicks")[slot], status.ticks);
+    }
+  }
 }
 
 export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number): World {
-  return new World(ruleset, seed, config.playerCount, config.content);
+  return new World(ruleset, seed, config.playerCount, config.content, config.characterId);
 }
 
 /** Advance exactly one tick. Returns the events produced this tick. */

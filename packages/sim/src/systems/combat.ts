@@ -20,21 +20,51 @@ function weapons(world: World): void {
     const def = world.content.weapons[weapons.field("defIndex")[slot]];
     if (!def) return;
     world.registries.weaponBehaviors.get(def.behavior)(world, slot, def);
-    weapons.field("cooldown")[slot] = def.base.cooldown;
+    weapons.field("cooldown")[slot] = world.weaponCooldown(def, weapons.field("level")[slot]);
   });
 }
 
 function projectiles(world: World): void {
   const projs = world.stores.projectiles;
-  projs.forEachAlive((slot) => {
-    projs.field("x")[slot] += projs.field("vx")[slot];
-    projs.field("y")[slot] += projs.field("vy")[slot];
+  const players = world.stores.players;
+  const orbitSpeed = world.num("weapon.orbitSpeed");
 
+  projs.forEachAlive((slot) => {
     const life = projs.field("lifetime")[slot] - 1;
     projs.field("lifetime")[slot] = life;
     if (life <= 0) {
       projs.free(slot);
       return;
+    }
+
+    const mode = projs.field("mode")[slot];
+    if (mode === 1) {
+      // orbit around the owner
+      const owner = projs.field("owner")[slot];
+      const angle = projs.field("p1")[slot] + orbitSpeed;
+      projs.field("p1")[slot] = angle;
+      const radius = projs.field("p2")[slot];
+      projs.field("x")[slot] = players.field("x")[owner] + Math.cos(angle) * radius;
+      projs.field("y")[slot] = players.field("y")[owner] + Math.sin(angle) * radius;
+    } else {
+      // straight / boomerang / bounce all advance by velocity
+      if (mode === 2) {
+        projs.field("p1")[slot] += Math.hypot(projs.field("vx")[slot], projs.field("vy")[slot]);
+        if (projs.field("p1")[slot] >= projs.field("p2")[slot]) {
+          projs.field("mode")[slot] = 3;
+          projs.field("vx")[slot] *= -1;
+          projs.field("vy")[slot] *= -1;
+        }
+      }
+      projs.field("x")[slot] += projs.field("vx")[slot];
+      projs.field("y")[slot] += projs.field("vy")[slot];
+
+      if (mode === 4) {
+        const w = world.num("core.fieldWidth");
+        const h = world.num("core.fieldHeight");
+        if (projs.field("x")[slot] < 0 || projs.field("x")[slot] > w) projs.field("vx")[slot] *= -1;
+        if (projs.field("y")[slot] < 0 || projs.field("y")[slot] > h) projs.field("vy")[slot] *= -1;
+      }
     }
 
     const px = projs.field("x")[slot];
@@ -43,8 +73,10 @@ function projectiles(world: World): void {
     world.enemiesInCircle(px, py, hitRadius, (enemySlot) => {
       if (!projs.isAlive(slot)) return;
       if (!world.canHit(enemySlot)) return;
-      const dx = projs.field("vx")[slot];
-      const dy = projs.field("vy")[slot];
+      const ex = world.stores.enemies.field("x")[enemySlot];
+      const ey = world.stores.enemies.field("y")[enemySlot];
+      const dx = ex - px;
+      const dy = ey - py;
       const len = Math.hypot(dx, dy) || 1;
       world.applyHit(
         enemySlot,
@@ -82,7 +114,8 @@ function contactDamage(world: World): void {
     });
 
     if (damage > 0) {
-      players.field("hp")[slot] -= damage;
+      const final = Math.max(1, damage - world.stat("armor", 0));
+      players.field("hp")[slot] -= final;
       players.field("iFrames")[slot] = world.num("player.iFrames");
       world.emit({
         type: "hit",
@@ -91,7 +124,7 @@ function contactDamage(world: World): void {
         targetGen: players.gen(slot),
         x: px,
         y: py,
-        amount: damage,
+        amount: final,
         kind: "enemy",
       });
       if (players.field("hp")[slot] <= 0) {

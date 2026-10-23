@@ -1,5 +1,7 @@
 // Client entry: pixel-perfect Pixi app + worker-hosted sim + input + renderer.
+import { loadCorePack } from "@rift/content";
 import { Application, Container } from "pixi.js";
+import { CharacterSelect } from "./charselect";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
 import { Input } from "./input";
@@ -46,6 +48,9 @@ async function main(): Promise<void> {
   const levelUp = new LevelUpUI();
   host.onOffer((offer) => levelUp.show(offer));
   levelUp.onChoose((index) => host.sendChoice(index));
+
+  const charSelect = new CharacterSelect(loadCorePack().characters);
+  charSelect.onChoose((id) => host.start(id));
 
   window.setInterval(() => host.sendInput(input.read()), 1000 / 30);
 

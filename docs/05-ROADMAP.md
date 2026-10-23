@@ -54,10 +54,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] **Milestone check**: the user plays 5 minutes and it feels like the classic loop. Notes go below.
 
 ## M5 — Weapon library & characters
-- [ ] Remaining behavior archetypes (`orbit`, `aura`, `strike-random`, `arc-throw`, `boomerang`, `ground-pool`, `bounce`, `summon`)
-- [ ] ≥ 10 weapons (≥ 8 archetypes), ≥ 8 passives, all as content
-- [ ] Character select; ≥ 3 characters (starting weapon + stats + growth)
-- [ ] Status effects (slow, burn, stun, mark…) as needed by weapons
+- [x] Behavior archetypes: `orbit`, `aura`, `strike-random`, `boomerang`, `ground-pool`, `bounce` (+ existing `sweep`, `shoot-nearest`)
+- [x] ≥ 10 weapons (8 archetypes), ≥ 8 passives, all as content
+- [x] Character select; ≥ 3 characters (starting weapon + stats)
+- [x] Status effects (`slow`, `burn`) as needed by weapons
 
 ## M6 — Chests, evolutions & pickups
 - [ ] Elite enemies + chests with reveal animation (1/3/5 items by luck)
@@ -110,7 +110,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   network codec + delta compression (M11).
 - **Deferred from M4:** reroll/skip/banish tokens (offer carries the counts; token sources + UI buttons land
   with meta, M8); full per-minute stage timeline (M7 — currently a simple ring/stream director).
-- **Pending:** M4 milestone playtest (user plays ~5 min and confirms the classic loop feel).
+- **Deferred from M5:** `arc-throw` + `summon` weapon archetypes; character **growth** bonuses; `stun`/`mark`
+  statuses. Reconcile max level 5 (D-016) — weapons/passives already cap at 5.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

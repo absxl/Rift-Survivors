@@ -38,6 +38,7 @@ export type {
   EnemyDef,
   PassiveDef,
   StatDelta,
+  StatusApply,
   WeaponDef,
   WeaponStats,
 } from "./content-types";

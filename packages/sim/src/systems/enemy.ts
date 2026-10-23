@@ -17,6 +17,14 @@ function enemyAi(world: World): void {
     // Decrement per-enemy hit cooldown.
     const hc = enemies.field("hitCooldown")[slot];
     if (hc > 0) enemies.field("hitCooldown")[slot] = hc - 1;
+    // Status timers + burn damage-over-time.
+    const slow = enemies.field("slowTicks")[slot];
+    if (slow > 0) enemies.field("slowTicks")[slot] = slow - 1;
+    const burn = enemies.field("burnTicks")[slot];
+    if (burn > 0) {
+      enemies.field("burnTicks")[slot] = burn - 1;
+      enemies.field("hp")[slot] -= world.num("status.burnDps");
+    }
 
     const def = world.content.enemies[enemies.field("kind")[slot]];
     if (!def) return;

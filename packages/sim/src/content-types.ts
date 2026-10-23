@@ -17,6 +17,11 @@ export interface WeaponStats {
   lifetime: number; // projectile lifetime (ticks)
 }
 
+export interface StatusApply {
+  id: "burn" | "slow";
+  ticks: number;
+}
+
 export interface StatDelta {
   damage?: number;
   cooldown?: number;
@@ -38,6 +43,7 @@ export interface WeaponDef {
   base: WeaponStats;
   levels: { delta: StatDelta }[]; // length = maxLevel - 1
   damageType?: DamageType;
+  status?: StatusApply;
 }
 
 export interface EnemyDef {
@@ -63,6 +69,8 @@ export interface CharacterDef {
   id: string;
   /** Content weapon id the character starts with. */
   startingWeapon: string;
+  /** Stat key → additive bonus applied as modifiers at run start. */
+  baseStats?: Record<string, number>;
 }
 
 export interface ContentPack {

@@ -8,6 +8,7 @@ import { registerGemSystem } from "./systems/gems";
 import { registerProgression } from "./systems/progression";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
+import { registerZoneSystem } from "./systems/zones";
 import type { RulesetDef, World } from "./world";
 
 export function registerCoreSystems(reg: Registries): void {
@@ -18,6 +19,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerSpawn(reg);
   registerEnemySystems(reg);
   registerCombatSystems(reg);
+  registerZoneSystem(reg);
   registerGemSystem(reg);
   registerProgression(reg);
 }
@@ -66,6 +68,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "spatial-hash",
     "weapons",
     "projectiles",
+    "zones",
     "contact-damage",
     "deaths",
     "gems",
@@ -91,6 +94,9 @@ export const DEFAULT_RULESET: RulesetDef = {
     "loadout.weaponSlots": 6,
     "loadout.passiveSlots": 6,
     "levelUp.choices": 3,
+    "weapon.orbitSpeed": 0.08,
+    "weapon.zoneHitCooldown": 10,
+    "status.burnDps": 1,
   },
   features: {},
   contentPacks: [],
