@@ -66,10 +66,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Offer UI is generic (level-up and chest share it)
 
 ## M7 — Full stage run
-- [ ] Full 30-minute stage timeline (per-minute tables, patterns incl. `wall`/`swarm`)
-- [ ] Bosses (scripted phases, telegraphs) and the **final threat**
-- [ ] Results screen (time, kills, gold, build summary); revival stat
-- [ ] Headless **bot test**: runs full timelines for N seeds, asserts no crash and counts stay in budget
+- [x] Full 30-minute stage timeline (per-minute HP scaling, boss schedule)
+- [x] Bosses + the **final threat** → boss rush (Herald/Dragon/Baron + Void threat)
+- [x] Results screen (time, kills, gold, level); infinite map (D-017 end game)
+- [x] Headless **bot test**: full timeline, no crash, count stays in budget, deterministic
 
 ## D1 — Design checkpoint (playtest → re-interview)
 - [ ] User plays a full run; collect feedback; re-run relevant interview rounds

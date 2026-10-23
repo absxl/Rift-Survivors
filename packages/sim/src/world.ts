@@ -62,6 +62,7 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "xpToNext", type: "f32" },
     { name: "maxHp", type: "f32" },
     { name: "gold", type: "f32" },
+    { name: "kills", type: "f32" },
   ],
 };
 
@@ -192,6 +193,9 @@ export class World {
   inputs: PlayerInput[] = [];
   events: SimEvent[] = [];
   over = false;
+  /** True once the final threat is defeated (switches the run into a boss rush). */
+  bossRush = false;
+  finalThreatSpawned = false;
   private readonly offers: Offer[] = [];
 
   constructor(

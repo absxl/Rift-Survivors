@@ -140,15 +140,10 @@ export class GameRenderer {
     if (!this.curr) return;
 
     const player = this.playerPosition();
-    const w = this.curr.worldWidth || VIEW_W;
-    const h = this.curr.worldHeight || VIEW_H;
 
-    let camX = player ? player.x : w / 2;
-    let camY = player ? player.y : h / 2;
-    if (w > VIEW_W) camX = Math.max(VIEW_W / 2, Math.min(w - VIEW_W / 2, camX));
-    else camX = w / 2;
-    if (h > VIEW_H) camY = Math.max(VIEW_H / 2, Math.min(h - VIEW_H / 2, camY));
-    else camY = h / 2;
+    // Camera follows the player (infinite map — no bounds clamp).
+    const camX = player ? player.x : 0;
+    const camY = player ? player.y : 0;
 
     const ox = Math.round(camX - VIEW_W / 2);
     const oy = Math.round(camY - VIEW_H / 2);

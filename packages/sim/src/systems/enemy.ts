@@ -69,6 +69,9 @@ function deaths(world: World): void {
       dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
     }
 
+    if (def?.category === "final-threat") world.bossRush = true;
+
+    world.stores.players.field("kills")[0] += 1;
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);
   });

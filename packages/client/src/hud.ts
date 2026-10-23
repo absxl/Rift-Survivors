@@ -19,6 +19,7 @@ export class Hud {
   private readonly results: Container;
   private readonly resultsTitle: PixelText;
   private readonly resultsTime: PixelText;
+  private readonly resultsStats: PixelText;
 
   constructor(stage: Container) {
     this.xpBar = new Graphics();
@@ -45,6 +46,10 @@ export class Hud {
     this.resultsTime.display.anchor.set(0.5, 0.5);
     this.resultsTime.display.position.set(VIEW_W / 2, VIEW_H / 2 + 8);
     this.results.addChild(this.resultsTime.display);
+    this.resultsStats = new PixelText("", 1);
+    this.resultsStats.display.anchor.set(0.5, 0.5);
+    this.resultsStats.display.position.set(VIEW_W / 2, VIEW_H / 2 + 18);
+    this.results.addChild(this.resultsStats.display);
     this.results.visible = false;
     stage.addChild(this.results);
   }
@@ -56,12 +61,16 @@ export class Hud {
     let level = 1;
     let xp = 0;
     let xpToNext = 1;
+    let kills = 0;
+    let gold = 0;
     if (playerStore) {
       const idx = playerStore.slots.indexOf(0);
       if (idx >= 0) {
         level = playerStore.fields.level[idx];
         xp = playerStore.fields.xp[idx];
         xpToNext = playerStore.fields.xpToNext[idx];
+        kills = playerStore.fields.kills[idx];
+        gold = playerStore.fields.gold[idx];
       }
     }
 
@@ -74,7 +83,8 @@ export class Hud {
 
     if (s.over) {
       this.results.visible = true;
-      this.resultsTime.text = `TIME ${formatTime(s.tick)}`;
+      this.resultsTime.text = `TIME ${formatTime(s.tick)}  LV ${level}`;
+      this.resultsStats.text = `KILLS ${kills}  GOLD ${gold}`;
     } else {
       this.results.visible = false;
     }

@@ -56,7 +56,7 @@ function run(
   let fires = 0;
   let pickups = 0;
   for (let t = 0; t < ticks; t++) {
-    const input: PlayerInput = { playerId: 0, moveX: 1, moveY: 0 };
+    const input: PlayerInput = { playerId: 0, moveX: 0, moveY: 0 };
     const events = step(world, [input]);
     for (const e of events) {
       if (e.type === "enemy-died") deaths++;

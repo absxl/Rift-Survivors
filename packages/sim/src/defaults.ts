@@ -30,8 +30,6 @@ export function registerCoreSystems(reg: Registries): void {
 function coreMovement(world: World): void {
   const players = world.stores.players;
   const speed = world.num("core.moveSpeed") * world.stat("moveSpeed", 1);
-  const maxX = world.num("core.fieldWidth");
-  const maxY = world.num("core.fieldHeight");
 
   players.forEachAlive((slot) => {
     const input = world.inputs.find((i) => i.playerId === slot);
@@ -48,10 +46,8 @@ function coreMovement(world: World): void {
       }
     }
 
-    const nx = Math.max(0, Math.min(maxX, players.field("x")[slot] + mx * speed));
-    const ny = Math.max(0, Math.min(maxY, players.field("y")[slot] + my * speed));
-    players.field("x")[slot] = nx;
-    players.field("y")[slot] = ny;
+    players.field("x")[slot] += mx * speed;
+    players.field("y")[slot] += my * speed;
 
     if (mx !== 0 || my !== 0) {
       players.field("facingX")[slot] = mx;
@@ -91,6 +87,10 @@ export const DEFAULT_RULESET: RulesetDef = {
     "director.rampTicks": 600,
     "director.recycleDistance": 500,
     "director.eliteInterval": 900,
+    "director.hpScalePerMin": 0.15,
+    "timeline.bossIntervalSec": 300,
+    "timeline.finalThreatSec": 1800,
+    "timeline.bossRushIntervalSec": 20,
     "player.iFrames": 15,
     "pickup.radius": 10,
     "pickup.magnetRadius": 60,
