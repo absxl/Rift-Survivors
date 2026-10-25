@@ -105,4 +105,186 @@ describe("room server", () => {
     host.close();
     guest.close();
   });
+
+  it("runs a 4-player room under jittered inputs", async () => {
+    const sockets: WebSocket[] = [];
+    const inboxes: Array<() => Promise<Record<string, unknown>>> = [];
+    const characters = ["lux", "brand", "ahri", "ryze"];
+
+    try {
+      const host = await connect();
+      sockets.push(host);
+      const hostInbox = inbox(host);
+      inboxes.push(hostInbox);
+      host.send(
+        JSON.stringify({
+          type: "create",
+          name: "host",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: characters[0],
+        }),
+      );
+      const created = await nextOfType(hostInbox, "lobby");
+      const code = created.code as string;
+
+      for (let i = 1; i < 4; i++) {
+        const ws = await connect();
+        sockets.push(ws);
+        const next = inbox(ws);
+        inboxes.push(next);
+        ws.send(
+          JSON.stringify({
+            type: "join",
+            code,
+            name: `p${i}`,
+            protocolVersion: PROTOCOL_VERSION,
+            characterId: characters[i],
+          }),
+        );
+      }
+
+      // The host sees the lobby fill to 4 (one lobby message per join).
+      let lobbyMsg = await nextOfType(hostInbox, "lobby");
+      while ((lobbyMsg.players as unknown[]).length < 4) {
+        lobbyMsg = await nextOfType(hostInbox, "lobby");
+      }
+      expect((lobbyMsg.players as unknown[]).length).toBe(4);
+
+      host.send(JSON.stringify({ type: "start" }));
+      const starts = await Promise.all(inboxes.map((next) => nextOfType(next, "start")));
+      expect(new Set(starts.map((s) => s.yourPlayerId)).size).toBe(4);
+
+      // Auto-resolve level-up offers so a pause can never stall the stress run.
+      for (const ws of sockets) {
+        ws.on("message", (data) => {
+          const msg = JSON.parse(data.toString()) as { type?: string };
+          if (msg.type === "offer") ws.send(JSON.stringify({ type: "choice", choiceIndex: 0 }));
+        });
+      }
+
+      const received = sockets.map(() => ({ snapshots: 0, lastTick: -1 }));
+      sockets.forEach((ws, i) => {
+        ws.on("message", (data) => {
+          const msg = JSON.parse(data.toString()) as { type?: string; tick?: number };
+          if (msg.type === "snapshot") {
+            received[i].snapshots++;
+            received[i].lastTick = msg.tick ?? -1;
+          }
+        });
+      });
+
+      // Simulated uplink jitter: 90 ms cadence, 0-60 ms random send delay.
+      const timers = sockets.map((ws, i) => {
+        let n = 0;
+        return setInterval(() => {
+          n++;
+          const moveX = Math.cos(n * 0.7 + i);
+          const moveY = Math.sin(n * 0.9 + i);
+          setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "input", moveX, moveY }));
+            }
+          }, Math.random() * 60);
+        }, 90);
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      for (const timer of timers) clearInterval(timer);
+
+      const room = [...server.rooms.values()].find((r) => r.code === code);
+      expect(room).toBeTruthy();
+      expect(room?.world?.stores.players.liveSlots().length).toBe(4);
+
+      for (const client of received) {
+        expect(client.snapshots).toBeGreaterThan(20);
+        expect(client.lastTick).toBeGreaterThan(20);
+      }
+      const ticks = received.map((r) => r.lastTick);
+      expect(Math.max(...ticks) - Math.min(...ticks)).toBeLessThanOrEqual(2);
+    } finally {
+      for (const ws of sockets) ws.close();
+    }
+  }, 20_000);
+
+  it("rejects a 5th player and mid-run joins", async () => {
+    const sockets: WebSocket[] = [];
+    try {
+      const host = await connect();
+      sockets.push(host);
+      const hostInbox = inbox(host);
+      host.send(
+        JSON.stringify({
+          type: "create",
+          name: "host",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "lux",
+        }),
+      );
+      const created = await nextOfType(hostInbox, "lobby");
+      const code = created.code as string;
+
+      for (const characterId of ["brand", "ahri", "ryze"]) {
+        const ws = await connect();
+        sockets.push(ws);
+        ws.send(
+          JSON.stringify({
+            type: "join",
+            code,
+            name: characterId,
+            protocolVersion: PROTOCOL_VERSION,
+            characterId,
+          }),
+        );
+      }
+
+      const fifth = await connect();
+      sockets.push(fifth);
+      const fifthInbox = inbox(fifth);
+      fifth.send(
+        JSON.stringify({
+          type: "join",
+          code,
+          name: "fifth",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "syndra",
+        }),
+      );
+      const full = await fifthInbox();
+      expect(full.type).toBe("error");
+      expect(full.message).toBe("room full");
+
+      host.send(JSON.stringify({ type: "start" }));
+      await nextOfType(hostInbox, "start");
+
+      const late = await connect();
+      sockets.push(late);
+      const lateInbox = inbox(late);
+      late.send(
+        JSON.stringify({
+          type: "join",
+          code,
+          name: "late",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "veigar",
+        }),
+      );
+      const lateErr = await lateInbox();
+      expect(lateErr.type).toBe("error");
+      expect(lateErr.message).toBe("game in progress");
+    } finally {
+      for (const ws of sockets) ws.close();
+    }
+  }, 20_000);
 });
+
+/** Consume inbox messages until the requested type arrives. */
+async function nextOfType(
+  next: () => Promise<Record<string, unknown>>,
+  type: string,
+): Promise<Record<string, unknown>> {
+  for (let i = 0; i < 300; i++) {
+    const msg = await next();
+    if (msg.type === type) return msg;
+  }
+  throw new Error(`did not receive message type ${type}`);
+}

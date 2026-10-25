@@ -95,7 +95,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Sim co-op correctness (nearest-player targeting, per-player pickups, starting weapon per player)
 - [x] `NetHost` client + lobby UI (host/join by room code)
 - [ ] Delta snapshots, interpolation, local prediction
-- [ ] 4-player stress test with simulated latency
+- [x] 4-player stress test with simulated input jitter (server test)
 
 ## M12 — Co-op features & deploy
 - [x] Co-op rules: shared level + downed/marker revive + enemy scaling by player count

@@ -84,7 +84,10 @@ export function startServer(port: number): ServerHandle {
   };
 
   const addClient = (room: Room, ws: WebSocket, name: string, characterId: string): void => {
-    const playerId = room.clients.length;
+    // Reuse the lowest free slot so ids stay stable and unique for the sim.
+    const used = new Set(room.clients.map((c) => c.playerId));
+    let playerId = 0;
+    while (used.has(playerId)) playerId++;
     const client: Client = {
       ws,
       playerId,
@@ -170,6 +173,11 @@ export function startServer(port: number): ServerHandle {
         const room = rooms.get(msg.code.toUpperCase());
         if (!room) {
           send(ws, { type: "error", message: "room not found" });
+          return;
+        }
+        if (room.world) {
+          // A run is already in progress; late clients can't be added to the sim.
+          send(ws, { type: "error", message: "game in progress" });
           return;
         }
         if (room.clients.length >= MAX_PLAYERS) {
