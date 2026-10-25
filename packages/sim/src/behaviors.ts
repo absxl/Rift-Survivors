@@ -76,7 +76,15 @@ function sweep(world: World, weaponSlot: number, def: WeaponDef): void {
     const dx = ex - px;
     const dy = ey - py;
     const dist = Math.hypot(dx, dy) || 1;
-    world.applyHit(slot, damage, dx / dist, dy / dist, def.base.knockback, def.base.hitCooldown);
+    world.applyHit(
+      slot,
+      damage,
+      dx / dist,
+      dy / dist,
+      def.base.knockback,
+      def.base.hitCooldown,
+      owner,
+    );
     if (def.status) world.applyStatus(slot, def.status);
   });
 }
@@ -146,7 +154,15 @@ function aura(world: World, weaponSlot: number, def: WeaponDef): void {
       const dx = world.stores.enemies.field("x")[slot] - px;
       const dy = world.stores.enemies.field("y")[slot] - py;
       const dist = Math.hypot(dx, dy) || 1;
-      world.applyHit(slot, damage, dx / dist, dy / dist, def.base.knockback, def.base.hitCooldown);
+      world.applyHit(
+        slot,
+        damage,
+        dx / dist,
+        dy / dist,
+        def.base.knockback,
+        def.base.hitCooldown,
+        owner,
+      );
       if (def.status) world.applyStatus(slot, def.status);
     },
   );
@@ -182,7 +198,15 @@ function strikeRandom(world: World, weaponSlot: number, def: WeaponDef): void {
     const dx = ex - px;
     const dy = ey - py;
     const dist = Math.hypot(dx, dy) || 1;
-    world.applyHit(slot, damage, dx / dist, dy / dist, def.base.knockback, def.base.hitCooldown);
+    world.applyHit(
+      slot,
+      damage,
+      dx / dist,
+      dy / dist,
+      def.base.knockback,
+      def.base.hitCooldown,
+      owner,
+    );
     if (def.status) world.applyStatus(slot, def.status);
   }
 }
@@ -211,6 +235,7 @@ function groundPool(world: World, weaponSlot: number, def: WeaponDef): void {
     );
     world.stores.zones.field("damage")[zone] = damage;
     world.stores.zones.field("lifetime")[zone] = lifetime;
+    world.stores.zones.field("owner")[zone] = owner;
   }
 }
 

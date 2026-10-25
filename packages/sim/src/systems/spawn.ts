@@ -82,6 +82,7 @@ function spawnEnemy(world: World, defIndex: number): number {
   enemies.field("vx")[slot] = 0;
   enemies.field("vy")[slot] = 0;
   enemies.field("hitCooldown")[slot] = 0;
+  enemies.field("lastHitBy")[slot] = 0;
   return slot;
 }
 

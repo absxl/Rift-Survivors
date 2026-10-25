@@ -5,6 +5,7 @@ import type { World } from "../world";
 import {
   PICKUP_CHEST,
   PICKUP_FREEZE,
+  PICKUP_GOLD,
   PICKUP_HEAL,
   PICKUP_NUKE,
   PICKUP_VACUUM,
@@ -69,13 +70,25 @@ function deaths(world: World): void {
     if (def?.dropsChest) {
       dropPickup(world, x, y, PICKUP_CHEST);
     } else if (world.rng.chance(world.num("pickup.dropChance"))) {
-      const kinds = [PICKUP_HEAL, PICKUP_VACUUM, PICKUP_NUKE, PICKUP_FREEZE];
+      // Weighted: gold is the most common lucky drop so runs fund the shop.
+      const kinds = [
+        PICKUP_HEAL,
+        PICKUP_HEAL,
+        PICKUP_VACUUM,
+        PICKUP_NUKE,
+        PICKUP_FREEZE,
+        PICKUP_GOLD,
+        PICKUP_GOLD,
+        PICKUP_GOLD,
+      ];
       dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
     }
 
     if (def?.category === "final-threat") world.bossRush = true;
 
-    world.stores.players.field("kills")[0] += 1;
+    const killer = enemies.field("lastHitBy")[slot];
+    const players = world.stores.players;
+    if (killer < players.count) players.field("kills")[killer] += 1;
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);
   });

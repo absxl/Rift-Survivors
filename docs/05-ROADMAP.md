@@ -83,7 +83,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 ## M9 — Content, balance & feel
 - [ ] Fill content to the proposed scope in `03` (4 mages now; full roster in the champion-design pass)
 - [x] Juice pass: weapon-fire visuals (sweep arc / aura ring / ground pools), screen shake, procedural SFX with rate caps, settings (sound/shake)
-- [ ] Balance pass with the bot; numbers recorded in `docs/BALANCE.md`
+- [x] Balance pass with the bot; baseline + tuning variants recorded in `docs/BALANCE.md` (tuning follow-ups await a feel pass)
 
 ## M10 — Opt-in extras (only the ones the user picked)
 - [x] Synergy engine: content tags, tag-count + combo synergies, burn+slow reaction, synergy tests (incl. matrix sanity)
@@ -118,8 +118,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   statuses.
 - **Deferred from M6:** chest reveal animation (M9 juice), union logic, recipe hints, destructible
   props.
-- **M11 co-op limitations:** all players currently share one champion and global stat modifiers; per-player
-  champions + the shared-level model (D-023) are M12. Full snapshots (no delta/compression) for now.
+- **M11 co-op limitations:** per-player characters work, but all players still share the global modifier stack
+  (one player's passives buff everyone, and synergies evaluate only player 0's tags). Full snapshots
+  (no delta/compression) for now.
 - **Implemented since:** shared party XP + level-up-together (D-023) and a League-style Pixi hotbar
   (portrait/level, HP/XP bars, weapon ability icons with cooldowns, passive item row, hover tooltips).
 - **Freeze fix:** level-up/chest offers now always include a fallback card, always clear on apply, dot-stats
@@ -133,6 +134,11 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Crash fix (passives):** the HUD read a `cooldown` field that passive stores don't have, so the first
   passive pick threw inside the render tick and froze the game. Loadout reads now default it, the client
   ticker logs a frame error instead of dying silently, and client + real-pack co-op tests cover it.
+- **Economy fix:** enemy lucky drops now include gold (`PICKUP_GOLD` was defined but never dropped, so runs
+  always awarded 0 gold). Kill credit is attributed via `lastHitBy` (zones carry an owner), and each co-op
+  client's results screen now reads its own slot.
+- **Balance baseline:** `docs/BALANCE.md` — bot survives 31:00 at level 16 with maxed items, swarm stays at
+  19–28 alive, boss rush unreached; variant numbers for spawn/chest tuning are included.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

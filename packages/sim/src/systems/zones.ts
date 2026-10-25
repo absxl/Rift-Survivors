@@ -28,7 +28,15 @@ function zones(world: World): void {
       const dx = world.stores.enemies.field("x")[enemySlot] - zx;
       const dy = world.stores.enemies.field("y")[enemySlot] - zy;
       const dist = Math.hypot(dx, dy) || 1;
-      world.applyHit(enemySlot, damage, dx / dist, dy / dist, 0, hitCooldown);
+      world.applyHit(
+        enemySlot,
+        damage,
+        dx / dist,
+        dy / dist,
+        0,
+        hitCooldown,
+        zones.field("owner")[slot],
+      );
     });
   });
 }

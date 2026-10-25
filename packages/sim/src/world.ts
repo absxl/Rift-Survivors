@@ -90,6 +90,7 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "slowTicks", type: "u8" },
     { name: "burnTicks", type: "u8" },
     { name: "freezeTicks", type: "u8" },
+    { name: "lastHitBy", type: "u8" },
   ],
 };
 
@@ -153,6 +154,7 @@ const ZONE_SCHEMA: EntitySchema = {
     { name: "radius", type: "f32" },
     { name: "damage", type: "f32" },
     { name: "lifetime", type: "u16" },
+    { name: "owner", type: "u8" },
   ],
 };
 
@@ -417,7 +419,7 @@ export class World {
     return this.stores.enemies.field("hitCooldown")[slot] <= 0;
   }
 
-  /** Apply damage + knockback to an enemy and emit a hit event. */
+  /** Apply damage + knockback to an enemy, credit the owner, and emit a hit event. */
   applyHit(
     slot: number,
     amount: number,
@@ -425,12 +427,14 @@ export class World {
     dirY: number,
     knockback: number,
     hitCooldown: number,
+    owner = 0,
   ): void {
     const enemies = this.stores.enemies;
     enemies.field("hp")[slot] -= amount;
     enemies.field("vx")[slot] += dirX * knockback;
     enemies.field("vy")[slot] += dirY * knockback;
     enemies.field("hitCooldown")[slot] = hitCooldown;
+    enemies.field("lastHitBy")[slot] = owner;
     this.emit({
       type: "hit",
       target: "enemy",

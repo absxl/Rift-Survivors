@@ -83,6 +83,7 @@ async function main(): Promise<void> {
   let coopCharacterId = firstCharacter;
   let currentMode: "solo" | "coop" = "solo";
   let currentCharacterId = firstCharacter;
+  let localPlayerId = 0;
 
   const levelUp = new LevelUpUI();
   levelUp.onChoose((index) => activeChoice?.(index));
@@ -122,7 +123,7 @@ async function main(): Promise<void> {
     if (snap.over && !runEnded) {
       runEnded = true;
       const playerStore = snap.stores.find((s) => s.kind === "player");
-      const idx = playerStore ? playerStore.slots.indexOf(0) : -1;
+      const idx = playerStore ? playerStore.slots.indexOf(localPlayerId) : -1;
       const gold = idx >= 0 && playerStore ? playerStore.fields.gold[idx] : 0;
       const kills = idx >= 0 && playerStore ? playerStore.fields.kills[idx] : 0;
       const timeSec = Math.floor(snap.tick / 30);
@@ -155,10 +156,11 @@ async function main(): Promise<void> {
     runEnded = false;
     currentMode = "solo";
     currentCharacterId = characterId;
+    localPlayerId = 0;
     metaScreen.hide();
-    renderer.setLocalPlayer(0);
+    renderer.setLocalPlayer(localPlayerId);
     renderer.setChampionColor(championColor(characterId));
-    hud.setLocalPlayer(0);
+    hud.setLocalPlayer(localPlayerId);
     hud.setChampion(characterId, championColor(characterId));
     activeChoice = (i) => host.sendChoice(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
@@ -179,9 +181,10 @@ async function main(): Promise<void> {
   lobby.onStart((netHost: NetHost, yourPlayerId: number) => {
     runEnded = false;
     currentMode = "coop";
-    renderer.setLocalPlayer(yourPlayerId);
+    localPlayerId = yourPlayerId;
+    renderer.setLocalPlayer(localPlayerId);
     renderer.setChampionColor(championColor(coopCharacterId));
-    hud.setLocalPlayer(yourPlayerId);
+    hud.setLocalPlayer(localPlayerId);
     hud.setChampion(coopCharacterId, championColor(coopCharacterId));
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);

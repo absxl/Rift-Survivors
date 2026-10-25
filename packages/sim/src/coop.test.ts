@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, createWorld, step } from "./index";
 import type { ContentPack } from "./index";
+import { PICKUP_GOLD } from "./systems/pickups";
 
 const COOP_PACK: ContentPack = {
   id: "coop",
@@ -47,6 +48,49 @@ const COOP_PACK: ContentPack = {
 };
 
 describe("co-op sim", () => {
+  // No enemies/weapons so allocated enemies are the only ones and auto-fire can't interfere.
+  const CREDIT_PACK: ContentPack = { ...COOP_PACK, enemies: [], weapons: [] };
+
+  it("credits each kill to the player who dealt the final hit", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: CREDIT_PACK }, 7);
+    const players = world.stores.players;
+    const enemies = world.stores.enemies;
+
+    const kill = (owner: number, x: number, y: number): void => {
+      const slot = enemies.alloc();
+      enemies.field("x")[slot] = x;
+      enemies.field("y")[slot] = y;
+      enemies.field("hp")[slot] = 10;
+      enemies.field("maxHp")[slot] = 10;
+      enemies.field("kind")[slot] = 0;
+      world.applyHit(slot, 999, 0, 0, 0, 0, owner);
+    };
+
+    kill(1, 100, 100);
+    kill(0, 140, 100);
+    step(world, []);
+
+    expect(players.field("kills")[0]).toBe(1);
+    expect(players.field("kills")[1]).toBe(1);
+    expect(enemies.liveSlots().length).toBe(0);
+  });
+
+  it("gives gold to the player who touches a gold pickup", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: CREDIT_PACK }, 8);
+    const players = world.stores.players;
+    const pickups = world.stores.pickups;
+    const slot = pickups.alloc();
+    pickups.field("x")[slot] = players.field("x")[1];
+    pickups.field("y")[slot] = players.field("y")[1];
+    pickups.field("kind")[slot] = PICKUP_GOLD;
+    pickups.field("value")[slot] = 10;
+
+    step(world, []);
+
+    expect(players.field("gold")[0]).toBe(0);
+    expect(players.field("gold")[1]).toBe(10);
+  });
+
   it("creates one starting weapon per player", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: COOP_PACK }, 1);
     const weapons = world.stores.weapons.liveSlots();

@@ -87,6 +87,7 @@ function projectiles(world: World): void {
         dy / len,
         projs.field("knockback")[slot],
         projs.field("hitCooldown")[slot],
+        projs.field("owner")[slot],
       );
       const pierce = projs.field("pierce")[slot] - 1;
       if (pierce < 0) {
