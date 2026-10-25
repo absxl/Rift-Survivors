@@ -84,7 +84,10 @@ function deaths(world: World): void {
       dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
     }
 
-    if (def?.category === "final-threat") world.bossRush = true;
+    if (def?.category === "final-threat" && !world.bossRush) {
+      world.bossRush = true;
+      world.emit({ type: "boss-rush", reason: "killed" });
+    }
 
     const killer = enemies.field("lastHitBy")[slot];
     const players = world.stores.players;

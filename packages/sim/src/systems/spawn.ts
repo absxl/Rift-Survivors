@@ -98,7 +98,20 @@ function spawnBosses(world: World): void {
     world.tick >= world.num("timeline.finalThreatSec") * 30
   ) {
     world.finalThreatSpawned = true;
+    world.finalThreatTick = world.tick;
     spawnEnemy(world, world.content.enemies.indexOf(finalThreat));
+  }
+
+  // Safety net: if the final threat is still alive after the fallback window,
+  // start the boss rush anyway so the 30-minute arc always reaches its endgame.
+  if (
+    !world.bossRush &&
+    world.finalThreatSpawned &&
+    world.finalThreatTick >= 0 &&
+    world.tick - world.finalThreatTick >= world.num("timeline.bossRushFallbackSec") * 30
+  ) {
+    world.bossRush = true;
+    world.emit({ type: "boss-rush", reason: "timeout" });
   }
 
   if (world.bossRush) {

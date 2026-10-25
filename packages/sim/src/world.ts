@@ -227,9 +227,11 @@ export class World {
   partyXp = 0;
   partyLevel = 1;
   partyXpToNext = 5;
-  /** True once the final threat is defeated (switches the run into a boss rush). */
+  /** True once the final threat is defeated (or the fallback timer fires). */
   bossRush = false;
   finalThreatSpawned = false;
+  /** Tick when the final threat spawned (-1 before). Drives the boss-rush fallback. */
+  finalThreatTick = -1;
   private readonly offers: Offer[] = [];
 
   constructor(

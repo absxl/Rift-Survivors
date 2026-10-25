@@ -6,7 +6,8 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
 - Date: 2026-10-25
 - Run command: `$env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance`
 - Seeds: 101, 202, 303 (baseline) · seed 101 (variants)
-- Reference: 30:00 final threat → boss rush; solo run ends when the player dies.
+- Reference: 30:00 final threat → boss rush (fallback starts it at 30:45 if the threat lives); solo run ends
+  when the player dies.
 - Current pace (applied): `director.spawnInterval 30`, `director.batchSize 3`,
   `director.eliteInterval 2700` (90 s), `pickup.goldAmount 5`.
 
@@ -21,9 +22,9 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
 
 | Seed | Survived | Level (picks) | Kills | Gold | Gems / XP | Max alive | Item levels | Boss rush | ms/tick |
 | ---- | -------- | ------------- | ----- | ---- | --------- | --------- | ----------- | --------- | ------- |
-| 101  | 31:00    | 19 (18)       | 5,546 | 485  | 5,107 / 5,881 | 68 | 33 / 60 | no | 0.0202 |
-| 202  | 31:00    | 19 (18)       | 5,548 | 410  | 4,989 / 5,763 | 74 | 45 / 60 | no | 0.0160 |
-| 303  | 31:00    | 19 (18)       | 5,541 | 370  | 4,984 / 5,610 | 79 | 38 / 60 | no | 0.0175 |
+| 101  | 32:00    | 19 (18)       | 5,537 | 490  | 5,099 / 5,824 | 68 | 33 / 60 | timeout | 0.0185 |
+| 202  | 32:00    | 19 (18)       | 5,538 | 400  | 4,992 / 5,721 | 74 | 45 / 60 | timeout | 0.0144 |
+| 303  | 32:00    | 19 (18)       | 5,539 | 375  | 5,001 / 6,175 | 79 | 38 / 60 | timeout | 0.0157 |
 
 “Item levels” is the sum of all owned weapon + passive levels (60 = 6×L5 + 6×L5, i.e. fully maxed).
 Gold income is ~370–485/run against a ~1,425-gold shop total (≈3–4 runs for every permanent upgrade).
@@ -47,16 +48,17 @@ Gold income is ~370–485/run against a ~1,425-gold shop total (≈3–4 runs fo
    1 XP and the late curve is steep. Chests + level-ups now complement each other.
 4. **The kiting bot still never dies.** 3/3 seeds reach 31:00. The player is 4× faster than a chaser, and
    the bot never gets cornered. A human will take more contact damage; this is the main reason to playtest.
-5. **The endgame is still not reached.** The final threat (~8,250 HP at 30:00) survives the last minute,
-   so the boss rush never triggers. This needs its own tuning pass.
+5. **The endgame now starts.** The final threat (1,000 base HP → ~5,500 at 30:00, speed 1.0) spawns at
+   30:00; the fallback starts the boss rush at 30:45 if it is still alive. The kiting bot times out rather
+   than killing it, which is the expected bot result — a human build that stands and fights can kill it
+   and start the rush early.
 6. **Gold economy is sane again.** Halving coin value after the kill-rate tripled keeps a full shop at
    roughly 3–4 runs instead of 2.
 
 ## Recommended follow-up (not applied)
 
-- **Final threat / boss rush:** make the final threat killable in ~30–60 s (lower base HP, or scale it to
-  current party DPS, or let the boss rush start on a timer rather than on its death). Today the run simply
-  ends at 31:00 with the threat alive.
+- **Human endgame pass:** watch a real final-threat fight. If players outrun it forever, add a boss pattern
+  (dash/ranged/adds) rather than more HP; the current fallback only guarantees the transition.
 - **Human difficulty pass:** the bot proves the swarm is survivable with perfect kiting, not that it is
   challenging. Watch a real run before raising `director.hpScalePerMin` or spawn pressure further.
 - **Per-player stats (co-op):** the modifier stack is still global, so one player's passives buff the whole

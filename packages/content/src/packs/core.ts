@@ -69,9 +69,9 @@ const corePack: ContentPack = {
     {
       id: "void-threat",
       category: "final-threat",
-      hp: 1500,
+      hp: 1000,
       damage: 30,
-      moveSpeed: 0.5,
+      moveSpeed: 1,
       radius: 20,
       xp: 500,
       behavior: "chase",

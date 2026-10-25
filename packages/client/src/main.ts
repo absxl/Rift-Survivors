@@ -3,6 +3,7 @@ import { loadGamePack } from "@rift/content";
 import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
 import { Sfx } from "./audio";
+import { Banner } from "./banner";
 import { championColor } from "./champion-colors";
 import { CharacterSelect } from "./charselect";
 import { ConnectionLost } from "./connection-lost";
@@ -89,6 +90,7 @@ async function main(): Promise<void> {
   levelUp.onChoose((index) => activeChoice?.(index));
 
   const runEnd = new RunEndUI();
+  const banner = new Banner();
   const nameScreen = new NameScreen();
   const pauseMenu = new PauseMenu();
   const connectionLost = new ConnectionLost();
@@ -119,6 +121,7 @@ async function main(): Promise<void> {
       else if (e.type === "gem-pickup") sfx.play("pickup");
       else if (e.type === "level-up") sfx.play("levelup");
       else if (e.type === "weapon-fire") sfx.play("fire");
+      else if (e.type === "boss-rush") banner.show("BOSS RUSH");
     }
     if (snap.over && !runEnded) {
       runEnded = true;

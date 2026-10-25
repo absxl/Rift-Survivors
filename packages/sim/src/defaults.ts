@@ -95,6 +95,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "timeline.bossIntervalSec": 300,
     "timeline.finalThreatSec": 1800,
     "timeline.bossRushIntervalSec": 20,
+    "timeline.bossRushFallbackSec": 45,
     "player.iFrames": 15,
     "pickup.radius": 10,
     "pickup.magnetRadius": 60,

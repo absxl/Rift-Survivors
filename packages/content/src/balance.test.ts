@@ -11,7 +11,7 @@ import { loadGamePack } from "./index";
 
 const RUN = process.env.BALANCE === "1";
 const SEEDS = [101, 202, 303];
-const MAX_MINUTES = 31;
+const MAX_MINUTES = 32;
 
 function botMove(world: World): { playerId: number; moveX: number; moveY: number } {
   const players = world.stores.players;
@@ -148,7 +148,6 @@ function chooseOffer(world: World): void {
 interface RunResult {
   seed: number;
   survivedSec: number;
-  survivedFinalThreat: boolean;
   level: number;
   levelUps: number;
   kills: number;
@@ -158,6 +157,7 @@ interface RunResult {
   maxEnemies: number;
   finalThreatSpawned: boolean;
   bossRush: boolean;
+  bossRushReason: "killed" | "timeout" | null;
   weapons: string[];
   passives: string[];
   msPerTick: number;
@@ -176,6 +176,7 @@ function runSeed(
   let levelUps = 0;
   let gemsCollected = 0;
   let xpFromGems = 0;
+  let bossRushReason: "killed" | "timeout" | null = null;
 
   const maxTicks = MAX_MINUTES * 60 * 30;
   for (let t = 0; t < maxTicks && !world.over; t++) {
@@ -188,6 +189,8 @@ function runSeed(
         xpFromGems += e.value;
       } else if (e.type === "level-up") {
         levelUps++;
+      } else if (e.type === "boss-rush") {
+        bossRushReason = e.reason;
       }
     }
     while (world.pendingOffers().length > 0) chooseOffer(world);
@@ -212,7 +215,6 @@ function runSeed(
   return {
     seed,
     survivedSec: Math.round(ticks / 30),
-    survivedFinalThreat: world.finalThreatSpawned,
     level: world.partyLevel,
     levelUps,
     kills: world.stores.players.field("kills")[0],
@@ -222,6 +224,7 @@ function runSeed(
     maxEnemies,
     finalThreatSpawned: world.finalThreatSpawned,
     bossRush: world.bossRush,
+    bossRushReason,
     weapons: weaponIds,
     passives: passiveIds,
     msPerTick: totalMs / Math.max(1, ticks),
@@ -271,6 +274,7 @@ function runSeed(
           maxEnemies: r.maxEnemies,
           itemLevels,
           bossRush: r.bossRush,
+          bossRushReason: r.bossRushReason,
           msPerTick: Number(r.msPerTick.toFixed(4)),
         })}`,
       );
