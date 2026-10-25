@@ -98,6 +98,11 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     }
   }
 
+  // Fallback so a level-up never produces an empty offer (docs/13 §6).
+  if (options.length === 0) {
+    options.push({ optionId: "fallback-heal", ref: { type: "heal", id: "heal" } });
+  }
+
   const chosen = world.rng.shuffle(options).slice(0, world.num("levelUp.choices"));
 
   return {
@@ -168,6 +173,9 @@ export function buildChestOffer(world: World, playerId: number): Offer {
 
   const luck = world.stat("luck", 0);
   const itemCount = luck >= 0.3 ? 5 : luck >= 0.1 ? 3 : 1;
+  if (options.length === 0) {
+    options.push({ optionId: "fallback-gold", ref: { type: "gold", id: "gold" } });
+  }
   const chosen = world.rng.shuffle(options).slice(0, itemCount);
 
   return {
@@ -202,28 +210,40 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
   const offer = world.pendingOffers().find((o) => o.playerId === playerId);
   if (!offer) return;
   const option = offer.options[choiceIndex];
-  if (!option) return;
 
-  const ref = option.ref;
-  if (ref.type === "weapon") {
-    if (option.isEvolution) {
-      evolveWeapon(world, playerId, ref.id);
-    } else {
-      const defIndex = world.content.weapons.findIndex((w) => w.id === ref.id);
-      if (defIndex < 0) return;
-      if (option.level === undefined) addWeapon(world, playerId, defIndex);
-      else upgradeWeapon(world, playerId, defIndex, option.level);
+  try {
+    if (!option) return;
+    const ref = option.ref;
+    if (ref.type === "weapon") {
+      if (option.isEvolution) {
+        evolveWeapon(world, playerId, ref.id);
+      } else {
+        const defIndex = world.content.weapons.findIndex((w) => w.id === ref.id);
+        if (defIndex >= 0) {
+          if (option.level === undefined) addWeapon(world, playerId, defIndex);
+          else upgradeWeapon(world, playerId, defIndex, option.level);
+        }
+      }
+    } else if (ref.type === "passive") {
+      const defIndex = world.content.passives.findIndex((p) => p.id === ref.id);
+      if (defIndex >= 0) {
+        if (option.level === undefined) addPassive(world, playerId, defIndex);
+        else upgradePassive(world, playerId, defIndex, option.level);
+        refreshPassiveModifiers(world);
+      }
+    } else if (ref.type === "heal") {
+      const players = world.stores.players;
+      const max = players.field("maxHp")[playerId];
+      players.field("hp")[playerId] = Math.min(max, players.field("hp")[playerId] + max * 0.25);
+    } else if (ref.type === "gold") {
+      world.stores.players.field("gold")[playerId] += 10;
     }
-  } else if (ref.type === "passive") {
-    const defIndex = world.content.passives.findIndex((p) => p.id === ref.id);
-    if (defIndex < 0) return;
-    if (option.level === undefined) addPassive(world, playerId, defIndex);
-    else upgradePassive(world, playerId, defIndex, option.level);
-    refreshPassiveModifiers(world);
-  }
 
-  refreshSynergies(world);
-  world.clearOffer(playerId);
+    refreshSynergies(world);
+  } finally {
+    // Always resolve the offer so a bad choice can never wedge the pause.
+    world.clearOffer(playerId);
+  }
 }
 
 function addWeapon(world: World, playerId: number, defIndex: number): void {

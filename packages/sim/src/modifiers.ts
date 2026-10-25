@@ -85,7 +85,7 @@ export class ModifierStack {
     let value = overridden ? override : (base + add) * mult;
     if (min !== undefined) value = Math.max(value, min);
     if (max !== undefined) value = Math.min(value, max);
-    return value;
+    return Number.isFinite(value) ? value : base;
   }
 
   /** Snapshot of modifier counts per key (for determinism tests / debug). */

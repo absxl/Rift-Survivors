@@ -12,7 +12,9 @@ import { LevelUpUI } from "./levelup";
 import { Lobby } from "./lobby";
 import { MetaScreen } from "./meta-screen";
 import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
+import { NameScreen } from "./name-screen";
 import type { NetHost } from "./net-host";
+import { PauseMenu } from "./pause-menu";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 import { RunEndUI } from "./run-end";
 import { loadSave, persistSave } from "./save/save";
@@ -77,11 +79,15 @@ async function main(): Promise<void> {
   let activeChoice: ((index: number) => void) | null = null;
   let inputSender: ((moveX: number, moveY: number) => void) | null = null;
   let coopCharacterId = firstCharacter;
+  let currentMode: "solo" | "coop" = "solo";
+  let currentCharacterId = firstCharacter;
 
   const levelUp = new LevelUpUI();
   levelUp.onChoose((index) => activeChoice?.(index));
 
   const runEnd = new RunEndUI();
+  const nameScreen = new NameScreen();
+  const pauseMenu = new PauseMenu();
   let runEnded = false;
   let lastSnap: WorldSnapshot | null = null;
 
@@ -126,6 +132,8 @@ async function main(): Promise<void> {
 
   const startSolo = (characterId: string): void => {
     runEnded = false;
+    currentMode = "solo";
+    currentCharacterId = characterId;
     metaScreen.hide();
     renderer.setLocalPlayer(0);
     renderer.setChampionColor(championColor(characterId));
@@ -149,6 +157,7 @@ async function main(): Promise<void> {
   const lobby = new Lobby(serverUrl);
   lobby.onStart((netHost: NetHost, yourPlayerId: number) => {
     runEnded = false;
+    currentMode = "coop";
     renderer.setLocalPlayer(yourPlayerId);
     renderer.setChampionColor(championColor(coopCharacterId));
     hud.setLocalPlayer(yourPlayerId);
@@ -165,13 +174,47 @@ async function main(): Promise<void> {
     const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
     charSelect.onChoose((id) => {
       coopCharacterId = id;
-      lobby.setCharacter(id);
-      lobby.show();
+      nameScreen.show();
     });
+  });
+  nameScreen.onConfirm((name) => {
+    lobby.setCharacter(coopCharacterId);
+    lobby.setName(name);
+    lobby.show();
   });
 
   runEnd.onContinue(() => {
     window.location.reload();
+  });
+
+  // Esc pause: solo freezes the sim; co-op keeps the authoritative server running.
+  pauseMenu.onResume(() => {
+    if (currentMode === "solo") host.resume();
+  });
+  pauseMenu.onRestart(() => {
+    if (currentMode === "solo") startSolo(currentCharacterId);
+  });
+  pauseMenu.onQuit(() => {
+    window.location.reload();
+  });
+  pauseMenu.onSettingsChange((settings) => {
+    save.settings.volume = settings.volume;
+    save.settings.shake = settings.shake;
+    persistSave(save);
+    sfx.setVolume(settings.volume);
+    renderer.setShake(settings.shake);
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !inputSender) return;
+    e.preventDefault();
+    if (pauseMenu.visible) {
+      pauseMenu.hide();
+      if (currentMode === "solo") host.resume();
+    } else {
+      pauseMenu.show(currentMode === "solo", save.settings);
+      if (currentMode === "solo") host.pause();
+    }
   });
 
   window.setInterval(() => {

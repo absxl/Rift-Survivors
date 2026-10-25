@@ -116,10 +116,21 @@ export function startServer(port: number): ServerHandle {
 
   const tickRoom = (room: Room): void => {
     if (!room.world || room.paused) return;
-    const events = step(
-      room.world,
-      room.clients.map((c) => c.input),
-    );
+    let events: ReturnType<typeof step>;
+    try {
+      events = step(
+        room.world,
+        room.clients.map((c) => c.input),
+      );
+    } catch (err) {
+      // One bad tick must not crash the server: log and end the run cleanly.
+      console.error("[room] tick error", err);
+      room.world.over = true;
+      if (room.timer) clearInterval(room.timer);
+      room.timer = null;
+      broadcast(room, { type: "end", stats: { tick: room.world.tick, error: true } });
+      return;
+    }
     broadcast(room, {
       type: "snapshot",
       tick: room.world.tick,
@@ -200,6 +211,11 @@ export function startServer(port: number): ServerHandle {
     conns.delete(ws);
     const { room, client } = conn;
     room.clients = room.clients.filter((c) => c !== client);
+    if (room.world) {
+      // Drop any pending offer so the room can't stay paused forever.
+      room.world.clearOffer(client.playerId);
+      if (room.world.pendingOffers().length === 0) room.paused = false;
+    }
     if (room.clients.length === 0) {
       if (room.timer) clearInterval(room.timer);
       rooms.delete(room.code);

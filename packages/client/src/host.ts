@@ -7,6 +7,8 @@ export type OfferHandler = (offer: Offer) => void;
 
 export interface Host {
   start(characterId: string, metaBonuses?: Record<string, number>): void;
+  pause(): void;
+  resume(): void;
   sendInput(input: PlayerInput): void;
   sendChoice(choiceIndex: number): void;
   onSnapshot(cb: SnapshotHandler): void;
@@ -39,6 +41,14 @@ export class WorkerHost implements Host {
 
   start(characterId: string, metaBonuses?: Record<string, number>): void {
     this.worker.postMessage({ type: "start", characterId, metaBonuses });
+  }
+
+  pause(): void {
+    this.worker.postMessage({ type: "pause" });
+  }
+
+  resume(): void {
+    this.worker.postMessage({ type: "resume" });
   }
 
   sendInput(input: PlayerInput): void {

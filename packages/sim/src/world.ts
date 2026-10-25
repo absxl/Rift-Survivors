@@ -355,9 +355,16 @@ export class World {
       const delta = def.levels[i].delta[key];
       if (delta !== undefined) value += delta;
     }
-    if (key === "damage") return value * this.stat("might", 1);
-    if (key === "area") return value * this.stat("area", 1);
-    return value / this.stat("cooldown", 1);
+    if (key === "damage") {
+      const damage = value * this.stat("might", 1);
+      return Number.isFinite(damage) ? Math.max(0, damage) : value;
+    }
+    if (key === "area") {
+      const area = value * this.stat("area", 1);
+      return Number.isFinite(area) ? Math.max(1, Math.min(2000, area)) : value;
+    }
+    const cooldown = value / this.stat("cooldown", 1);
+    return Number.isFinite(cooldown) ? Math.max(1, cooldown) : value;
   }
 
   /** Effective weapon damage: base + level deltas, scaled by "might". */

@@ -120,6 +120,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   champions + the shared-level model (D-023) are M12. Full snapshots (no delta/compression) for now.
 - **Implemented since:** shared party XP + level-up-together (D-023) and a League-style Pixi hotbar
   (portrait/level, HP/XP bars, weapon ability icons with cooldowns, passive item row, hover tooltips).
+- **Freeze fix:** level-up/chest offers now always include a fallback card, always clear on apply, dot-stats
+  are clamped finite, and worker/server ticks are wrapped so one bad tick ends the run instead of freezing it.
+- **QoL:** separate name screen before the co-op lobby; Esc pause menu (solo freezes the sim, co-op does not;
+  Resume · Restart (solo) · Quit to Menu · Sound · Shake).
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

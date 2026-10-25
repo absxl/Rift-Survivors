@@ -83,6 +83,10 @@ export class Lobby {
     this.characterId = characterId;
   }
 
+  setName(name: string): void {
+    this.nameInput.value = name;
+  }
+
   show(): void {
     this.root.style.display = "flex";
   }
