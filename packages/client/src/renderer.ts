@@ -59,8 +59,10 @@ export class GameRenderer {
   private events: SimEvent[] = [];
 
   private readonly ground: TilingSprite;
-  private readonly playerSprite: Sprite;
-  private readonly hpBar: Graphics;
+  private readonly playerLayer: Container;
+  private readonly playerHpBar: Graphics;
+  private readonly playerSprites = new Map<number, Sprite>();
+  private localPlayerId = 0;
   private readonly gemLayer: Container;
   private readonly pickupLayer: Container;
   private readonly projectileLayer: Container;
@@ -111,12 +113,10 @@ export class GameRenderer {
     this.fxGraphics = new Graphics();
     this.enemyLayer.addChild(this.fxGraphics);
 
-    this.playerSprite = new Sprite(this.textures.player);
-    this.playerSprite.anchor.set(0.5, 0.5);
-    this.stage.addChild(this.playerSprite);
-
-    this.hpBar = new Graphics();
-    this.stage.addChild(this.hpBar);
+    this.playerLayer = new Container();
+    this.stage.addChild(this.playerLayer);
+    this.playerHpBar = new Graphics();
+    this.playerLayer.addChild(this.playerHpBar);
   }
 
   get latest(): WorldSnapshot | null {
@@ -141,7 +141,7 @@ export class GameRenderer {
   private playerField(s: WorldSnapshot): PlayerView | null {
     const store = getStore(s, "player");
     if (!store) return null;
-    const idx = store.slots.indexOf(0);
+    const idx = store.slots.indexOf(this.localPlayerId);
     if (idx < 0) return null;
     return {
       x: store.fields.x[idx],
@@ -237,15 +237,8 @@ export class GameRenderer {
 
     this.drawEnemyHealthBars(getStore(this.curr, "enemy"));
 
-    if (player) {
-      this.playerSprite.visible = true;
-      this.playerSprite.position.set(player.x - ox, player.y - oy);
-      this.playerSprite.scale.x = player.fx < 0 ? -1 : 1;
-      this.playerSprite.tint = this.championColor;
-      this.drawHpBar(player.x - ox, player.y - oy, player.hp, player.maxHp);
-    } else {
-      this.playerSprite.visible = false;
-    }
+    this.playerLayer.position.set(-ox, -oy);
+    this.syncPlayers(getStore(this.curr, "player"));
 
     this.updateDamageNumbers(ox, oy);
   }
@@ -275,12 +268,52 @@ export class GameRenderer {
     }
   }
 
-  private drawHpBar(x: number, y: number, hp: number, max: number): void {
-    this.hpBar.clear();
-    const pct = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
+  /** Set which player is the local one (camera + tint target). */
+  setLocalPlayer(playerId: number): void {
+    this.localPlayerId = playerId;
+  }
+
+  /** Render every player; the local one uses the champion color, allies a neutral tint. */
+  private syncPlayers(store: StoreSnapshot | undefined): void {
+    const seen = new Set<number>();
+    if (store) {
+      for (let i = 0; i < store.slots.length; i++) {
+        const slot = store.slots[i];
+        seen.add(slot);
+        let sprite = this.playerSprites.get(slot);
+        if (!sprite) {
+          sprite = new Sprite(this.textures.player);
+          sprite.anchor.set(0.5, 0.5);
+          this.playerSprites.set(slot, sprite);
+          this.playerLayer.addChild(sprite);
+        }
+        sprite.position.set(store.fields.x[i], store.fields.y[i]);
+        sprite.tint = slot === this.localPlayerId ? this.championColor : 0x88aaff;
+        sprite.scale.x = store.fields.facingX[i] < 0 ? -1 : 1;
+      }
+    }
+    for (const [slot, sprite] of this.playerSprites) {
+      if (!seen.has(slot)) {
+        this.playerLayer.removeChild(sprite);
+        this.playerSprites.delete(slot);
+      }
+    }
+    this.drawPlayerHpBars(store);
+  }
+
+  private drawPlayerHpBars(store: StoreSnapshot | undefined): void {
+    this.playerHpBar.clear();
+    if (!store) return;
     const w = 16;
-    this.hpBar.rect(x - w / 2, y + 9, w, 2).fill(0x000000);
-    this.hpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
+    for (let i = 0; i < store.slots.length; i++) {
+      const hp = store.fields.hp[i];
+      const maxHp = store.fields.maxHp[i];
+      const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+      const x = store.fields.x[i];
+      const y = store.fields.y[i];
+      this.playerHpBar.rect(x - w / 2, y + 9, w, 2).fill(0x000000);
+      this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
+    }
   }
 
   /** Thin bar above any enemy that has taken damage. */

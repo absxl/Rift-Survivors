@@ -100,8 +100,15 @@ export function startServer(port: number): ServerHandle {
 
   const startRoom = (room: Room): void => {
     if (room.world || room.clients.length === 0) return;
-    const count = room.clients.length;
-    room.world = createWorld(DEFAULT_RULESET, { playerCount: count, content: pack }, room.seed);
+    room.world = createWorld(
+      DEFAULT_RULESET,
+      {
+        playerCount: room.clients.length,
+        content: pack,
+        characterIds: room.clients.map((c) => c.characterId),
+      },
+      room.seed,
+    );
     for (const c of room.clients)
       send(c.ws, { type: "start", seed: room.seed, yourPlayerId: c.playerId });
     room.timer = setInterval(() => tickRoom(room), TICK_MS);

@@ -37,6 +37,8 @@ export interface RunConfig {
   content?: ContentPack;
   /** Character id to start as; defaults to the first character. */
   characterId?: string;
+  /** Per-player character ids (co-op); falls back to characterId/first. */
+  characterIds?: string[];
   /** Permanent meta-shop bonuses (stat key → additive bonus). */
   metaBonuses?: Record<string, number>;
 }
@@ -211,6 +213,7 @@ export class World {
     content: ContentPack = EMPTY_PACK,
     characterId?: string,
     metaBonuses?: Record<string, number>,
+    characterIds?: string[],
   ) {
     this.seed = seed;
     this.ruleset = ruleset;
@@ -242,26 +245,29 @@ export class World {
       this.stores.players.field("xpToNext")[slot] = this.ruleset.xpCurve[0] ?? 5;
     }
 
-    // Give player 0 the character's starting weapon and apply base stats.
-    const character = characterId
-      ? content.characters.find((c) => c.id === characterId)
-      : content.characters[0];
-    this.character = character ?? null;
-    if (character) {
-      const weaponIndex = content.weapons.findIndex((w) => w.id === character.startingWeapon);
-      if (weaponIndex >= 0) {
-        for (let p = 0; p < playerCount; p++) {
-          const slot = this.stores.weapons.alloc();
-          this.stores.weapons.field("owner")[slot] = p;
-          this.stores.weapons.field("defIndex")[slot] = weaponIndex;
-          this.stores.weapons.field("cooldown")[slot] = p * 10;
-          this.stores.weapons.field("level")[slot] = 1;
-        }
+    // Per-player characters (co-op) with a primary character for global stats.
+    const primary =
+      (characterIds?.[0] ? content.characters.find((c) => c.id === characterIds[0]) : undefined) ??
+      (characterId ? content.characters.find((c) => c.id === characterId) : undefined) ??
+      content.characters[0];
+    this.character = primary ?? null;
+    if (primary?.baseStats) {
+      for (const [key, value] of Object.entries(primary.baseStats)) {
+        this.modifiers.add(key, { op: "add", value, source: `character:${primary.id}` });
       }
-      if (character.baseStats) {
-        for (const [key, value] of Object.entries(character.baseStats)) {
-          this.modifiers.add(key, { op: "add", value, source: `character:${character.id}` });
-        }
+    }
+    for (let p = 0; p < playerCount; p++) {
+      const charId = characterIds?.[p] ?? primary?.id;
+      const char =
+        (charId ? content.characters.find((c) => c.id === charId) : undefined) ?? primary;
+      if (!char) continue;
+      const weaponIndex = content.weapons.findIndex((w) => w.id === char.startingWeapon);
+      if (weaponIndex >= 0) {
+        const slot = this.stores.weapons.alloc();
+        this.stores.weapons.field("owner")[slot] = p;
+        this.stores.weapons.field("defIndex")[slot] = weaponIndex;
+        this.stores.weapons.field("cooldown")[slot] = p * 10;
+        this.stores.weapons.field("level")[slot] = 1;
       }
     }
 
@@ -439,6 +445,7 @@ export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number
     config.content,
     config.characterId,
     config.metaBonuses,
+    config.characterIds,
   );
 }
 

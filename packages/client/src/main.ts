@@ -76,6 +76,7 @@ async function main(): Promise<void> {
   // The active choice/input senders are swapped depending on solo vs co-op.
   let activeChoice: ((index: number) => void) | null = null;
   let inputSender: ((moveX: number, moveY: number) => void) | null = null;
+  let coopCharacterId = firstCharacter;
 
   const levelUp = new LevelUpUI();
   levelUp.onChoose((index) => activeChoice?.(index));
@@ -126,6 +127,7 @@ async function main(): Promise<void> {
   const startSolo = (characterId: string): void => {
     runEnded = false;
     metaScreen.hide();
+    renderer.setLocalPlayer(0);
     renderer.setChampionColor(championColor(characterId));
     activeChoice = (i) => host.sendChoice(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
@@ -143,17 +145,25 @@ async function main(): Promise<void> {
   // Co-op host (WebSocket server).
   const serverUrl = import.meta.env.VITE_SERVER_URL ?? `ws://${location.hostname}:8787`;
   const lobby = new Lobby(serverUrl);
-  lobby.onStart((netHost: NetHost) => {
+  lobby.onStart((netHost: NetHost, yourPlayerId: number) => {
     runEnded = false;
+    renderer.setLocalPlayer(yourPlayerId);
+    renderer.setChampionColor(championColor(coopCharacterId));
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);
     activeChoice = (i) => netHost.sendChoice(i);
-    inputSender = (mx, my) => netHost.sendInput({ playerId: 0, moveX: mx, moveY: my });
+    inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
   });
   metaScreen.onCoop(() => {
     metaScreen.hide();
     sfx.unlock();
-    lobby.show();
+    const unlocked = pack.characters.filter((c) => save.unlockedCharacters.includes(c.id));
+    const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
+    charSelect.onChoose((id) => {
+      coopCharacterId = id;
+      lobby.setCharacter(id);
+      lobby.show();
+    });
   });
 
   runEnd.onContinue(() => {

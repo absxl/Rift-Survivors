@@ -9,9 +9,10 @@ export class Lobby {
   private readonly status: HTMLElement;
   private readonly playerList: HTMLElement;
   private readonly startBtn: HTMLButtonElement;
-  private startCb: ((netHost: NetHost) => void) | null = null;
+  private startCb: ((netHost: NetHost, yourPlayerId: number) => void) | null = null;
   private netHost: NetHost | null = null;
   private isHost = false;
+  private characterId = "lux";
 
   constructor(private readonly serverUrl: string) {
     this.root = document.createElement("div");
@@ -74,8 +75,12 @@ export class Lobby {
     document.body.appendChild(this.root);
   }
 
-  onStart(cb: (netHost: NetHost) => void): void {
+  onStart(cb: (netHost: NetHost, yourPlayerId: number) => void): void {
     this.startCb = cb;
+  }
+
+  setCharacter(characterId: string): void {
+    this.characterId = characterId;
   }
 
   show(): void {
@@ -92,9 +97,9 @@ export class Lobby {
     netHost.onError((msg) => {
       this.status.textContent = msg;
     });
-    netHost.onStart(() => {
+    netHost.onStart((playerId) => {
       this.hide();
-      this.startCb?.(netHost);
+      this.startCb?.(netHost, playerId);
     });
     await netHost.connect();
     return netHost;
@@ -105,7 +110,7 @@ export class Lobby {
     try {
       this.netHost = await this.connect();
       this.isHost = true;
-      this.netHost.createRoom(this.nameInput.value || "host", "lux");
+      this.netHost.createRoom(this.nameInput.value || "host", this.characterId);
     } catch {
       this.status.textContent = "server unreachable";
     }
@@ -121,7 +126,7 @@ export class Lobby {
     try {
       this.netHost = await this.connect();
       this.isHost = false;
-      this.netHost.joinRoom(code, this.nameInput.value || "player", "lux");
+      this.netHost.joinRoom(code, this.nameInput.value || "player", this.characterId);
     } catch {
       this.status.textContent = "server unreachable";
     }
