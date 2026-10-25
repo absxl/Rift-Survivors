@@ -117,6 +117,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   props.
 - **M11 co-op limitations:** all players currently share one champion and global stat modifiers; per-player
   champions + the shared-level model (D-023) are M12. Full snapshots (no delta/compression) for now.
+- **Implemented since:** shared party XP + level-up-together (D-023) and a League-style Pixi hotbar
+  (portrait/level, HP/XP bars, weapon ability icons with cooldowns, passive item row, hover tooltips).
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.
