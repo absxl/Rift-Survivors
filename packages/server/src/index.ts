@@ -1,4 +1,5 @@
-// Multiplayer room server (M10+). Intentionally a stub for now.
-// The server will run packages/sim authoritatively over WebSocket.
-export {};
-console.log("rift-survivors server: arrives at M10");
+import { startServer } from "./server";
+
+const port = Number(process.env.PORT ?? 8787);
+startServer(port);
+console.log(`rift-survivors server listening on :${port}`);

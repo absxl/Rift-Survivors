@@ -217,7 +217,7 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
   }
 
   refreshSynergies(world);
-  world.clearOffers();
+  world.clearOffer(playerId);
 }
 
 function addWeapon(world: World, playerId: number, defIndex: number): void {

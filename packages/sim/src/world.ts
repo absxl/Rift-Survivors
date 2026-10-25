@@ -250,11 +250,13 @@ export class World {
     if (character) {
       const weaponIndex = content.weapons.findIndex((w) => w.id === character.startingWeapon);
       if (weaponIndex >= 0) {
-        const slot = this.stores.weapons.alloc();
-        this.stores.weapons.field("owner")[slot] = 0;
-        this.stores.weapons.field("defIndex")[slot] = weaponIndex;
-        this.stores.weapons.field("cooldown")[slot] = 0;
-        this.stores.weapons.field("level")[slot] = 1;
+        for (let p = 0; p < playerCount; p++) {
+          const slot = this.stores.weapons.alloc();
+          this.stores.weapons.field("owner")[slot] = p;
+          this.stores.weapons.field("defIndex")[slot] = weaponIndex;
+          this.stores.weapons.field("cooldown")[slot] = p * 10;
+          this.stores.weapons.field("level")[slot] = 1;
+        }
       }
       if (character.baseStats) {
         for (const [key, value] of Object.entries(character.baseStats)) {
@@ -322,6 +324,12 @@ export class World {
 
   clearOffers(): void {
     this.offers.length = 0;
+  }
+
+  /** Remove only the pending offer belonging to one player (co-op safe). */
+  clearOffer(playerId: number): void {
+    const idx = this.offers.findIndex((o) => o.playerId === playerId);
+    if (idx >= 0) this.offers.splice(idx, 1);
   }
 
   /** Effective weapon stat: base + level deltas, scaled by the relevant stat. */

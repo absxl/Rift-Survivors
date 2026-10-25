@@ -18,16 +18,32 @@ export function registerWeaponBehaviors(reg: Registries): void {
   reg.weaponBehaviors.register("boomerang", boomerang);
 }
 
-/** Move toward the nearest player (player 0 for now), slowed by the slow status. */
+/** Move toward the nearest player, slowed by the slow status. */
 function chase(world: World, slot: number, def: EnemyDef): void {
   const enemies = world.stores.enemies;
   if (enemies.field("freezeTicks")[slot] > 0) return; // frozen solid
   const players = world.stores.players;
-  const px = players.field("x")[0];
-  const py = players.field("y")[0];
-  const dx = px - enemies.field("x")[slot];
-  const dy = py - enemies.field("y")[slot];
-  const dist = Math.hypot(dx, dy);
+  const ex = enemies.field("x")[slot];
+  const ey = enemies.field("y")[slot];
+
+  let targetX = 0;
+  let targetY = 0;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  players.forEachAlive((p) => {
+    const dx = players.field("x")[p] - ex;
+    const dy = players.field("y")[p] - ey;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      targetX = players.field("x")[p];
+      targetY = players.field("y")[p];
+    }
+  });
+  if (bestD2 === Number.POSITIVE_INFINITY) return;
+
+  const dx = targetX - ex;
+  const dy = targetY - ey;
+  const dist = Math.sqrt(bestD2);
   if (dist < 0.001) return;
   const slowFactor = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
   enemies.field("x")[slot] += (dx / dist) * def.moveSpeed * slowFactor;

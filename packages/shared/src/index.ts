@@ -1,2 +1,8 @@
-// Shared network protocol + zod-validated message schemas. Populated from M10+.
-export const PROTOCOL_VERSION = 1;
+// Shared network protocol + zod-validated message schemas (docs/07).
+export {
+  PROTOCOL_VERSION,
+  clientMessageSchema,
+  type ClientMessage,
+  type ServerMessage,
+  type LobbyPlayer,
+} from "./protocol";

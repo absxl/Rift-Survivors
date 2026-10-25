@@ -90,10 +90,11 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Specific extra families from `11`: arcana, curses, shrines, keystones, mutators, daily seeds + extras UI
 
 ## M11 — Multiplayer server
-- [ ] Protocol + `PROTOCOL_VERSION` handshake in `packages/shared` (see 07)
-- [ ] Node `ws` server running the same sim and ruleset; rooms
-- [ ] `NetHost` client implementing the same `Host` interface
-- [ ] Delta snapshots (generated codec), interpolation, local prediction, per-player level-up offers
+- [x] Protocol + `PROTOCOL_VERSION` handshake in `packages/shared` (zod-validated)
+- [x] Node `ws` server running the same sim and ruleset; rooms; per-player offers; `/health`
+- [x] Sim co-op correctness (nearest-player targeting, per-player pickups, starting weapon per player)
+- [ ] `NetHost` client + lobby UI (next)
+- [ ] Delta snapshots, interpolation, local prediction
 - [ ] 4-player stress test with simulated latency
 
 ## M12 — Co-op features & deploy

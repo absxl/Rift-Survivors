@@ -1,4 +1,5 @@
-// XP gems: magnet toward the local player, and pickup within the pickup radius.
+// XP gems: magnet toward the nearest player, and pickup by whichever player is
+// closest (co-op aware).
 import type { Registries } from "../registry";
 import type { World } from "../world";
 
@@ -10,8 +11,6 @@ function gems(world: World): void {
   const gems = world.stores.gems;
   const players = world.stores.players;
   if (players.count === 0) return;
-  const px = players.field("x")[0];
-  const py = players.field("y")[0];
 
   const pickup2 = world.num("pickup.radius") ** 2;
   const magnet2 = (world.num("pickup.magnetRadius") * world.stat("magnet", 1)) ** 2;
@@ -20,19 +19,31 @@ function gems(world: World): void {
   gems.forEachAlive((slot) => {
     const gx = gems.field("x")[slot];
     const gy = gems.field("y")[slot];
-    const dx = px - gx;
-    const dy = py - gy;
-    const d2 = dx * dx + dy * dy;
 
-    if (d2 <= pickup2) {
+    let nearest = -1;
+    let bestD2 = Number.POSITIVE_INFINITY;
+    players.forEachAlive((p) => {
+      const dx = players.field("x")[p] - gx;
+      const dy = players.field("y")[p] - gy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        nearest = p;
+      }
+    });
+    if (nearest < 0) return;
+
+    if (bestD2 <= pickup2) {
       const value = gems.field("value")[slot];
-      players.field("xp")[0] += value;
-      world.emit({ type: "gem-pickup", playerId: 0, value });
+      players.field("xp")[nearest] += value;
+      world.emit({ type: "gem-pickup", playerId: nearest, value });
       gems.free(slot);
       return;
     }
-    if (d2 <= magnet2) {
-      const d = Math.sqrt(d2) || 1;
+    if (bestD2 <= magnet2) {
+      const dx = players.field("x")[nearest] - gx;
+      const dy = players.field("y")[nearest] - gy;
+      const d = Math.sqrt(bestD2) || 1;
       gems.field("x")[slot] = gx + (dx / d) * speed;
       gems.field("y")[slot] = gy + (dy / d) * speed;
     }

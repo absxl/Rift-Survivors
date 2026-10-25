@@ -1,5 +1,5 @@
-// Floor pickups: heal, vacuum, nuke, freeze, chest, gold. Dropped by enemies;
-// collected on touch and applied to the world.
+// Floor pickups: heal, vacuum, nuke, freeze, chest, gold. Collected by the nearest
+// player on touch; effects apply to that player (or globally for nuke/freeze).
 import type { Registries } from "../registry";
 import type { World } from "../world";
 import { buildChestOffer } from "./progression";
@@ -44,30 +44,37 @@ function pickups(world: World): void {
   const pickups = world.stores.pickups;
   const players = world.stores.players;
   if (players.count === 0) return;
-  const px = players.field("x")[0];
-  const py = players.field("y")[0];
-  const radius = world.num("pickup.radius");
-  const radius2 = radius * radius;
+  const radius2 = world.num("pickup.radius") ** 2;
 
   pickups.forEachAlive((slot) => {
-    const dx = px - pickups.field("x")[slot];
-    const dy = py - pickups.field("y")[slot];
-    if (dx * dx + dy * dy > radius2) return;
+    const x = pickups.field("x")[slot];
+    const y = pickups.field("y")[slot];
 
-    const kind = pickups.field("kind")[slot];
-    const value = pickups.field("value")[slot];
-    applyPickup(world, kind, value);
+    let nearest = -1;
+    let bestD2 = Number.POSITIVE_INFINITY;
+    players.forEachAlive((p) => {
+      const dx = players.field("x")[p] - x;
+      const dy = players.field("y")[p] - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        nearest = p;
+      }
+    });
+    if (nearest < 0 || bestD2 > radius2) return;
+
+    applyPickup(world, nearest, pickups.field("kind")[slot], pickups.field("value")[slot]);
     pickups.free(slot);
   });
 }
 
-function applyPickup(world: World, kind: number, value: number): void {
+function applyPickup(world: World, playerId: number, kind: number, value: number): void {
   const players = world.stores.players;
   const enemies = world.stores.enemies;
 
   if (kind === PICKUP_HEAL) {
-    const max = players.field("maxHp")[0];
-    players.field("hp")[0] = Math.min(max, players.field("hp")[0] + value);
+    const max = players.field("maxHp")[playerId];
+    players.field("hp")[playerId] = Math.min(max, players.field("hp")[playerId] + value);
   } else if (kind === PICKUP_VACUUM) {
     const gems = world.stores.gems;
     let total = 0;
@@ -75,7 +82,7 @@ function applyPickup(world: World, kind: number, value: number): void {
       total += gems.field("value")[slot];
       gems.free(slot);
     });
-    players.field("xp")[0] += total;
+    players.field("xp")[playerId] += total;
   } else if (kind === PICKUP_NUKE) {
     enemies.forEachAlive((slot) => {
       enemies.field("hp")[slot] -= value;
@@ -85,8 +92,8 @@ function applyPickup(world: World, kind: number, value: number): void {
       enemies.field("freezeTicks")[slot] = value;
     });
   } else if (kind === PICKUP_GOLD) {
-    players.field("gold")[0] += value;
+    players.field("gold")[playerId] += value;
   } else if (kind === PICKUP_CHEST) {
-    world.queueOffer(buildChestOffer(world, 0));
+    world.queueOffer(buildChestOffer(world, playerId));
   }
 }
