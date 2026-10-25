@@ -311,15 +311,18 @@ export class Hud {
     this.updateTooltip();
 
     if (this.statsVisible) {
-      const { primary, secondary } = formatStats(s.stats, { kills, gold, maxHp });
-      primary.forEach((row, i) => {
-        const value = this.statsPrimaryValues[i];
-        if (value) value.text = row.value;
-      });
-      secondary.forEach((row, i) => {
-        const value = this.statsSecondaryValues[i];
-        if (value) value.text = row.value;
-      });
+      const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0];
+      if (stats) {
+        const { primary, secondary } = formatStats(stats, { kills, gold, maxHp });
+        primary.forEach((row, i) => {
+          const value = this.statsPrimaryValues[i];
+          if (value) value.text = row.value;
+        });
+        secondary.forEach((row, i) => {
+          const value = this.statsSecondaryValues[i];
+          if (value) value.text = row.value;
+        });
+      }
     }
   }
 

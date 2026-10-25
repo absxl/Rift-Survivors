@@ -76,7 +76,7 @@ describe("progression", () => {
     applyChoice(world, 0, idx);
     expect(world.pendingOffers().length).toBe(0);
     expect(world.stores.passives.liveSlots().length).toBe(1);
-    expect(world.stat("might", 1)).toBeCloseTo(1.2);
+    expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.2);
   });
 
   it("upgrading a weapon raises its level", () => {

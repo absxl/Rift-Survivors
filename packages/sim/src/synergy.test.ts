@@ -76,7 +76,7 @@ const SYNERGY_PACK: ContentPack = {
 describe("synergy", () => {
   it("activates a tag-count synergy when enough tagged items are owned", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: SYNERGY_PACK }, 1);
-    expect(world.stat("area", 1)).toBeCloseTo(1);
+    expect(world.playerStat(0, "area", 1)).toBeCloseTo(1);
 
     world.partyXp = 100;
     step(world, []); // level up
@@ -86,7 +86,7 @@ describe("synergy", () => {
     applyChoice(world, 0, idx);
 
     // Two fire weapons now → ignite active → +0.1 area.
-    expect(world.stat("area", 1)).toBeCloseTo(1.1);
+    expect(world.playerStat(0, "area", 1)).toBeCloseTo(1.1);
   });
 
   it("keeps stats finite over many ticks with the synergy pack", () => {
@@ -95,8 +95,8 @@ describe("synergy", () => {
       world.partyXp = 100;
       for (let t = 0; t < 600 && !world.over; t++)
         step(world, [{ playerId: 0, moveX: 0, moveY: 0 }]);
-      expect(Number.isFinite(world.stat("area", 1))).toBe(true);
-      expect(Number.isFinite(world.stat("might", 1))).toBe(true);
+      expect(Number.isFinite(world.playerStat(0, "area", 1))).toBe(true);
+      expect(Number.isFinite(world.playerStat(0, "might", 1))).toBe(true);
     }
   });
 });

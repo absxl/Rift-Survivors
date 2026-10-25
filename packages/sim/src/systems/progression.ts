@@ -180,7 +180,7 @@ export function buildChestOffer(world: World, playerId: number): Offer {
     }
   }
 
-  const luck = world.stat("luck", 0);
+  const luck = world.playerStat(playerId, "luck", 0);
   const itemCount = luck >= 0.3 ? 5 : luck >= 0.1 ? 3 : 1;
   if (options.length === 0) {
     options.push({ optionId: "fallback-gold", ref: { type: "gold", id: "gold" } });
@@ -338,52 +338,40 @@ function upgradePassive(world: World, playerId: number, defIndex: number, level:
   });
 }
 
-/** Re-apply passive modifiers and sync derived player stats (maxHp). */
+/** Re-apply each player's passive modifiers and sync their maxHp. */
 function refreshPassiveModifiers(world: World): void {
-  world.modifiers.removeSourcePrefix("passive:");
   const passives = world.stores.passives;
-  passives.forEachAlive((slot) => {
-    const def = world.content.passives[passives.field("defIndex")[slot]];
-    if (!def) return;
-    const level = passives.field("level")[slot];
-    for (const [key, amount] of Object.entries(def.perLevel)) {
-      world.modifiers.add(key, { op: "add", value: amount * level, source: `passive:${def.id}` });
-    }
-  });
-
-  const players = world.stores.players;
-  players.forEachAlive((slot) => {
-    const oldMax = players.field("maxHp")[slot];
-    const newMax = 100 * world.stat("maxHp", 1);
-    players.field("maxHp")[slot] = newMax;
-    if (newMax > oldMax) {
-      players.field("hp")[slot] = Math.min(newMax, players.field("hp")[slot] + (newMax - oldMax));
-    }
-  });
+  for (let p = 0; p < world.playerModifiers.length; p++) {
+    const mods = world.playerModifiers[p];
+    mods.removeSourcePrefix("passive:");
+    passives.forEachAlive((slot) => {
+      if (passives.field("owner")[slot] !== p) return;
+      const def = world.content.passives[passives.field("defIndex")[slot]];
+      if (!def) return;
+      const level = passives.field("level")[slot];
+      for (const [key, amount] of Object.entries(def.perLevel)) {
+        mods.add(key, { op: "add", value: amount * level, source: `passive:${def.id}` });
+      }
+    });
+    world.syncPlayerMaxHp(p);
+  }
 }
 
-/** Re-apply the character's level-based growth bonuses (stacks every N levels). */
+/** Re-apply each player's character growth bonuses (per-player stacks). */
 function refreshGrowth(world: World): void {
-  const growth = world.character?.growth;
-  world.modifiers.removeSource("growth");
-  if (!growth) return;
-
   const players = world.stores.players;
-  players.forEachAlive((slot) => {
-    const stacks = Math.floor(players.field("level")[slot] / growth.everyLevels);
-    if (stacks > 0) {
-      for (const [key, amount] of Object.entries(growth.mods)) {
-        world.modifiers.add(key, { op: "add", value: amount * stacks, source: "growth" });
+  for (let p = 0; p < world.playerModifiers.length; p++) {
+    const mods = world.playerModifiers[p];
+    mods.removeSource("growth");
+    const growth = world.playerCharacters[p]?.growth;
+    if (growth) {
+      const stacks = Math.floor(players.field("level")[p] / growth.everyLevels);
+      if (stacks > 0) {
+        for (const [key, amount] of Object.entries(growth.mods)) {
+          mods.add(key, { op: "add", value: amount * stacks, source: "growth" });
+        }
       }
     }
-  });
-
-  players.forEachAlive((slot) => {
-    const oldMax = players.field("maxHp")[slot];
-    const newMax = 100 * world.stat("maxHp", 1);
-    players.field("maxHp")[slot] = newMax;
-    if (newMax > oldMax) {
-      players.field("hp")[slot] = Math.min(newMax, players.field("hp")[slot] + (newMax - oldMax));
-    }
-  });
+    world.syncPlayerMaxHp(p);
+  }
 }

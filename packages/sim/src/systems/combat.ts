@@ -22,7 +22,12 @@ function weapons(world: World): void {
     const def = world.content.weapons[weapons.field("defIndex")[slot]];
     if (!def) return;
     world.registries.weaponBehaviors.get(def.behavior)(world, slot, def);
-    weapons.field("cooldown")[slot] = world.weaponCooldown(def, weapons.field("level")[slot]);
+    const owner = weapons.field("owner")[slot];
+    weapons.field("cooldown")[slot] = world.weaponCooldown(
+      def,
+      weapons.field("level")[slot],
+      owner,
+    );
   });
 }
 
@@ -118,7 +123,7 @@ function contactDamage(world: World): void {
     });
 
     if (damage > 0) {
-      const final = Math.max(1, damage - world.stat("armor", 0));
+      const final = Math.max(1, damage - world.playerStat(slot, "armor", 0));
       players.field("hp")[slot] -= final;
       players.field("iFrames")[slot] = world.num("player.iFrames");
       world.emit({

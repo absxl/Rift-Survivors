@@ -61,8 +61,6 @@ Gold income is ~370–485/run against a ~1,425-gold shop total (≈3–4 runs fo
   (dash/ranged/adds) rather than more HP; the current fallback only guarantees the transition.
 - **Human difficulty pass:** the bot proves the swarm is survivable with perfect kiting, not that it is
   challenging. Watch a real run before raising `director.hpScalePerMin` or spawn pressure further.
-- **Per-player stats (co-op):** the modifier stack is still global, so one player's passives buff the whole
-  party. `refreshSynergies` also evaluates only player 0's tags.
 - **Optional:** consider tiered XP gems (`13-CLASSIC-FEEL-SPEC §6`) if level pacing should speed up
   without touching the wave pressure.
 

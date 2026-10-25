@@ -199,7 +199,8 @@ export interface WorldSnapshot {
   over: boolean;
   rngState: RngState;
   modifiers: Record<string, number>;
-  stats: RunStats;
+  /** Evaluated stats per player slot (HUD + network). */
+  playerStats: RunStats[];
   partyXp: number;
   partyLevel: number;
   partyXpToNext: number;
@@ -215,6 +216,10 @@ export class World {
   readonly rng: Rng;
   readonly stores: WorldStores;
   readonly modifiers: ModifierStack;
+  /** One modifier stack per player so passives/synergies stay independent. */
+  readonly playerModifiers: ModifierStack[] = [];
+  /** Resolved character per player (for growth + tags). */
+  readonly playerCharacters: (CharacterDef | null)[] = [];
   readonly spatialHash: SpatialHash;
   readonly content: ContentPack;
   readonly character: CharacterDef | null;
@@ -281,53 +286,52 @@ export class World {
       this.skips.push(Math.max(0, Math.floor(this.num("levelUp.skips"))));
       this.banishes.push(Math.max(0, Math.floor(this.num("levelUp.banishes"))));
       this.banishedOptions.push(new Set());
+      this.playerModifiers.push(new ModifierStack());
+      this.playerCharacters.push(null);
     }
 
-    // Per-player characters (co-op) with a primary character for global stats.
+    // Per-player characters: base stats go into each player's own stack.
     const primary =
       (characterIds?.[0] ? content.characters.find((c) => c.id === characterIds[0]) : undefined) ??
       (characterId ? content.characters.find((c) => c.id === characterId) : undefined) ??
       content.characters[0];
     this.character = primary ?? null;
     this.partyXpToNext = this.ruleset.xpCurve[0] ?? 5;
-    if (primary?.baseStats) {
-      for (const [key, value] of Object.entries(primary.baseStats)) {
-        this.modifiers.add(key, { op: "add", value, source: `character:${primary.id}` });
-      }
-    }
     for (let p = 0; p < playerCount; p++) {
       const charId = characterIds?.[p] ?? primary?.id;
       const char =
-        (charId ? content.characters.find((c) => c.id === charId) : undefined) ?? primary;
-      if (!char) continue;
-      const weaponIndex = content.weapons.findIndex((w) => w.id === char.startingWeapon);
-      if (weaponIndex >= 0) {
-        const slot = this.stores.weapons.alloc();
-        this.stores.weapons.field("owner")[slot] = p;
-        this.stores.weapons.field("defIndex")[slot] = weaponIndex;
-        this.stores.weapons.field("cooldown")[slot] = p * 10;
-        this.stores.weapons.field("level")[slot] = 1;
+        (charId ? content.characters.find((c) => c.id === charId) : undefined) ?? primary ?? null;
+      this.playerCharacters[p] = char;
+      const mods = this.playerModifiers[p];
+      if (char?.baseStats && mods) {
+        for (const [key, value] of Object.entries(char.baseStats)) {
+          mods.add(key, { op: "add", value, source: `character:${char.id}` });
+        }
+      }
+      if (char) {
+        const weaponIndex = content.weapons.findIndex((w) => w.id === char.startingWeapon);
+        if (weaponIndex >= 0) {
+          const slot = this.stores.weapons.alloc();
+          this.stores.weapons.field("owner")[slot] = p;
+          this.stores.weapons.field("defIndex")[slot] = weaponIndex;
+          this.stores.weapons.field("cooldown")[slot] = p * 10;
+          this.stores.weapons.field("level")[slot] = 1;
+        }
       }
     }
 
-    // Permanent meta-shop bonuses.
+    // Permanent meta-shop bonuses apply to every player's stack.
     if (metaBonuses) {
-      for (const [key, value] of Object.entries(metaBonuses)) {
-        if (value !== 0) this.modifiers.add(key, { op: "add", value, source: `meta:${key}` });
+      for (const mods of this.playerModifiers) {
+        for (const [key, value] of Object.entries(metaBonuses)) {
+          if (value !== 0) mods.add(key, { op: "add", value, source: `meta:${key}` });
+        }
       }
     }
 
     // Sync maxHp from character/meta bonuses.
     this.stores.players.forEachAlive((slot) => {
-      const oldMax = this.stores.players.field("maxHp")[slot];
-      const newMax = 100 * this.stat("maxHp", 1);
-      this.stores.players.field("maxHp")[slot] = newMax;
-      if (newMax > oldMax) {
-        this.stores.players.field("hp")[slot] = Math.min(
-          newMax,
-          this.stores.players.field("hp")[slot] + (newMax - oldMax),
-        );
-      }
+      this.syncPlayerMaxHp(slot);
     });
 
     registerCoreSystems(this.registries);
@@ -350,9 +354,42 @@ export class World {
     return value;
   }
 
-  /** Read a stat/param through the modifier stack. */
+  /** Read a stat/param through the global modifier stack. */
   stat(key: string, base: number): number {
     return this.modifiers.evaluate(key, base);
+  }
+
+  /** Read a stat through one player's modifier stack (co-op isolation). */
+  playerStat(playerId: number, key: string, base: number): number {
+    const mods = this.playerModifiers[playerId];
+    return mods ? mods.evaluate(key, base) : this.modifiers.evaluate(key, base);
+  }
+
+  /** Recompute a player's max HP after stat changes (heals the gained delta). */
+  syncPlayerMaxHp(playerId: number): void {
+    const players = this.stores.players;
+    const oldMax = players.field("maxHp")[playerId];
+    const newMax = 100 * this.playerStat(playerId, "maxHp", 1);
+    players.field("maxHp")[playerId] = newMax;
+    if (newMax > oldMax) {
+      players.field("hp")[playerId] = Math.min(
+        newMax,
+        players.field("hp")[playerId] + (newMax - oldMax),
+      );
+    }
+  }
+
+  /** Evaluated stats for the HUD/network, for one player. */
+  statsFor(playerId: number): RunStats {
+    return {
+      might: this.playerStat(playerId, "might", 1),
+      cooldown: this.playerStat(playerId, "cooldown", 1),
+      area: this.playerStat(playerId, "area", 1),
+      moveSpeed: this.playerStat(playerId, "moveSpeed", 1),
+      magnet: this.playerStat(playerId, "magnet", 1),
+      armor: this.playerStat(playerId, "armor", 0),
+      luck: this.playerStat(playerId, "luck", 0),
+    };
   }
 
   emit(event: SimEvent): void {
@@ -386,38 +423,43 @@ export class World {
     if (idx >= 0) this.offers.splice(idx, 1);
   }
 
-  /** Effective weapon stat: base + level deltas, scaled by the relevant stat. */
-  weaponStat(def: WeaponDef, level: number, key: "damage" | "area" | "cooldown"): number {
+  /** Effective weapon stat: base + level deltas, scaled by the owner's stats. */
+  weaponStat(
+    def: WeaponDef,
+    level: number,
+    key: "damage" | "area" | "cooldown",
+    owner = 0,
+  ): number {
     let value = def.base[key];
     for (let i = 0; i < level - 1 && i < def.levels.length; i++) {
       const delta = def.levels[i].delta[key];
       if (delta !== undefined) value += delta;
     }
     if (key === "damage") {
-      const damage = value * this.stat("might", 1);
+      const damage = value * this.playerStat(owner, "might", 1);
       return Number.isFinite(damage) ? Math.max(0, damage) : value;
     }
     if (key === "area") {
-      const area = value * this.stat("area", 1);
+      const area = value * this.playerStat(owner, "area", 1);
       return Number.isFinite(area) ? Math.max(1, Math.min(2000, area)) : value;
     }
-    const cooldown = value / this.stat("cooldown", 1);
+    const cooldown = value / this.playerStat(owner, "cooldown", 1);
     return Number.isFinite(cooldown) ? Math.max(1, cooldown) : value;
   }
 
-  /** Effective weapon damage: base + level deltas, scaled by "might". */
-  weaponDamage(def: WeaponDef, level: number): number {
-    return this.weaponStat(def, level, "damage");
+  /** Effective weapon damage: base + level deltas, scaled by the owner's "might". */
+  weaponDamage(def: WeaponDef, level: number, owner = 0): number {
+    return this.weaponStat(def, level, "damage", owner);
   }
 
-  /** Effective weapon area/range, scaled by "area". */
-  weaponArea(def: WeaponDef, level: number): number {
-    return this.weaponStat(def, level, "area");
+  /** Effective weapon area/range, scaled by the owner's "area". */
+  weaponArea(def: WeaponDef, level: number, owner = 0): number {
+    return this.weaponStat(def, level, "area", owner);
   }
 
-  /** Effective weapon cooldown (ticks), divided by "cooldown" (fire-rate). */
-  weaponCooldown(def: WeaponDef, level: number): number {
-    return this.weaponStat(def, level, "cooldown");
+  /** Effective weapon cooldown (ticks), divided by the owner's "cooldown". */
+  weaponCooldown(def: WeaponDef, level: number, owner = 0): number {
+    return this.weaponStat(def, level, "cooldown", owner);
   }
 
   /** Nearest enemy slot within maxDist, or -1. */
@@ -525,15 +567,7 @@ export function snapshot(world: World): WorldSnapshot {
     over: world.over,
     rngState: world.rng.getState(),
     modifiers: world.modifiers.snapshot(),
-    stats: {
-      might: world.stat("might", 1),
-      cooldown: world.stat("cooldown", 1),
-      area: world.stat("area", 1),
-      moveSpeed: world.stat("moveSpeed", 1),
-      magnet: world.stat("magnet", 1),
-      armor: world.stat("armor", 0),
-      luck: world.stat("luck", 0),
-    },
+    playerStats: world.playerModifiers.map((_, p) => world.statsFor(p)),
     partyXp: world.partyXp,
     partyLevel: world.partyLevel,
     partyXpToNext: world.partyXpToNext,

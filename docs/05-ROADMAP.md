@@ -118,9 +118,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   statuses.
 - **Deferred from M6:** chest reveal animation (M9 juice), union logic, recipe hints, destructible
   props.
-- **M11 co-op limitations:** per-player characters work, but all players still share the global modifier stack
-  (one player's passives buff everyone, and synergies evaluate only player 0's tags). Full snapshots
-  (no delta/compression) for now.
+- **M11 co-op limitations:** per-player characters and stats are done (passives, growth, tags, synergies,
+  weapon scaling, move/magnet/armor/maxHp are per player). Full snapshots (no delta/compression) for now.
 - **Implemented since:** shared party XP + level-up-together (D-023) and a League-style Pixi hotbar
   (portrait/level, HP/XP bars, weapon ability icons with cooldowns, passive item row, hover tooltips).
 - **Freeze fix:** level-up/chest offers now always include a fallback card, always clear on apply, dot-stats
@@ -132,7 +131,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Co-op robustness:** stable player slots (lowest free id), mid-run joins rejected, lobby BACK closes the
   socket, and a dropped mid-run connection shows a CONNECTION LOST screen instead of freezing silently.
 - **Stats HUD:** Tab toggles a panel showing Might/Haste/Area/Speed/Magnet/Armor/Luck plus the local
-  player's kills/gold/max HP; snapshots now carry evaluated `RunStats`.
+  player's kills/gold/max HP.
+- **Co-op stats:** each player has their own `ModifierStack`; character base stats/growth, passives,
+  tags/synergies, weapon damage/area/cooldown, move speed, magnet, armor and max HP are evaluated per
+  player. Snapshots carry `playerStats[]`; the Tab panel reads the local slot.
 - **Crash fix (passives):** the HUD read a `cooldown` field that passive stores don't have, so the first
   passive pick threw inside the render tick and froze the game. Loadout reads now default it, the client
   ticker logs a frame error instead of dying silently, and client + real-pack co-op tests cover it.

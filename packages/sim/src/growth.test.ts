@@ -39,12 +39,12 @@ const GROWTH_PACK: ContentPack = {
 describe("growth", () => {
   it("applies character growth every N levels", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: GROWTH_PACK }, 1);
-    expect(world.stat("might", 1)).toBeCloseTo(1);
+    expect(world.playerStat(0, "might", 1)).toBeCloseTo(1);
 
     world.partyXp = 100;
     step(world, []);
     expect(world.stores.players.field("level")[0]).toBe(2);
     // everyLevels = 1 => stacks = 2 => +0.2 might
-    expect(world.stat("might", 1)).toBeCloseTo(1.2);
+    expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.2);
   });
 });

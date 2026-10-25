@@ -13,7 +13,7 @@ function gems(world: World): void {
   if (players.count === 0) return;
 
   const pickup2 = world.num("pickup.radius") ** 2;
-  const magnet2 = (world.num("pickup.magnetRadius") * world.stat("magnet", 1)) ** 2;
+  const baseMagnet = world.num("pickup.magnetRadius");
   const speed = world.num("pickup.magnetSpeed");
 
   gems.forEachAlive((slot) => {
@@ -40,6 +40,7 @@ function gems(world: World): void {
       gems.free(slot);
       return;
     }
+    const magnet2 = (baseMagnet * world.playerStat(nearest, "magnet", 1)) ** 2;
     if (bestD2 <= magnet2) {
       const dx = players.field("x")[nearest] - gx;
       const dy = players.field("y")[nearest] - gy;

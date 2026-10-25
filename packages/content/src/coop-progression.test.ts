@@ -33,7 +33,7 @@ describe("co-op progression (real pack)", () => {
     const owners = new Set<number>();
     passives.forEachAlive((slot) => owners.add(passives.field("owner")[slot]));
     expect(owners.size).toBe(2);
-    expect(world.modifiers.snapshot().cooldown).toBeGreaterThan(0);
+    expect(world.playerModifiers[0].snapshot().cooldown).toBeGreaterThan(0);
 
     for (let t = 0; t < 300; t++) {
       step(world, [
@@ -41,7 +41,7 @@ describe("co-op progression (real pack)", () => {
         { playerId: 1, moveX: -1, moveY: 0 },
       ]);
     }
-    expect(Number.isFinite(world.stat("cooldown", 1))).toBe(true);
-    expect(Number.isFinite(world.stat("area", 1))).toBe(true);
+    expect(Number.isFinite(world.playerStat(0, "cooldown", 1))).toBe(true);
+    expect(Number.isFinite(world.playerStat(0, "area", 1))).toBe(true);
   });
 });

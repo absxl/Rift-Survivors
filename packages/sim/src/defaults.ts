@@ -31,10 +31,11 @@ export function registerCoreSystems(reg: Registries): void {
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
 function coreMovement(world: World): void {
   const players = world.stores.players;
-  const speed = world.num("core.moveSpeed") * world.stat("moveSpeed", 1);
+  const baseSpeed = world.num("core.moveSpeed");
 
   players.forEachAlive((slot) => {
     if (players.field("downed")[slot]) return; // downed players can't move
+    const speed = baseSpeed * world.playerStat(slot, "moveSpeed", 1);
     const input = world.inputs.find((i) => i.playerId === slot);
     let mx = 0;
     let my = 0;
