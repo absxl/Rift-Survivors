@@ -115,6 +115,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   statuses.
 - **Deferred from M6:** chest reveal animation (M9 juice), union logic, recipe hints, destructible
   props.
+- **M11 co-op limitations:** all players currently share one champion and global stat modifiers; per-player
+  champions + the shared-level model (D-023) are M12. Full snapshots (no delta/compression) for now.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.
