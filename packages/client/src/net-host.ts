@@ -13,7 +13,7 @@ import { type SnapshotDelta, applySnapshotDelta } from "@rift/sim";
 export type ReconnectStatus = "reconnecting" | "reconnected" | "lost";
 
 export class NetHost {
-  private static readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private static readonly MAX_RECONNECT_ATTEMPTS = 8;
   private static readonly RECONNECT_BASE_MS = 600;
 
   private ws: WebSocket | null = null;
@@ -183,7 +183,7 @@ export class NetHost {
       this.reconnectCb?.("lost");
       return;
     }
-    const delay = NetHost.RECONNECT_BASE_MS * 2 ** (this.reconnectAttempts - 1);
+    const delay = Math.min(10_000, NetHost.RECONNECT_BASE_MS * 2 ** (this.reconnectAttempts - 1));
     window.setTimeout(() => this.attemptRejoin(), delay);
   }
 

@@ -68,8 +68,9 @@ Server → Client
 
 - **Reconnect:** `start` carries a per-client token. On an unexpected close the server marks the player
   disconnected (zero input, pending offer cleared), keeps the room ticking only while someone is connected,
-  and reserves the slot for 60 s. The client retries `rejoin` with backoff (5 attempts, ~19 s total), then
-  shows CONNECTION LOST. A successful rejoin restores the same `playerId` and sends a fresh full snapshot.
+  and reserves the slot for 60 s. The client retries `rejoin` with backoff (8 attempts, ~49 s total, 10 s
+  cap), then shows CONNECTION LOST. A successful rejoin restores the same `playerId` and sends a fresh full
+  snapshot.
 - **Resync:** a failed delta apply requests a full snapshot; the next broadcast is forced full.
 - Server message parsing is Zod-validated; a bad message returns `error` without crashing the room.
 

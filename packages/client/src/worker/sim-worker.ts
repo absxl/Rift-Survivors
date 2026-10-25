@@ -68,13 +68,20 @@ ctx.onmessage = (event: MessageEvent) => {
   else if (msg.type === "resume") clientPaused = false;
   else if (msg.type === "choice" && world) {
     applyChoice(world, 0, msg.choiceIndex ?? 0);
-    paused = false;
+    const next = world.pendingOffers()[0];
+    if (next) ctx.postMessage({ type: "offer", offer: next });
+    else paused = false;
   } else if (msg.type === "reroll" && world) {
     rerollOffer(world, 0);
     postOffer();
   } else if (msg.type === "skip" && world) {
-    if (skipOffer(world, 0)) paused = false;
-    else postOffer();
+    if (skipOffer(world, 0)) {
+      const next = world.pendingOffers()[0];
+      if (next) ctx.postMessage({ type: "offer", offer: next });
+      else paused = false;
+    } else {
+      postOffer();
+    }
   } else if (msg.type === "banish" && world) {
     banishOfferOption(world, 0, msg.optionIndex ?? 0);
     postOffer();

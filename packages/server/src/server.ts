@@ -211,10 +211,10 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     const offers = room.world.pendingOffers();
     if (offers.length > 0) {
       room.paused = true;
-      for (const offer of offers) {
-        const client = room.clients.find((c) => c.playerId === offer.playerId);
-        if (client) send(client.ws, { type: "offer", offer });
-      }
+      // One offer at a time per player; the next is sent after resolution.
+      const players = new Set<number>();
+      for (const offer of offers) players.add(offer.playerId);
+      for (const playerId of players) sendOfferTo(room, playerId);
     }
 
     if (room.world.over) {
@@ -328,14 +328,16 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       startRoom(room);
     } else if (msg.type === "choice" && room.world) {
       applyChoice(room.world, client.playerId, msg.choiceIndex);
+      // A second offer (e.g. chest + level-up) is shown next.
+      sendOfferTo(room, client.playerId);
       if (room.world.pendingOffers().length === 0) room.paused = false;
     } else if (msg.type === "reroll" && room.world) {
       rerollOffer(room.world, client.playerId);
       sendOfferTo(room, client.playerId);
     } else if (msg.type === "skip" && room.world) {
       skipOffer(room.world, client.playerId);
+      sendOfferTo(room, client.playerId);
       if (room.world.pendingOffers().length === 0) room.paused = false;
-      else sendOfferTo(room, client.playerId);
     } else if (msg.type === "banish" && room.world) {
       banishOfferOption(room.world, client.playerId, msg.optionIndex);
       sendOfferTo(room, client.playerId);

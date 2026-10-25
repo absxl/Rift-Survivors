@@ -206,6 +206,8 @@ async function main(): Promise<void> {
       if (runEnded) return;
       if (status === "reconnected") {
         connectionLost.hide();
+        levelUp.hide();
+        renderer.resetPrediction();
       } else if (status === "lost") {
         connectionLost.show("CONNECTION LOST");
       } else {
