@@ -32,6 +32,12 @@ export {
   type WorldStores,
 } from "./world";
 export { banishOfferOption, rerollOffer, skipOffer } from "./systems/progression";
+export {
+  buildSnapshotDelta,
+  applySnapshotDelta,
+  type SnapshotDelta,
+  type StoreDelta,
+} from "./snapshot-delta";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
 export type {
   CharacterDef,

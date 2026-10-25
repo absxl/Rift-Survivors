@@ -82,6 +82,11 @@ export class GameRenderer {
   private shakeEnabled = true;
   private damageNumbersEnabled = true;
   private championColor = 0x44aaff;
+  private localInputX = 0;
+  private localInputY = 0;
+  private predictionX = 0;
+  private predictionY = 0;
+  private predictionSpeed = 2.5;
 
   constructor(
     private readonly stage: Container,
@@ -130,6 +135,50 @@ export class GameRenderer {
     this.prevTime = this.currTime;
     this.currTime = performance.now();
     this.events = events;
+    // Reconcile the local prediction toward the authoritative frame.
+    this.predictionX *= 0.6;
+    this.predictionY *= 0.6;
+    const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0];
+    if (stats) this.predictionSpeed = stats.moveSpeedPx;
+  }
+
+  /** Feed the local input to the visual prediction (called from the input loop). */
+  setLocalInput(moveX: number, moveY: number): void {
+    const len = Math.hypot(moveX, moveY);
+    this.localInputX = len > 1 ? moveX / len : moveX;
+    this.localInputY = len > 1 ? moveY / len : moveY;
+  }
+
+  resetPrediction(): void {
+    this.localInputX = 0;
+    this.localInputY = 0;
+    this.predictionX = 0;
+    this.predictionY = 0;
+  }
+
+  /**
+   * Small input lead so the local player responds before the next snapshot.
+   * Purely visual (the server stays authoritative) and capped to 6px; it decays
+   * when input stops or when snapshots stop arriving (pause/offer/disconnect).
+   */
+  tickPrediction(deltaMs: number): void {
+    const stale = performance.now() - this.currTime > 120;
+    const step = Math.max(0, Math.min(2, deltaMs / (1000 / 30)));
+    if (stale || (this.localInputX === 0 && this.localInputY === 0)) {
+      this.predictionX *= stale ? 0.5 : 0.75;
+      this.predictionY *= stale ? 0.5 : 0.75;
+    } else {
+      this.predictionX += this.localInputX * this.predictionSpeed * step;
+      this.predictionY += this.localInputY * this.predictionSpeed * step;
+    }
+    const max = 6;
+    const mag = Math.hypot(this.predictionX, this.predictionY);
+    if (mag > max) {
+      this.predictionX = (this.predictionX / mag) * max;
+      this.predictionY = (this.predictionY / mag) * max;
+    }
+    if (Math.abs(this.predictionX) < 0.01) this.predictionX = 0;
+    if (Math.abs(this.predictionY) < 0.01) this.predictionY = 0;
   }
 
   private alpha(): number {
@@ -170,8 +219,8 @@ export class GameRenderer {
     const player = this.playerPosition();
 
     // Camera follows the player (infinite map — no bounds clamp) + optional shake.
-    const camX = player ? player.x : 0;
-    const camY = player ? player.y : 0;
+    const camX = player ? player.x + this.predictionX : 0;
+    const camY = player ? player.y + this.predictionY : 0;
     let shakeX = 0;
     let shakeY = 0;
     if (this.shakeEnabled && this.shake > 0) {
@@ -208,19 +257,25 @@ export class GameRenderer {
       this.gemSprites,
       this.gemLayer,
       getStore(this.curr, "gem"),
+      this.prev ? getStore(this.prev, "gem") : undefined,
       this.textures.gem,
     );
-    this.syncPickups(getStore(this.curr, "pickup"));
+    this.syncPickups(
+      getStore(this.curr, "pickup"),
+      this.prev ? getStore(this.prev, "pickup") : undefined,
+    );
     this.syncEntities(
       this.projectileSprites,
       this.projectileLayer,
       getStore(this.curr, "projectile"),
+      this.prev ? getStore(this.prev, "projectile") : undefined,
       this.textures.projectile,
     );
     this.syncEntities(
       this.enemySprites,
       this.enemyLayer,
       getStore(this.curr, "enemy"),
+      this.prev ? getStore(this.prev, "enemy") : undefined,
       this.textures.enemy,
     );
 
@@ -273,11 +328,16 @@ export class GameRenderer {
   /** Set which player is the local one (camera + tint target). */
   setLocalPlayer(playerId: number): void {
     this.localPlayerId = playerId;
+    this.resetPrediction();
   }
 
-  /** Render every player; the local one uses the champion color, allies a neutral tint. */
+  /** Render every player, interpolating between snapshots and leading the local one. */
   private syncPlayers(store: StoreSnapshot | undefined): void {
     const seen = new Set<number>();
+    this.playerHpBar.clear();
+    const prev = this.prev ? getStore(this.prev, "player") : undefined;
+    const a = this.alpha();
+    const hpWidth = 16;
     if (store) {
       for (let i = 0; i < store.slots.length; i++) {
         const slot = store.slots[i];
@@ -290,7 +350,18 @@ export class GameRenderer {
           this.playerLayer.addChild(sprite);
         }
         const downed = store.fields.downed[i] === 1;
-        sprite.position.set(store.fields.x[i], store.fields.y[i]);
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const prevIdx = prev ? prev.slots.indexOf(slot) : -1;
+        if (prevIdx >= 0 && prev) {
+          x = lerp(prev.fields.x[prevIdx], x, a);
+          y = lerp(prev.fields.y[prevIdx], y, a);
+        }
+        if (slot === this.localPlayerId && !downed) {
+          x += this.predictionX;
+          y += this.predictionY;
+        }
+        sprite.position.set(x, y);
         sprite.tint = downed
           ? 0x666666
           : slot === this.localPlayerId
@@ -298,34 +369,26 @@ export class GameRenderer {
             : 0x88aaff;
         sprite.alpha = downed ? 0.65 : 1;
         sprite.scale.x = store.fields.facingX[i] < 0 ? -1 : 1;
+
+        // HP / revive bar under the player (same interpolated position).
+        this.playerHpBar.rect(x - hpWidth / 2, y + 9, hpWidth, 2).fill(0x000000);
+        if (downed) {
+          const prog = Math.max(0, Math.min(1, store.fields.reviveProgress[i] / 90));
+          this.playerHpBar
+            .rect(x - hpWidth / 2 + 1, y + 10, (hpWidth - 2) * prog, 1)
+            .fill(0xffaa33);
+        } else {
+          const hp = store.fields.hp[i];
+          const maxHp = store.fields.maxHp[i];
+          const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+          this.playerHpBar.rect(x - hpWidth / 2 + 1, y + 10, (hpWidth - 2) * pct, 1).fill(0x44ff66);
+        }
       }
     }
     for (const [slot, sprite] of this.playerSprites) {
       if (!seen.has(slot)) {
         this.playerLayer.removeChild(sprite);
         this.playerSprites.delete(slot);
-      }
-    }
-    this.drawPlayerHpBars(store);
-  }
-
-  private drawPlayerHpBars(store: StoreSnapshot | undefined): void {
-    this.playerHpBar.clear();
-    if (!store) return;
-    const w = 16;
-    for (let i = 0; i < store.slots.length; i++) {
-      const x = store.fields.x[i];
-      const y = store.fields.y[i];
-      this.playerHpBar.rect(x - w / 2, y + 9, w, 2).fill(0x000000);
-      if (store.fields.downed[i] === 1) {
-        // Revive progress bar (orange) instead of HP.
-        const prog = Math.max(0, Math.min(1, store.fields.reviveProgress[i] / 90));
-        this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * prog, 1).fill(0xffaa33);
-      } else {
-        const hp = store.fields.hp[i];
-        const maxHp = store.fields.maxHp[i];
-        const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-        this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
       }
     }
   }
@@ -351,9 +414,15 @@ export class GameRenderer {
     map: Map<number, Sprite>,
     layer: Container,
     store: StoreSnapshot | undefined,
+    prevStore: StoreSnapshot | undefined,
     texture: Texture,
   ): void {
     const seen = new Set<number>();
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prevStore) {
+      for (let i = 0; i < prevStore.slots.length; i++) prevIndex.set(prevStore.slots[i], i);
+    }
     if (store) {
       for (let i = 0; i < store.slots.length; i++) {
         const slot = store.slots[i];
@@ -365,7 +434,14 @@ export class GameRenderer {
           map.set(slot, sprite);
           layer.addChild(sprite);
         }
-        sprite.position.set(store.fields.x[i], store.fields.y[i]);
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const pi = prevIndex.get(slot);
+        if (pi !== undefined && prevStore) {
+          x = lerp(prevStore.fields.x[pi], x, a);
+          y = lerp(prevStore.fields.y[pi], y, a);
+        }
+        sprite.position.set(x, y);
       }
     }
     for (const [slot, sprite] of map) {
@@ -377,8 +453,16 @@ export class GameRenderer {
   }
 
   /** Sync floor pickups (heal/vacuum/nuke/freeze/chest/gold), tinted by kind. */
-  private syncPickups(store: StoreSnapshot | undefined): void {
+  private syncPickups(
+    store: StoreSnapshot | undefined,
+    prevStore: StoreSnapshot | undefined,
+  ): void {
     const seen = new Set<number>();
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prevStore) {
+      for (let i = 0; i < prevStore.slots.length; i++) prevIndex.set(prevStore.slots[i], i);
+    }
     if (store) {
       for (let i = 0; i < store.slots.length; i++) {
         const slot = store.slots[i];
@@ -390,7 +474,14 @@ export class GameRenderer {
           this.pickupSprites.set(slot, sprite);
           this.pickupLayer.addChild(sprite);
         }
-        sprite.position.set(store.fields.x[i], store.fields.y[i]);
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const pi = prevIndex.get(slot);
+        if (pi !== undefined && prevStore) {
+          x = lerp(prevStore.fields.x[pi], x, a);
+          y = lerp(prevStore.fields.y[pi], y, a);
+        }
+        sprite.position.set(x, y);
         sprite.tint = PICKUP_COLORS[store.fields.kind[i]] ?? 0xffffff;
       }
     }

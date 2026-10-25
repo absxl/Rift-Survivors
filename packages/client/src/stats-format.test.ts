@@ -7,6 +7,7 @@ const BASE: RunStats = {
   cooldown: 1,
   area: 1,
   moveSpeed: 1,
+  moveSpeedPx: 2.5,
   magnet: 1,
   armor: 0,
   luck: 0,

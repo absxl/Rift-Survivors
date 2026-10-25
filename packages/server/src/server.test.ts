@@ -1,4 +1,5 @@
 import { PROTOCOL_VERSION } from "@rift/shared";
+import { type SnapshotDelta, type WorldSnapshot, applySnapshotDelta } from "@rift/sim";
 import { afterAll, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { startServer } from "./server";
@@ -166,7 +167,7 @@ describe("room server", () => {
       sockets.forEach((ws, i) => {
         ws.on("message", (data) => {
           const msg = JSON.parse(data.toString()) as { type?: string; tick?: number };
-          if (msg.type === "snapshot") {
+          if (msg.type === "snapshot" || msg.type === "snapshot-delta") {
             received[i].snapshots++;
             received[i].lastTick = msg.tick ?? -1;
           }
@@ -321,7 +322,7 @@ describe("room server", () => {
       expect(banished.options.some((o) => o.optionId === target)).toBe(false);
 
       ws.send(JSON.stringify({ type: "skip" }));
-      const snap = await nextOfType(next, "snapshot");
+      const snap = await nextSnapshot(next);
       expect(typeof snap.tick).toBe("number");
       expect(room?.world?.pendingOffers().length).toBe(0);
     } finally {
@@ -383,6 +384,39 @@ describe("room server", () => {
       rejoin.close();
     }
   }, 20_000);
+
+  it("streams a delta after the first full snapshot and supports resync", async () => {
+    const ws = await connect();
+    try {
+      const next = inbox(ws);
+      ws.send(
+        JSON.stringify({
+          type: "create",
+          name: "host",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "lux",
+        }),
+      );
+      const created = await nextOfType(next, "lobby");
+      expect(typeof created.code).toBe("string");
+      ws.send(JSON.stringify({ type: "start" }));
+      await nextOfType(next, "start");
+
+      const first = await nextOfType(next, "snapshot");
+      const base = first.snapshot as WorldSnapshot;
+      expect(base.tick).toBe(first.tick);
+
+      const deltaMsg = await nextOfType(next, "snapshot-delta");
+      const applied = applySnapshotDelta(base, deltaMsg.delta as SnapshotDelta);
+      expect(applied.tick).toBe(deltaMsg.tick);
+
+      ws.send(JSON.stringify({ type: "resync" }));
+      const resynced = await nextOfType(next, "snapshot");
+      expect(typeof resynced.tick).toBe("number");
+    } finally {
+      ws.close();
+    }
+  }, 20_000);
 });
 
 /** Consume inbox messages until the requested type arrives. */
@@ -395,4 +429,15 @@ async function nextOfType(
     if (msg.type === type) return msg;
   }
   throw new Error(`did not receive message type ${type}`);
+}
+
+/** Consume inbox messages until any snapshot (full or delta) arrives. */
+async function nextSnapshot(
+  next: () => Promise<Record<string, unknown>>,
+): Promise<Record<string, unknown>> {
+  for (let i = 0; i < 300; i++) {
+    const msg = await next();
+    if (msg.type === "snapshot" || msg.type === "snapshot-delta") return msg;
+  }
+  throw new Error("did not receive a snapshot");
 }

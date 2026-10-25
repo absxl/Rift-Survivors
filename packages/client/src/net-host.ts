@@ -8,6 +8,7 @@ import {
 // its messages to the same callbacks the solo WorkerHost uses. After a mid-run
 // disconnect it retries the `rejoin` handshake with the token from `start`.
 import type { Offer, PlayerInput, SimEvent, WorldSnapshot } from "@rift/sim";
+import { type SnapshotDelta, applySnapshotDelta } from "@rift/sim";
 
 export type ReconnectStatus = "reconnecting" | "reconnected" | "lost";
 
@@ -21,6 +22,7 @@ export class NetHost {
   private closedByUser = false;
   private reconnecting = false;
   private reconnectAttempts = 0;
+  private lastSnapshot: WorldSnapshot | null = null;
 
   private snapshotCb: ((snapshot: WorldSnapshot, events: SimEvent[]) => void) | null = null;
   private offerCb: ((offer: Offer) => void) | null = null;
@@ -120,7 +122,11 @@ export class NetHost {
     const msg = JSON.parse(data as string) as ServerMessage;
     switch (msg.type) {
       case "snapshot":
-        this.snapshotCb?.(msg.snapshot as WorldSnapshot, msg.events as SimEvent[]);
+        this.lastSnapshot = msg.snapshot as WorldSnapshot;
+        this.snapshotCb?.(this.lastSnapshot, msg.events as SimEvent[]);
+        break;
+      case "snapshot-delta":
+        this.applyDelta(msg.delta as SnapshotDelta, msg.events as SimEvent[]);
         break;
       case "offer":
         this.offerCb?.(msg.offer as Offer);
@@ -145,8 +151,25 @@ export class NetHost {
     }
   }
 
+  private applyDelta(delta: SnapshotDelta, events: SimEvent[]): void {
+    if (!this.lastSnapshot) {
+      this.send({ type: "resync" });
+      return;
+    }
+    try {
+      const full = applySnapshotDelta(this.lastSnapshot, delta);
+      this.lastSnapshot = full;
+      this.snapshotCb?.(full, events);
+    } catch (err) {
+      console.warn("[net] delta apply failed; requesting a resync", err);
+      this.lastSnapshot = null;
+      this.send({ type: "resync" });
+    }
+  }
+
   private maybeReconnect(): void {
     if (!this.hasStarted || this.closedByUser || !this.token || this.reconnecting) return;
+    this.lastSnapshot = null;
     this.reconnecting = true;
     this.reconnectAttempts = 0;
     this.reconnectCb?.("reconnecting");
@@ -193,6 +216,7 @@ export class NetHost {
         window.clearTimeout(timeout);
         this.ws = ws;
         this.token = msg.token ?? token;
+        this.lastSnapshot = null;
         this.reconnecting = false;
         this.reconnectAttempts = 0;
         this.reconnectCb?.("reconnected");

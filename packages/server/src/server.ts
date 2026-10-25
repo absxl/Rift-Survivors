@@ -15,16 +15,19 @@ import {
   TICK_MS,
   applyChoice,
   banishOfferOption,
+  buildSnapshotDelta,
   createWorld,
   rerollOffer,
   skipOffer,
   snapshot,
   step,
 } from "@rift/sim";
-import type { PlayerInput, World } from "@rift/sim";
+import type { PlayerInput, World, WorldSnapshot } from "@rift/sim";
 import { WebSocket, WebSocketServer } from "ws";
 
 const MAX_PLAYERS = 4;
+/** Send a full snapshot this often (safety net / resync for any delta drift). */
+const FULL_SNAPSHOT_EVERY_TICKS = 150;
 
 interface Client {
   ws: WebSocket;
@@ -37,6 +40,8 @@ interface Client {
   token: string;
   connected: boolean;
   disconnectTimer: ReturnType<typeof setTimeout> | null;
+  /** Force the next broadcast to be a full snapshot (join/rejoin/resync). */
+  needsFull: boolean;
 }
 
 interface Room {
@@ -46,6 +51,8 @@ interface Room {
   paused: boolean;
   timer: ReturnType<typeof setInterval> | null;
   seed: number;
+  /** Last snapshot broadcast to connected clients (delta base). */
+  lastSent: WorldSnapshot | null;
 }
 
 export interface ServerHandle {
@@ -107,6 +114,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       paused: false,
       timer: null,
       seed: Math.floor(Math.random() * 1e9),
+      lastSent: null,
     };
     rooms.set(room.code, room);
     return room;
@@ -127,6 +135,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       token: randomUUID(),
       connected: true,
       disconnectTimer: null,
+      needsFull: true,
     };
     room.clients.push(client);
     conns.set(ws, { room, client });
@@ -144,13 +153,15 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       },
       room.seed,
     );
-    for (const c of room.clients)
+    room.lastSent = null;
+    for (const c of room.clients) {
       send(c.ws, {
         type: "start",
         seed: room.seed,
         yourPlayerId: c.playerId,
         token: c.token,
       });
+    }
     room.timer = setInterval(() => tickRoom(room), TICK_MS);
   };
 
@@ -173,12 +184,29 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       broadcast(room, { type: "end", stats: { tick: room.world.tick, error: true } });
       return;
     }
-    broadcast(room, {
-      type: "snapshot",
-      tick: room.world.tick,
-      snapshot: snapshot(room.world),
-      events,
-    });
+    const snap = snapshot(room.world);
+    const periodicFull = room.world.tick % FULL_SNAPSHOT_EVERY_TICKS === 0;
+    const delta = room.lastSent && !periodicFull ? buildSnapshotDelta(room.lastSent, snap) : null;
+    for (const client of room.clients) {
+      if (!client.connected) continue;
+      if (!delta || client.needsFull) {
+        send(client.ws, {
+          type: "snapshot",
+          tick: room.world.tick,
+          snapshot: snap,
+          events,
+        });
+      } else {
+        send(client.ws, {
+          type: "snapshot-delta",
+          tick: room.world.tick,
+          delta,
+          events,
+        });
+      }
+      client.needsFull = false;
+    }
+    room.lastSent = snap;
 
     const offers = room.world.pendingOffers();
     if (offers.length > 0) {
@@ -245,6 +273,8 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
           events: [],
         });
       }
+      // Ensure the next broadcast is also a full (the delta base may differ).
+      client.needsFull = true;
       lobby(room);
       return;
     }
@@ -309,6 +339,14 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     } else if (msg.type === "banish" && room.world) {
       banishOfferOption(room.world, client.playerId, msg.optionIndex);
       sendOfferTo(room, client.playerId);
+    } else if (msg.type === "resync" && room.world) {
+      send(ws, {
+        type: "snapshot",
+        tick: room.world.tick,
+        snapshot: snapshot(room.world),
+        events: [],
+      });
+      client.needsFull = true;
     } else if (msg.type === "ping") {
       send(ws, { type: "pong", t: msg.t });
     }

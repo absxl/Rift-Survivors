@@ -168,6 +168,7 @@ async function main(): Promise<void> {
     localPlayerId = 0;
     metaScreen.hide();
     renderer.setLocalPlayer(localPlayerId);
+    renderer.resetPrediction();
     renderer.setChampionColor(championColor(characterId));
     hud.setLocalPlayer(localPlayerId);
     hud.setChampion(characterId, championColor(characterId));
@@ -195,6 +196,7 @@ async function main(): Promise<void> {
     currentMode = "coop";
     localPlayerId = yourPlayerId;
     renderer.setLocalPlayer(localPlayerId);
+    renderer.resetPrediction();
     renderer.setChampionColor(championColor(coopCharacterId));
     hud.setLocalPlayer(localPlayerId);
     hud.setChampion(coopCharacterId, championColor(coopCharacterId));
@@ -277,6 +279,7 @@ async function main(): Promise<void> {
   window.setInterval(() => {
     if (!inputSender) return;
     const i = input.read();
+    renderer.setLocalInput(i.moveX, i.moveY);
     inputSender(i.moveX, i.moveY);
   }, 1000 / 30);
 
@@ -290,6 +293,7 @@ async function main(): Promise<void> {
 
   app.ticker.add(() => {
     try {
+      renderer.tickPrediction(app.ticker.deltaMS);
       renderer.render();
       if (lastSnap) hud.update(lastSnap);
 

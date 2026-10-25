@@ -187,6 +187,8 @@ export interface RunStats {
   cooldown: number;
   area: number;
   moveSpeed: number;
+  /** Effective movement speed in pixels/tick (for client prediction). */
+  moveSpeedPx: number;
   magnet: number;
   /** Flat damage reduction. */
   armor: number;
@@ -386,6 +388,7 @@ export class World {
       cooldown: this.playerStat(playerId, "cooldown", 1),
       area: this.playerStat(playerId, "area", 1),
       moveSpeed: this.playerStat(playerId, "moveSpeed", 1),
+      moveSpeedPx: this.num("core.moveSpeed") * this.playerStat(playerId, "moveSpeed", 1),
       magnet: this.playerStat(playerId, "magnet", 1),
       armor: this.playerStat(playerId, "armor", 0),
       luck: this.playerStat(playerId, "luck", 0),
