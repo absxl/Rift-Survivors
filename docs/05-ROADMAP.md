@@ -86,8 +86,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Balance pass with the bot; numbers recorded in `docs/BALANCE.md`
 
 ## M10 — Opt-in extras (only the ones the user picked)
-- [ ] Synergy/effects extras from `11`: arcana-like modifiers, curses, shrines, reactions, traits, mutators
-- [ ] Extras UI and tests; synergy matrix test (seeded random loadouts, 600 ticks each)
+- [x] Synergy engine: content tags, tag-count + combo synergies, burn+slow reaction, synergy tests (incl. matrix sanity)
+- [ ] Specific extra families from `11`: arcana, curses, shrines, keystones, mutators, daily seeds + extras UI
 
 ## M11 — Multiplayer server
 - [ ] Protocol + `PROTOCOL_VERSION` handshake in `packages/shared` (see 07)

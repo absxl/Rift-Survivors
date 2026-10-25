@@ -100,6 +100,7 @@ const corePack: ContentPack = {
     { id: "plating", stat: "armor", perRank: 1, maxRank: 5, costs: [15, 30, 45, 60, 75] },
     { id: "fortune", stat: "luck", perRank: 0.1, maxRank: 5, costs: [20, 40, 60, 80, 100] },
   ],
+  synergies: [],
 };
 
 /** Load and validate the core pack (enemies + items). */

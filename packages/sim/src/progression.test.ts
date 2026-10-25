@@ -52,6 +52,7 @@ const PROG_PACK: ContentPack = {
   passives: [{ id: "might", maxLevel: 5, perLevel: { might: 0.2 } }],
   characters: [{ id: "champion", startingWeapon: "blade" }],
   powerUps: [],
+  synergies: [],
 };
 
 describe("progression", () => {

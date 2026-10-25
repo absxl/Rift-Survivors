@@ -40,6 +40,8 @@ export type {
   PowerUpDef,
   StatDelta,
   StatusApply,
+  SynergyDef,
+  TagQuery,
   WeaponDef,
   WeaponStats,
 } from "./content-types";

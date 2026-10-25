@@ -5,6 +5,8 @@ import type {
   PassiveDef,
   PowerUpDef,
   StatDelta,
+  SynergyDef,
+  TagQuery,
   WeaponDef,
   WeaponStats,
 } from "@rift/sim";
@@ -40,6 +42,7 @@ const statDeltaSchema: z.ZodType<StatDelta> = z.object({
 
 const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
   id: z.string(),
+  tags: z.array(z.string()).optional(),
   behavior: z.string(),
   params: z.record(z.union([z.number(), z.string(), z.boolean()])),
   maxLevel: z.number().int().positive(),
@@ -53,6 +56,7 @@ const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
 
 const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
   id: z.string(),
+  tags: z.array(z.string()).optional(),
   category: z.enum(["minion", "elite", "boss", "final-threat"]),
   hp: z.number().positive(),
   damage: z.number(),
@@ -66,12 +70,14 @@ const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
 
 const passiveDefSchema: z.ZodType<PassiveDef> = z.object({
   id: z.string(),
+  tags: z.array(z.string()).optional(),
   maxLevel: z.number().int().positive(),
   perLevel: z.record(z.number()),
 });
 
 const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   id: z.string(),
+  tags: z.array(z.string()).optional(),
   startingWeapon: z.string(),
   baseStats: z.record(z.number()).optional(),
   growth: z
@@ -87,6 +93,28 @@ const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({
   costs: z.array(z.number()),
 });
 
+const tagQuerySchema: z.ZodType<TagQuery> = z.object({
+  all: z.array(z.string()).optional(),
+  any: z.array(z.string()).optional(),
+});
+
+const synergyDefSchema: z.ZodType<SynergyDef> = z.object({
+  id: z.string(),
+  source: z.union([
+    z.object({
+      kind: z.literal("tagCount"),
+      tag: z.string(),
+      tiers: z.array(z.object({ count: z.number().int(), mods: z.record(z.number()) })),
+    }),
+    z.object({
+      kind: z.literal("combo"),
+      requires: z.array(tagQuerySchema),
+      mods: z.record(z.number()),
+    }),
+  ]),
+  hidden: z.boolean().optional(),
+});
+
 export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   id: z.string(),
   schemaVersion: z.number().int().positive(),
@@ -95,4 +123,5 @@ export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   passives: z.array(passiveDefSchema),
   characters: z.array(characterDefSchema),
   powerUps: z.array(powerUpDefSchema),
+  synergies: z.array(synergyDefSchema),
 });

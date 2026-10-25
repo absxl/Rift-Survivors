@@ -33,6 +33,10 @@ function enemyAi(world: World): void {
       enemies.field("burnTicks")[slot] = burn - 1;
       enemies.field("hp")[slot] -= world.num("status.burnDps");
     }
+    // Reaction: burn + slow = a "steam" burst.
+    if (burn > 0 && slow > 0) {
+      enemies.field("hp")[slot] -= world.num("status.reactionDamage");
+    }
     const freeze = enemies.field("freezeTicks")[slot];
     if (freeze > 0) enemies.field("freezeTicks")[slot] = freeze - 1;
 

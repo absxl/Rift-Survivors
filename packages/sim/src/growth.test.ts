@@ -33,6 +33,7 @@ const GROWTH_PACK: ContentPack = {
     { id: "champion", startingWeapon: "blade", growth: { everyLevels: 1, mods: { might: 0.1 } } },
   ],
   powerUps: [],
+  synergies: [],
 };
 
 describe("growth", () => {

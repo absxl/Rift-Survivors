@@ -11,6 +11,7 @@ import { Rng, type RngState } from "./rng";
 import { type EntitySchema, EntityStore, type StoreSnapshot } from "./schema";
 import { SpatialHash } from "./spatial-hash";
 import { applyOfferOption } from "./systems/progression";
+import { refreshSynergies } from "./systems/synergies";
 import type { Offer, PlayerInput } from "./types";
 
 export const TICK_MS = 1000 / 30; // 30 Hz fixed timestep
@@ -48,6 +49,7 @@ const EMPTY_PACK: ContentPack = {
   passives: [],
   characters: [],
   powerUps: [],
+  synergies: [],
 };
 
 const PLAYER_SCHEMA: EntitySchema = {
@@ -282,6 +284,7 @@ export class World {
     });
 
     registerCoreSystems(this.registries);
+    refreshSynergies(this);
   }
 
   /** Named tunable from the ruleset (no magic numbers in systems). */

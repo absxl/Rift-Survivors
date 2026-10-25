@@ -37,6 +37,8 @@ export interface StatDelta {
 
 export interface WeaponDef {
   id: string;
+  /** Namespaced tags used by synergies/modifiers (e.g. "damage:fire"). */
+  tags?: string[];
   behavior: string; // registry id: "sweep" | "shoot-nearest" | ...
   params: Record<string, number | string | boolean>;
   maxLevel: number;
@@ -52,6 +54,7 @@ export interface WeaponDef {
 
 export interface EnemyDef {
   id: string;
+  tags?: string[];
   category: "minion" | "elite" | "boss" | "final-threat";
   hp: number;
   damage: number;
@@ -66,6 +69,7 @@ export interface EnemyDef {
 
 export interface PassiveDef {
   id: string;
+  tags?: string[];
   maxLevel: number; // ≈5
   /** Stat key → additive amount per level (applied through the modifier stack). */
   perLevel: Record<string, number>;
@@ -73,6 +77,7 @@ export interface PassiveDef {
 
 export interface CharacterDef {
   id: string;
+  tags?: string[];
   /** Content weapon id the character starts with. */
   startingWeapon: string;
   /** Stat key → additive bonus applied as modifiers at run start. */
@@ -93,6 +98,26 @@ export interface PowerUpDef {
   costs: number[];
 }
 
+/** A tag query: `all` must be present, `any` needs at least one. */
+export interface TagQuery {
+  all?: string[];
+  any?: string[];
+}
+
+/** Cross-synergy: applies stat modifiers when its condition is met (docs/11). */
+export interface SynergyDef {
+  id: string;
+  source:
+    | {
+        kind: "tagCount";
+        tag: string;
+        tiers: { count: number; mods: Record<string, number> }[];
+      }
+    | { kind: "combo"; requires: TagQuery[]; mods: Record<string, number> };
+  /** Hidden-until-discovered (discovery combos). */
+  hidden?: boolean;
+}
+
 export interface ContentPack {
   id: string;
   schemaVersion: number;
@@ -101,4 +126,5 @@ export interface ContentPack {
   passives: PassiveDef[];
   characters: CharacterDef[];
   powerUps: PowerUpDef[];
+  synergies: SynergyDef[];
 }

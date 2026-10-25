@@ -3,6 +3,7 @@
 import type { Registries } from "../registry";
 import type { Offer, OfferOption } from "../types";
 import type { World } from "../world";
+import { refreshSynergies } from "./synergies";
 
 export function registerProgression(reg: Registries): void {
   reg.systems.register("progression", progression);
@@ -215,6 +216,7 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
     refreshPassiveModifiers(world);
   }
 
+  refreshSynergies(world);
   world.clearOffers();
 }
 

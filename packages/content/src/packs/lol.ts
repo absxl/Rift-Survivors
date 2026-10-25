@@ -1,6 +1,6 @@
 // The `lol` pack: League-of-Legends-inspired mage champions and their abilities
 // mapped onto generic weapon behaviors (docs/13 §17). Names are content only.
-import type { ContentPack, StatDelta } from "@rift/sim";
+import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
 
 function levels(deltas: StatDelta[]): { delta: StatDelta }[] {
@@ -383,9 +383,76 @@ const lolPack: ContentPack = {
     },
   ],
   powerUps: [],
+  synergies: [
+    {
+      id: "ignite",
+      source: {
+        kind: "tagCount",
+        tag: "damage:fire",
+        tiers: [
+          { count: 2, mods: { area: 0.1, might: 0.05 } },
+          { count: 3, mods: { area: 0.2, might: 0.15 } },
+        ],
+      },
+    },
+    {
+      id: "arcane-affinity",
+      source: {
+        kind: "tagCount",
+        tag: "damage:arcane",
+        tiers: [
+          { count: 2, mods: { cooldown: 0.1 } },
+          { count: 3, mods: { cooldown: 0.2 } },
+        ],
+      },
+    },
+    {
+      id: "light-weaver",
+      source: {
+        kind: "tagCount",
+        tag: "damage:light",
+        tiers: [{ count: 2, mods: { might: 0.12 } }],
+      },
+    },
+    {
+      id: "elementalist",
+      source: {
+        kind: "combo",
+        requires: [{ all: ["damage:fire"] }, { all: ["damage:arcane"] }],
+        mods: { might: 0.1 },
+      },
+    },
+  ],
 };
 
-/** Load and validate the lol pack (champions + abilities). */
+// Weapons grouped by damage tag (drives synergy counting).
+const FIRE = new Set(["conflagration", "sear", "pyroclasm", "fox-fire"]);
+const ARCANE = new Set([
+  "overload",
+  "rune-prison",
+  "arcane-barrage",
+  "primordial-burst",
+  "desperate-power",
+  "scatter-the-weak",
+]);
+const LIGHT = new Set(["light-binding", "lucent-singularity", "final-spark"]);
+
+function tagWeapons(weapons: WeaponDef[]): WeaponDef[] {
+  return weapons.map((w) => {
+    const tags: string[] = [];
+    if (FIRE.has(w.id)) tags.push("damage:fire");
+    if (ARCANE.has(w.id)) tags.push("damage:arcane");
+    if (LIGHT.has(w.id)) tags.push("damage:light");
+    return tags.length > 0 ? { ...w, tags } : w;
+  });
+}
+
+/** Load and validate the lol pack (champions + abilities + synergies). */
 export function loadLolPack(): ContentPack {
-  return contentPackSchema.parse(lolPack);
+  const pack: ContentPack = {
+    ...lolPack,
+    weapons: tagWeapons(lolPack.weapons),
+    characters: lolPack.characters.map((c) => ({ ...c, tags: ["role:mage"] })),
+  };
+  return contentPackSchema.parse(pack);
 }

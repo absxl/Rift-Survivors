@@ -64,4 +64,14 @@ describe("content packs", () => {
       expect(p.costs.length).toBe(p.maxRank);
     }
   });
+
+  it("synergies resolve (tag tiers non-empty)", () => {
+    const game = loadGamePack();
+    expect(game.synergies.length).toBeGreaterThanOrEqual(1);
+    for (const s of game.synergies) {
+      if (s.source.kind === "tagCount") {
+        expect(s.source.tiers.length).toBeGreaterThan(0);
+      }
+    }
+  });
 });

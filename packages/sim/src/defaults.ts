@@ -106,6 +106,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "weapon.orbitSpeed": 0.08,
     "weapon.zoneHitCooldown": 10,
     "status.burnDps": 1,
+    "status.reactionDamage": 2,
   },
   features: {},
   contentPacks: [],
