@@ -180,11 +180,26 @@ export interface WorldStores {
   pickups: EntityStore;
 }
 
+export interface RunStats {
+  /** Multipliers: 1 = base. */
+  might: number;
+  /** Cooldown divisor: >1 means faster attacks (shown as Haste). */
+  cooldown: number;
+  area: number;
+  moveSpeed: number;
+  magnet: number;
+  /** Flat damage reduction. */
+  armor: number;
+  /** Bonus fraction: 0 = base (shown as +%). */
+  luck: number;
+}
+
 export interface WorldSnapshot {
   tick: number;
   over: boolean;
   rngState: RngState;
   modifiers: Record<string, number>;
+  stats: RunStats;
   partyXp: number;
   partyLevel: number;
   partyXpToNext: number;
@@ -489,6 +504,15 @@ export function snapshot(world: World): WorldSnapshot {
     over: world.over,
     rngState: world.rng.getState(),
     modifiers: world.modifiers.snapshot(),
+    stats: {
+      might: world.stat("might", 1),
+      cooldown: world.stat("cooldown", 1),
+      area: world.stat("area", 1),
+      moveSpeed: world.stat("moveSpeed", 1),
+      magnet: world.stat("magnet", 1),
+      armor: world.stat("armor", 0),
+      luck: world.stat("luck", 0),
+    },
     partyXp: world.partyXp,
     partyLevel: world.partyLevel,
     partyXpToNext: world.partyXpToNext,

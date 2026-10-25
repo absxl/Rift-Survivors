@@ -246,6 +246,12 @@ async function main(): Promise<void> {
     }
   });
 
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || !inputSender) return;
+    e.preventDefault();
+    hud.toggleStats();
+  });
+
   window.setInterval(() => {
     if (!inputSender) return;
     const i = input.read();

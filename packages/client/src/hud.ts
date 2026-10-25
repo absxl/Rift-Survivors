@@ -6,6 +6,7 @@ import { Container, Graphics } from "pixi.js";
 import { PixelText } from "./assets/pixel-font";
 import { ownedIndices } from "./loadout";
 import { VIEW_H, VIEW_W } from "./renderer";
+import { PRIMARY_LABELS, SECONDARY_LABELS, formatStats } from "./stats-format";
 
 const PANEL_TOP = 216;
 const PORTRAIT_X = 6;
@@ -26,6 +27,10 @@ const ITEM_Y = 232;
 const ITEM_SIZE = 15;
 const ITEM_GAP = 3;
 const ITEM_COUNT = 8;
+const STATS_W = 198;
+const STATS_H = 94;
+const STATS_ROW_TOP = 20;
+const STATS_ROW_H = 10;
 
 function weaponColor(def: WeaponDef | undefined): number {
   const tags = def?.tags ?? [];
@@ -64,6 +69,10 @@ export class Hud {
   private readonly tooltip: Container;
   private readonly tooltipBg: Graphics;
   private readonly tooltipText: PixelText;
+  private readonly statsPanel: Container;
+  private readonly statsPrimaryValues: PixelText[] = [];
+  private readonly statsSecondaryValues: PixelText[] = [];
+  private statsVisible = false;
 
   private readonly weapons: WeaponDef[];
   private readonly passives: PassiveDef[];
@@ -124,6 +133,51 @@ export class Hud {
     this.timer.display.anchor.set(0.5, 0);
     this.timer.display.position.set(VIEW_W / 2, 5);
     stage.addChild(this.timer.display);
+
+    // Tab stats panel (top-left; hidden by default).
+    this.statsPanel = new Container();
+    this.statsPanel.position.set(6, 8);
+    this.statsPanel.visible = false;
+    stage.addChild(this.statsPanel);
+
+    const statsBg = new Graphics();
+    statsBg.rect(0, 0, STATS_W, STATS_H).fill({ color: 0x0a0e16, alpha: 0.94 });
+    statsBg.rect(0, 0, STATS_W, STATS_H).stroke({ width: 1, color: 0x3a5a7a });
+    statsBg.rect(0, 0, STATS_W, 2).fill(0x3a5a7a);
+    this.statsPanel.addChild(statsBg);
+
+    const statsTitle = new PixelText("STATS", 1, 0xffcc44);
+    statsTitle.display.position.set(6, 5);
+    this.statsPanel.addChild(statsTitle.display);
+
+    const closeHint = new PixelText("TAB: CLOSE", 1, 0x6a8090);
+    closeHint.display.anchor.set(1, 0);
+    closeHint.display.position.set(STATS_W - 6, 5);
+    this.statsPanel.addChild(closeHint.display);
+
+    PRIMARY_LABELS.forEach((label, i) => {
+      const y = STATS_ROW_TOP + i * STATS_ROW_H;
+      const text = new PixelText(label, 1, 0x8ab0c0);
+      text.display.position.set(6, y);
+      this.statsPanel.addChild(text.display);
+      const value = new PixelText("", 1);
+      value.display.anchor.set(1, 0);
+      value.display.position.set(112, y);
+      this.statsPanel.addChild(value.display);
+      this.statsPrimaryValues.push(value);
+    });
+
+    SECONDARY_LABELS.forEach((label, i) => {
+      const y = STATS_ROW_TOP + i * STATS_ROW_H;
+      const text = new PixelText(label, 1, 0x8ab0c0);
+      text.display.position.set(122, y);
+      this.statsPanel.addChild(text.display);
+      const value = new PixelText("", 1);
+      value.display.anchor.set(1, 0);
+      value.display.position.set(STATS_W - 6, y);
+      this.statsPanel.addChild(value.display);
+      this.statsSecondaryValues.push(value);
+    });
   }
 
   setLocalPlayer(playerId: number): void {
@@ -139,6 +193,12 @@ export class Hud {
     this.pointerX = x;
     this.pointerY = y;
     this.pointerOver = over;
+  }
+
+  /** Toggle the Tab stats panel. */
+  toggleStats(): void {
+    this.statsVisible = !this.statsVisible;
+    this.statsPanel.visible = this.statsVisible;
   }
 
   private createSlot(
@@ -194,6 +254,8 @@ export class Hud {
     const pIdx = playerStore ? playerStore.slots.indexOf(this.localPlayerId) : -1;
     const hp = pIdx >= 0 && playerStore ? playerStore.fields.hp[pIdx] : 100;
     const maxHp = pIdx >= 0 && playerStore ? playerStore.fields.maxHp[pIdx] : 100;
+    const kills = pIdx >= 0 && playerStore ? playerStore.fields.kills[pIdx] : 0;
+    const gold = pIdx >= 0 && playerStore ? playerStore.fields.gold[pIdx] : 0;
 
     this.hpBar.clear();
     this.hpBar.rect(BAR_X, BAR_TOP, BAR_W, HP_H).fill(0x000000);
@@ -247,6 +309,18 @@ export class Hud {
     });
 
     this.updateTooltip();
+
+    if (this.statsVisible) {
+      const { primary, secondary } = formatStats(s.stats, { kills, gold, maxHp });
+      primary.forEach((row, i) => {
+        const value = this.statsPrimaryValues[i];
+        if (value) value.text = row.value;
+      });
+      secondary.forEach((row, i) => {
+        const value = this.statsSecondaryValues[i];
+        if (value) value.text = row.value;
+      });
+    }
   }
 
   private fillWeaponSlot(

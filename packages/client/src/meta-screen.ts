@@ -174,7 +174,7 @@ export class MetaScreen {
     const controlsHint = document.createElement("div");
     controlsHint.className = "meta-hint";
     controlsHint.textContent =
-      "ARROW KEYS ALWAYS MOVE  ·  ESC CANCELS REBINDING  ·  GAMEPAD SUPPORTED";
+      "ARROW KEYS ALWAYS MOVE  ·  ESC CANCELS REBINDING  ·  GAMEPAD SUPPORTED  ·  STATS: TAB";
     this.root.appendChild(controlsHint);
 
     // Play / co-op

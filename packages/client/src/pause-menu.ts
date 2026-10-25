@@ -66,7 +66,7 @@ export class PauseMenu {
 
     const hint = document.createElement("div");
     hint.className = "pause-hint";
-    hint.textContent = "MOVE: WASD / ARROWS / GAMEPAD    PAUSE: ESC";
+    hint.textContent = "MOVE: WASD / ARROWS / GAMEPAD    STATS: TAB    PAUSE: ESC";
     this.root.appendChild(hint);
 
     document.body.appendChild(this.root);

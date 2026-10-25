@@ -27,6 +27,7 @@ export {
   TICK_MS,
   type RulesetDef,
   type RunConfig,
+  type RunStats,
   type WorldSnapshot,
   type WorldStores,
 } from "./world";

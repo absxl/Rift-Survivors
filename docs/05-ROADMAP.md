@@ -131,6 +131,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   rebind); gamepad left stick + D-pad; F3 toggles an FPS/live-entity overlay; damage numbers can be disabled.
 - **Co-op robustness:** stable player slots (lowest free id), mid-run joins rejected, lobby BACK closes the
   socket, and a dropped mid-run connection shows a CONNECTION LOST screen instead of freezing silently.
+- **Stats HUD:** Tab toggles a panel showing Might/Haste/Area/Speed/Magnet/Armor/Luck plus the local
+  player's kills/gold/max HP; snapshots now carry evaluated `RunStats`.
 - **Crash fix (passives):** the HUD read a `cooldown` field that passive stores don't have, so the first
   passive pick threw inside the render tick and froze the game. Loadout reads now default it, the client
   ticker logs a frame error instead of dying silently, and client + real-pack co-op tests cover it.
