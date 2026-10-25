@@ -15,6 +15,7 @@ export class NetHost {
   private lobbyCb: ((players: LobbyPlayer[], code: string) => void) | null = null;
   private startCb: ((yourPlayerId: number) => void) | null = null;
   private errorCb: ((message: string) => void) | null = null;
+  private closeCb: ((code: number) => void) | null = null;
 
   constructor(private readonly url: string) {}
 
@@ -25,9 +26,20 @@ export class NetHost {
         this.ws = ws;
         resolve();
       };
-      ws.onerror = () => reject(new Error("could not reach server"));
+      ws.onerror = () => {
+        if (!this.ws) reject(new Error("could not reach server"));
+      };
       ws.onmessage = (e) => this.onMessage(e.data);
+      ws.onclose = (event) => {
+        this.ws = null;
+        this.closeCb?.(event.code);
+      };
     });
+  }
+
+  close(): void {
+    this.ws?.close();
+    this.ws = null;
   }
 
   createRoom(name: string, characterId: string): void {
@@ -64,6 +76,9 @@ export class NetHost {
   }
   onError(cb: (message: string) => void): void {
     this.errorCb = cb;
+  }
+  onClose(cb: (code: number) => void): void {
+    this.closeCb = cb;
   }
 
   private send(msg: ClientMessage): void {

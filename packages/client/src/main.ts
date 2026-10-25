@@ -5,6 +5,7 @@ import { Application, Container } from "pixi.js";
 import { Sfx } from "./audio";
 import { championColor } from "./champion-colors";
 import { CharacterSelect } from "./charselect";
+import { ConnectionLost } from "./connection-lost";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
 import { Input } from "./input";
@@ -89,6 +90,7 @@ async function main(): Promise<void> {
   const runEnd = new RunEndUI();
   const nameScreen = new NameScreen();
   const pauseMenu = new PauseMenu();
+  const connectionLost = new ConnectionLost();
   let runEnded = false;
   let lastSnap: WorldSnapshot | null = null;
 
@@ -182,6 +184,9 @@ async function main(): Promise<void> {
     hud.setChampion(coopCharacterId, championColor(coopCharacterId));
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);
+    netHost.onClose(() => {
+      if (!runEnded) connectionLost.show();
+    });
     activeChoice = (i) => netHost.sendChoice(i);
     inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
   });

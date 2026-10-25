@@ -69,7 +69,7 @@ export class Lobby {
     const backBtn = document.createElement("button");
     backBtn.className = "meta-btn";
     backBtn.textContent = "BACK";
-    backBtn.addEventListener("click", () => this.hide());
+    backBtn.addEventListener("click", () => this.leave());
     this.root.appendChild(backBtn);
 
     document.body.appendChild(this.root);
@@ -95,11 +95,21 @@ export class Lobby {
     this.root.style.display = "none";
   }
 
+  /** Leave the lobby and drop the socket (the BACK button; not used on start). */
+  private leave(): void {
+    this.netHost?.close();
+    this.netHost = null;
+    this.hide();
+  }
+
   private async connect(): Promise<NetHost> {
     const netHost = new NetHost(this.serverUrl);
     netHost.onLobby((players, code) => this.renderLobby(players, code));
     netHost.onError((msg) => {
       this.status.textContent = msg;
+    });
+    netHost.onClose(() => {
+      this.status.textContent = "disconnected";
     });
     netHost.onStart((playerId) => {
       this.hide();

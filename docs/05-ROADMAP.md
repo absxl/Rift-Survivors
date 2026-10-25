@@ -128,6 +128,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   Resume · Restart (solo) · Quit to Menu · Sound · Shake · Damage Numbers).
 - **M13 controls:** movement is rebindable in Settings → Controls (arrow keys always work, Esc cancels a
   rebind); gamepad left stick + D-pad; F3 toggles an FPS/live-entity overlay; damage numbers can be disabled.
+- **Co-op robustness:** stable player slots (lowest free id), mid-run joins rejected, lobby BACK closes the
+  socket, and a dropped mid-run connection shows a CONNECTION LOST screen instead of freezing silently.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.
