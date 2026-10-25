@@ -241,16 +241,16 @@ function runSeed(
   it("compares tuning variants on the same seed", () => {
     const pack = loadGamePack();
     const variants: Array<{ name: string; rules: Record<string, number> }> = [
-      { name: "baseline", rules: {} },
-      { name: "rarer-chests", rules: { "director.eliteInterval": 2700 } },
+      { name: "defaults (new swarm/chests)", rules: {} },
       {
-        name: "swarmier+rarer-chests",
+        name: "old pace (60/2, 30s chests)",
         rules: {
-          "director.eliteInterval": 2700,
-          "director.spawnInterval": 30,
-          "director.batchSize": 3,
+          "director.spawnInterval": 60,
+          "director.batchSize": 2,
+          "director.eliteInterval": 900,
         },
       },
+      { name: "new swarm + 30s chests", rules: { "director.eliteInterval": 900 } },
     ];
     for (const variant of variants) {
       const ruleset: RulesetDef = {

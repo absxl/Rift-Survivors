@@ -100,6 +100,8 @@ describe("bot", () => {
   it("runs a full short timeline without crashing and stays in budget", () => {
     const world = createWorld(BOT_RULESET, { playerCount: 1, content: BOT_PACK }, 123);
     for (let t = 0; t < 90 * 30; t++) {
+      // Test invulnerability: with denser spawns the bot would die before the final threat.
+      world.stores.players.field("iFrames")[0] = 2;
       step(world, [{ playerId: 0, moveX: 0.5, moveY: 0.3 }]);
       if (world.over) break;
       expect(world.stores.enemies.liveSlots().length).toBeLessThanOrEqual(1500);

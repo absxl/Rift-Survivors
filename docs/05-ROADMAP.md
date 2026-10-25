@@ -137,8 +137,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Economy fix:** enemy lucky drops now include gold (`PICKUP_GOLD` was defined but never dropped, so runs
   always awarded 0 gold). Kill credit is attributed via `lastHitBy` (zones carry an owner), and each co-op
   client's results screen now reads its own slot.
-- **Balance baseline:** `docs/BALANCE.md` — bot survives 31:00 at level 16 with maxed items, swarm stays at
-  19–28 alive, boss rush unreached; variant numbers for spawn/chest tuning are included.
+- **Balance baseline:** `docs/BALANCE.md` — current pace (spawn 30/3, elite chests every 90 s) gives
+  68–79 enemies alive, ~5,500 kills and 33–45/60 item levels at 31:00; the final threat / boss rush is
+  still unreached and needs a separate tuning pass.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.
