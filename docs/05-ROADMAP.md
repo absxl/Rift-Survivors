@@ -93,7 +93,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Protocol + `PROTOCOL_VERSION` handshake in `packages/shared` (zod-validated)
 - [x] Node `ws` server running the same sim and ruleset; rooms; per-player offers; `/health`
 - [x] Sim co-op correctness (nearest-player targeting, per-player pickups, starting weapon per player)
-- [ ] `NetHost` client + lobby UI (next)
+- [x] `NetHost` client + lobby UI (host/join by room code)
 - [ ] Delta snapshots, interpolation, local prediction
 - [ ] 4-player stress test with simulated latency
 

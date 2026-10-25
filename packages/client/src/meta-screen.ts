@@ -8,6 +8,7 @@ import { persistSave } from "./save/save";
 export class MetaScreen {
   private readonly root: HTMLElement;
   private playCb: (() => void) | null = null;
+  private coopCb: (() => void) | null = null;
   private settingsCb: ((settings: SaveData["settings"]) => void) | null = null;
 
   constructor(
@@ -23,6 +24,10 @@ export class MetaScreen {
 
   onPlay(cb: () => void): void {
     this.playCb = cb;
+  }
+
+  onCoop(cb: () => void): void {
+    this.coopCb = cb;
   }
 
   onSettingsChange(cb: (settings: SaveData["settings"]) => void): void {
@@ -131,14 +136,24 @@ export class MetaScreen {
     settings.appendChild(shakeBtn);
     this.root.appendChild(settings);
 
-    // Play
+    // Play / co-op
+    const playRow = document.createElement("div");
+    playRow.className = "meta-row";
     const play = document.createElement("button");
     play.className = "meta-play";
     play.textContent = "PLAY";
     play.addEventListener("click", () => {
       if (this.playCb) this.playCb();
     });
-    this.root.appendChild(play);
+    playRow.appendChild(play);
+    const coop = document.createElement("button");
+    coop.className = "meta-play";
+    coop.textContent = "CO-OP";
+    coop.addEventListener("click", () => {
+      if (this.coopCb) this.coopCb();
+    });
+    playRow.appendChild(coop);
+    this.root.appendChild(playRow);
   }
 
   private sectionTitle(text: string): HTMLElement {

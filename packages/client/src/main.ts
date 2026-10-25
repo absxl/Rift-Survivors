@@ -1,6 +1,6 @@
-// Client entry: pixel-perfect Pixi app + worker-hosted sim + meta screen + input.
+// Client entry: pixel-perfect Pixi app + worker (solo) or server (co-op) sim host.
 import { loadGamePack } from "@rift/content";
-import type { WorldSnapshot } from "@rift/sim";
+import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
 import { Sfx } from "./audio";
 import { championColor } from "./champion-colors";
@@ -9,8 +9,10 @@ import { WorkerHost } from "./host";
 import { Hud } from "./hud";
 import { Input } from "./input";
 import { LevelUpUI } from "./levelup";
+import { Lobby } from "./lobby";
 import { MetaScreen } from "./meta-screen";
 import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
+import type { NetHost } from "./net-host";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 import { RunEndUI } from "./run-end";
 import { loadSave, persistSave } from "./save/save";
@@ -69,18 +71,20 @@ async function main(): Promise<void> {
   const hud = new Hud(hudLayer);
   const input = new Input();
   input.attach();
-
-  const host = new WorkerHost();
   const sfx = new Sfx();
+
+  // The active choice/input senders are swapped depending on solo vs co-op.
+  let activeChoice: ((index: number) => void) | null = null;
+  let inputSender: ((moveX: number, moveY: number) => void) | null = null;
+
   const levelUp = new LevelUpUI();
-  host.onOffer((offer) => levelUp.show(offer));
-  levelUp.onChoose((index) => host.sendChoice(index));
+  levelUp.onChoose((index) => activeChoice?.(index));
 
   const runEnd = new RunEndUI();
   let runEnded = false;
   let lastSnap: WorldSnapshot | null = null;
 
-  host.onSnapshot((snap, events) => {
+  const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
     renderer.receive(snap, events);
     lastSnap = snap;
     for (const e of events) {
@@ -103,7 +107,13 @@ async function main(): Promise<void> {
       persistSave(save);
       runEnd.show({ time: formatTime(timeSec), kills, gold, chests, newAchievements });
     }
-  });
+  };
+  const onOffer = (offer: Parameters<typeof levelUp.show>[0]): void => levelUp.show(offer);
+
+  // Solo host (Web Worker).
+  const host = new WorkerHost();
+  host.onSnapshot(handleSnapshot);
+  host.onOffer(onOffer);
 
   const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters);
   sfx.setVolume(save.settings.volume);
@@ -113,10 +123,12 @@ async function main(): Promise<void> {
     renderer.setShake(settings.shake);
   });
 
-  const startRun = (characterId: string): void => {
+  const startSolo = (characterId: string): void => {
     runEnded = false;
     metaScreen.hide();
     renderer.setChampionColor(championColor(characterId));
+    activeChoice = (i) => host.sendChoice(i);
+    inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
     host.start(characterId, computeMetaBonuses(save, pack.powerUps));
   };
 
@@ -125,14 +137,34 @@ async function main(): Promise<void> {
     sfx.unlock();
     const unlocked = pack.characters.filter((c) => save.unlockedCharacters.includes(c.id));
     const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
-    charSelect.onChoose((id) => startRun(id));
+    charSelect.onChoose((id) => startSolo(id));
+  });
+
+  // Co-op host (WebSocket server).
+  const serverUrl = import.meta.env.VITE_SERVER_URL ?? `ws://${location.hostname}:8787`;
+  const lobby = new Lobby(serverUrl);
+  lobby.onStart((netHost: NetHost) => {
+    runEnded = false;
+    netHost.onSnapshot(handleSnapshot);
+    netHost.onOffer(onOffer);
+    activeChoice = (i) => netHost.sendChoice(i);
+    inputSender = (mx, my) => netHost.sendInput({ playerId: 0, moveX: mx, moveY: my });
+  });
+  metaScreen.onCoop(() => {
+    metaScreen.hide();
+    sfx.unlock();
+    lobby.show();
   });
 
   runEnd.onContinue(() => {
     window.location.reload();
   });
 
-  window.setInterval(() => host.sendInput(input.read()), 1000 / 30);
+  window.setInterval(() => {
+    if (!inputSender) return;
+    const i = input.read();
+    inputSender(i.moveX, i.moveY);
+  }, 1000 / 30);
 
   app.ticker.add(() => {
     renderer.render();
