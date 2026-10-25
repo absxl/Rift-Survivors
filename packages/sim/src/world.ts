@@ -232,6 +232,12 @@ export class World {
   finalThreatSpawned = false;
   /** Tick when the final threat spawned (-1 before). Drives the boss-rush fallback. */
   finalThreatTick = -1;
+  /** Per-player offer agency tokens (reroll/skip/banish) for this run. */
+  readonly rerolls: number[] = [];
+  readonly skips: number[] = [];
+  readonly banishes: number[] = [];
+  /** Option ids banished by each player; excluded from future offers this run. */
+  readonly banishedOptions: Set<string>[] = [];
   private readonly offers: Offer[] = [];
 
   constructor(
@@ -271,6 +277,10 @@ export class World {
       this.stores.players.field("maxHp")[slot] = 100;
       this.stores.players.field("level")[slot] = 1;
       this.stores.players.field("xpToNext")[slot] = this.ruleset.xpCurve[0] ?? 5;
+      this.rerolls.push(Math.max(0, Math.floor(this.num("levelUp.rerolls"))));
+      this.skips.push(Math.max(0, Math.floor(this.num("levelUp.skips"))));
+      this.banishes.push(Math.max(0, Math.floor(this.num("levelUp.banishes"))));
+      this.banishedOptions.push(new Set());
     }
 
     // Per-player characters (co-op) with a primary character for global stats.
@@ -355,6 +365,15 @@ export class World {
 
   pendingOffers(): readonly Offer[] {
     return this.offers;
+  }
+
+  /** Current reroll/skip/banish tokens for a player (copied into each offer). */
+  offerTokens(playerId: number): { rerolls: number; skips: number; banishes: number } {
+    return {
+      rerolls: this.rerolls[playerId] ?? 0,
+      skips: this.skips[playerId] ?? 0,
+      banishes: this.banishes[playerId] ?? 0,
+    };
   }
 
   clearOffers(): void {

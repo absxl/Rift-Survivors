@@ -2,7 +2,17 @@
 // Waits for a "start" message, ticks; pauses on pending offers (level-up) and on
 // the client pause menu; resumes on choice/resume.
 import { loadGamePack } from "@rift/content";
-import { DEFAULT_RULESET, TICK_MS, applyChoice, createWorld, snapshot, step } from "@rift/sim";
+import {
+  DEFAULT_RULESET,
+  TICK_MS,
+  applyChoice,
+  banishOfferOption,
+  createWorld,
+  rerollOffer,
+  skipOffer,
+  snapshot,
+  step,
+} from "@rift/sim";
 import type { PlayerInput, World } from "@rift/sim";
 
 interface WorkerScope {
@@ -39,11 +49,17 @@ function loop(): void {
   setTimeout(loop, TICK_MS);
 }
 
+function postOffer(): void {
+  const offer = world?.pendingOffers()[0];
+  if (offer) ctx.postMessage({ type: "offer", offer });
+}
+
 ctx.onmessage = (event: MessageEvent) => {
   const msg = event.data as {
     type?: string;
     input?: PlayerInput;
     choiceIndex?: number;
+    optionIndex?: number;
     characterId?: string;
     metaBonuses?: Record<string, number>;
   };
@@ -53,6 +69,15 @@ ctx.onmessage = (event: MessageEvent) => {
   else if (msg.type === "choice" && world) {
     applyChoice(world, 0, msg.choiceIndex ?? 0);
     paused = false;
+  } else if (msg.type === "reroll" && world) {
+    rerollOffer(world, 0);
+    postOffer();
+  } else if (msg.type === "skip" && world) {
+    if (skipOffer(world, 0)) paused = false;
+    else postOffer();
+  } else if (msg.type === "banish" && world) {
+    banishOfferOption(world, 0, msg.optionIndex ?? 0);
+    postOffer();
   } else if (msg.type === "start") {
     world = createWorld(
       DEFAULT_RULESET,

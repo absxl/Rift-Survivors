@@ -57,12 +57,16 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   });
 
   const options: OfferOption[] = [];
+  const banished = world.banishedOptions[playerId] ?? new Set<string>();
+  const consider = (option: OfferOption): void => {
+    if (!banished.has(option.optionId)) options.push(option);
+  };
 
   if (ownedWeapons.size < world.num("loadout.weaponSlots")) {
     for (let i = 0; i < world.content.weapons.length; i++) {
       if (ownedWeapons.has(i)) continue;
       if (world.content.weapons[i].isEvolved) continue;
-      options.push({
+      consider({
         optionId: `new-w:${i}`,
         ref: { type: "weapon", id: world.content.weapons[i].id },
       });
@@ -71,7 +75,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   if (ownedPassives.size < world.num("loadout.passiveSlots")) {
     for (let i = 0; i < world.content.passives.length; i++) {
       if (ownedPassives.has(i)) continue;
-      options.push({
+      consider({
         optionId: `new-p:${i}`,
         ref: { type: "passive", id: world.content.passives[i].id },
       });
@@ -80,7 +84,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   for (const [defIndex, level] of ownedWeapons) {
     const def = world.content.weapons[defIndex];
     if (def && level < def.maxLevel) {
-      options.push({
+      consider({
         optionId: `up-w:${defIndex}`,
         ref: { type: "weapon", id: def.id },
         level: level + 1,
@@ -90,7 +94,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   for (const [defIndex, level] of ownedPassives) {
     const def = world.content.passives[defIndex];
     if (def && level < def.maxLevel) {
-      options.push({
+      consider({
         optionId: `up-p:${defIndex}`,
         ref: { type: "passive", id: def.id },
         level: level + 1,
@@ -104,15 +108,16 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   }
 
   const chosen = world.rng.shuffle(options).slice(0, world.num("levelUp.choices"));
+  const tokens = world.offerTokens(playerId);
 
   return {
     id: `offer-${world.tick}`,
     playerId,
     kind: "levelUp",
     options: chosen,
-    rerolls: 0,
-    skips: 0,
-    banishes: 0,
+    rerolls: tokens.rerolls,
+    skips: tokens.skips,
+    banishes: tokens.banishes,
   };
 }
 
@@ -138,13 +143,17 @@ export function buildChestOffer(world: World, playerId: number): Offer {
   });
 
   const options: OfferOption[] = [];
+  const banished = world.banishedOptions[playerId] ?? new Set<string>();
+  const consider = (option: OfferOption): void => {
+    if (!banished.has(option.optionId)) options.push(option);
+  };
 
   for (const [defIndex, level] of ownedWeapons) {
     const def = world.content.weapons[defIndex];
     if (!def?.evolution) continue;
     if (level < def.maxLevel) continue;
     if (!ownedPassiveIds.has(def.evolution.requiresPassive)) continue;
-    options.push({
+    consider({
       optionId: `evolve:${defIndex}`,
       ref: { type: "weapon", id: def.evolution.evolvesTo },
       isEvolution: true,
@@ -153,7 +162,7 @@ export function buildChestOffer(world: World, playerId: number): Offer {
   for (const [defIndex, level] of ownedWeapons) {
     const def = world.content.weapons[defIndex];
     if (def && level < def.maxLevel) {
-      options.push({
+      consider({
         optionId: `up-w:${defIndex}`,
         ref: { type: "weapon", id: def.id },
         level: level + 1,
@@ -163,7 +172,7 @@ export function buildChestOffer(world: World, playerId: number): Offer {
   for (const [defIndex, level] of ownedPassives) {
     const def = world.content.passives[defIndex];
     if (def && level < def.maxLevel) {
-      options.push({
+      consider({
         optionId: `up-p:${defIndex}`,
         ref: { type: "passive", id: def.id },
         level: level + 1,
@@ -177,15 +186,16 @@ export function buildChestOffer(world: World, playerId: number): Offer {
     options.push({ optionId: "fallback-gold", ref: { type: "gold", id: "gold" } });
   }
   const chosen = world.rng.shuffle(options).slice(0, itemCount);
+  const tokens = world.offerTokens(playerId);
 
   return {
     id: `chest-${world.tick}`,
     playerId,
     kind: "chest",
     options: chosen,
-    rerolls: 0,
-    skips: 0,
-    banishes: 0,
+    rerolls: tokens.rerolls,
+    skips: tokens.skips,
+    banishes: tokens.banishes,
   };
 }
 
@@ -244,6 +254,50 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
     // Always resolve the offer so a bad choice can never wedge the pause.
     world.clearOffer(playerId);
   }
+}
+
+/** Spend one reroll token to redraw the current offer. */
+export function rerollOffer(world: World, playerId: number): boolean {
+  const offer = world.pendingOffers().find((o) => o.playerId === playerId);
+  if (!offer) return false;
+  if ((world.rerolls[playerId] ?? 0) <= 0) return false;
+  world.rerolls[playerId] -= 1;
+  const rebuilt =
+    offer.kind === "chest" ? buildChestOffer(world, playerId) : buildLevelUpOffer(world, playerId);
+  offer.options = rebuilt.options;
+  offer.rerolls = rebuilt.rerolls;
+  offer.skips = rebuilt.skips;
+  offer.banishes = rebuilt.banishes;
+  return true;
+}
+
+/** Spend one skip token to dismiss the current offer without picking. */
+export function skipOffer(world: World, playerId: number): boolean {
+  const offer = world.pendingOffers().find((o) => o.playerId === playerId);
+  if (!offer) return false;
+  if ((world.skips[playerId] ?? 0) <= 0) return false;
+  world.skips[playerId] -= 1;
+  world.clearOffer(playerId);
+  return true;
+}
+
+/** Spend one banish token to remove an option from this run's offers, then redraw. */
+export function banishOfferOption(world: World, playerId: number, optionIndex: number): boolean {
+  const offer = world.pendingOffers().find((o) => o.playerId === playerId);
+  if (!offer) return false;
+  if ((world.banishes[playerId] ?? 0) <= 0) return false;
+  const option = offer.options[optionIndex];
+  if (!option) return false;
+  if (option.optionId.startsWith("fallback-")) return false;
+  world.banishes[playerId] -= 1;
+  world.banishedOptions[playerId]?.add(option.optionId);
+  const rebuilt =
+    offer.kind === "chest" ? buildChestOffer(world, playerId) : buildLevelUpOffer(world, playerId);
+  offer.options = rebuilt.options;
+  offer.rerolls = rebuilt.rerolls;
+  offer.skips = rebuilt.skips;
+  offer.banishes = rebuilt.banishes;
+  return true;
 }
 
 function addWeapon(world: World, playerId: number, defIndex: number): void {

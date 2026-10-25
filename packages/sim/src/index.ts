@@ -31,6 +31,7 @@ export {
   type WorldSnapshot,
   type WorldStores,
 } from "./world";
+export { banishOfferOption, rerollOffer, skipOffer } from "./systems/progression";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
 export type {
   CharacterDef,

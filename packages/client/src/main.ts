@@ -80,6 +80,9 @@ async function main(): Promise<void> {
 
   // The active choice/input senders are swapped depending on solo vs co-op.
   let activeChoice: ((index: number) => void) | null = null;
+  let activeReroll: (() => void) | null = null;
+  let activeSkip: (() => void) | null = null;
+  let activeBanish: ((index: number) => void) | null = null;
   let inputSender: ((moveX: number, moveY: number) => void) | null = null;
   let coopCharacterId = firstCharacter;
   let currentMode: "solo" | "coop" = "solo";
@@ -88,6 +91,9 @@ async function main(): Promise<void> {
 
   const levelUp = new LevelUpUI();
   levelUp.onChoose((index) => activeChoice?.(index));
+  levelUp.onReroll(() => activeReroll?.());
+  levelUp.onSkip(() => activeSkip?.());
+  levelUp.onBanish((index) => activeBanish?.(index));
 
   const runEnd = new RunEndUI();
   const banner = new Banner();
@@ -166,6 +172,9 @@ async function main(): Promise<void> {
     hud.setLocalPlayer(localPlayerId);
     hud.setChampion(characterId, championColor(characterId));
     activeChoice = (i) => host.sendChoice(i);
+    activeReroll = () => host.reroll();
+    activeSkip = () => host.skip();
+    activeBanish = (i) => host.banishOption(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
     host.start(characterId, computeMetaBonuses(save, pack.powerUps));
   };
@@ -195,6 +204,9 @@ async function main(): Promise<void> {
       if (!runEnded) connectionLost.show();
     });
     activeChoice = (i) => netHost.sendChoice(i);
+    activeReroll = () => netHost.sendReroll();
+    activeSkip = () => netHost.sendSkip();
+    activeBanish = (i) => netHost.sendBanish(i);
     inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
   });
   metaScreen.onCoop(() => {

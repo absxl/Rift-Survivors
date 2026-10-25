@@ -11,6 +11,9 @@ export interface Host {
   resume(): void;
   sendInput(input: PlayerInput): void;
   sendChoice(choiceIndex: number): void;
+  reroll(): void;
+  skip(): void;
+  banishOption(optionIndex: number): void;
   onSnapshot(cb: SnapshotHandler): void;
   onOffer(cb: OfferHandler): void;
 }
@@ -57,6 +60,18 @@ export class WorkerHost implements Host {
 
   sendChoice(choiceIndex: number): void {
     this.worker.postMessage({ type: "choice", choiceIndex });
+  }
+
+  reroll(): void {
+    this.worker.postMessage({ type: "reroll" });
+  }
+
+  skip(): void {
+    this.worker.postMessage({ type: "skip" });
+  }
+
+  banishOption(optionIndex: number): void {
+    this.worker.postMessage({ type: "banish", optionIndex });
   }
 
   onSnapshot(cb: SnapshotHandler): void {

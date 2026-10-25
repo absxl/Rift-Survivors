@@ -3,13 +3,15 @@
 // @rift/sim. Bump PROTOCOL_VERSION on any breaking change.
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export interface LobbyPlayer {
   id: number;
   name: string;
   characterId: string;
   ready: boolean;
+  /** False while a mid-run player is in the reconnect grace period. */
+  connected?: boolean;
 }
 
 export const clientMessageSchema = z.discriminatedUnion("type", [
@@ -29,6 +31,9 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ready"), characterId: z.string(), ready: z.boolean() }),
   z.object({ type: z.literal("input"), moveX: z.number(), moveY: z.number() }),
   z.object({ type: z.literal("choice"), choiceIndex: z.number() }),
+  z.object({ type: z.literal("reroll") }),
+  z.object({ type: z.literal("skip") }),
+  z.object({ type: z.literal("banish"), optionIndex: z.number().int().nonnegative() }),
   z.object({ type: z.literal("start") }),
   z.object({ type: z.literal("ping"), t: z.number() }),
 ]);

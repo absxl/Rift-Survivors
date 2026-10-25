@@ -9,7 +9,17 @@ import {
   type ServerMessage,
   clientMessageSchema,
 } from "@rift/shared";
-import { DEFAULT_RULESET, TICK_MS, applyChoice, createWorld, snapshot, step } from "@rift/sim";
+import {
+  DEFAULT_RULESET,
+  TICK_MS,
+  applyChoice,
+  banishOfferOption,
+  createWorld,
+  rerollOffer,
+  skipOffer,
+  snapshot,
+  step,
+} from "@rift/sim";
 import type { PlayerInput, World } from "@rift/sim";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -58,6 +68,13 @@ export function startServer(port: number): ServerHandle {
       ready: c.ready,
     }));
     broadcast(room, { type: "lobby", code: room.code, players });
+  };
+
+  /** Send a player their current offer (used after reroll/banish, or a rejection). */
+  const sendOfferTo = (room: Room, playerId: number): void => {
+    const offer = room.world?.pendingOffers().find((o) => o.playerId === playerId);
+    const client = room.clients.find((c) => c.playerId === playerId);
+    if (offer && client) send(client.ws, { type: "offer", offer });
   };
 
   const roomCode = (): string => {
@@ -208,6 +225,16 @@ export function startServer(port: number): ServerHandle {
     } else if (msg.type === "choice" && room.world) {
       applyChoice(room.world, client.playerId, msg.choiceIndex);
       if (room.world.pendingOffers().length === 0) room.paused = false;
+    } else if (msg.type === "reroll" && room.world) {
+      rerollOffer(room.world, client.playerId);
+      sendOfferTo(room, client.playerId);
+    } else if (msg.type === "skip" && room.world) {
+      skipOffer(room.world, client.playerId);
+      if (room.world.pendingOffers().length === 0) room.paused = false;
+      else sendOfferTo(room, client.playerId);
+    } else if (msg.type === "banish" && room.world) {
+      banishOfferOption(room.world, client.playerId, msg.optionIndex);
+      sendOfferTo(room, client.playerId);
     } else if (msg.type === "ping") {
       send(ws, { type: "pong", t: msg.t });
     }

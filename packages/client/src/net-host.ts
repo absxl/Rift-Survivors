@@ -62,6 +62,18 @@ export class NetHost {
     this.send({ type: "choice", choiceIndex });
   }
 
+  sendReroll(): void {
+    this.send({ type: "reroll" });
+  }
+
+  sendSkip(): void {
+    this.send({ type: "skip" });
+  }
+
+  sendBanish(optionIndex: number): void {
+    this.send({ type: "banish", optionIndex });
+  }
+
   onSnapshot(cb: (snapshot: WorldSnapshot, events: SimEvent[]) => void): void {
     this.snapshotCb = cb;
   }

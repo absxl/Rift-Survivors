@@ -275,6 +275,59 @@ describe("room server", () => {
       for (const ws of sockets) ws.close();
     }
   }, 20_000);
+
+  it("cycles offers through reroll, banish, and skip", async () => {
+    const ws = await connect();
+    try {
+      const next = inbox(ws);
+      ws.send(
+        JSON.stringify({
+          type: "create",
+          name: "host",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "lux",
+        }),
+      );
+      const created = await nextOfType(next, "lobby");
+      const code = created.code as string;
+      ws.send(JSON.stringify({ type: "start" }));
+      await nextOfType(next, "start");
+
+      const room = [...server.rooms.values()].find((r) => r.code === code);
+      const world = room?.world;
+      if (!world) throw new Error("room world missing");
+      world.partyXp = world.partyXpToNext;
+
+      type OfferMsg = {
+        rerolls?: number;
+        skips?: number;
+        banishes?: number;
+        options: Array<{ optionId: string }>;
+      };
+      const first = (await nextOfType(next, "offer")).offer as OfferMsg;
+      expect(first.rerolls).toBe(3);
+      expect(first.banishes).toBe(2);
+
+      ws.send(JSON.stringify({ type: "reroll" }));
+      const rerolled = (await nextOfType(next, "offer")).offer as OfferMsg;
+      expect(rerolled.rerolls).toBe(2);
+      expect(rerolled.banishes).toBe(2);
+
+      const target = rerolled.options[0]?.optionId;
+      expect(target).toBeTruthy();
+      ws.send(JSON.stringify({ type: "banish", optionIndex: 0 }));
+      const banished = (await nextOfType(next, "offer")).offer as OfferMsg;
+      expect(banished.banishes).toBe(1);
+      expect(banished.options.some((o) => o.optionId === target)).toBe(false);
+
+      ws.send(JSON.stringify({ type: "skip" }));
+      const snap = await nextOfType(next, "snapshot");
+      expect(typeof snap.tick).toBe("number");
+      expect(room?.world?.pendingOffers().length).toBe(0);
+    } finally {
+      ws.close();
+    }
+  }, 20_000);
 });
 
 /** Consume inbox messages until the requested type arrives. */
