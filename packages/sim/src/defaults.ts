@@ -7,6 +7,7 @@ import { registerEnemySystems } from "./systems/enemy";
 import { registerGemSystem } from "./systems/gems";
 import { registerPickupSystem } from "./systems/pickups";
 import { registerProgression } from "./systems/progression";
+import { registerReviveSystem } from "./systems/revive";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
 import { registerZoneSystem } from "./systems/zones";
@@ -24,6 +25,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerGemSystem(reg);
   registerPickupSystem(reg);
   registerProgression(reg);
+  registerReviveSystem(reg);
 }
 
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
@@ -32,6 +34,7 @@ function coreMovement(world: World): void {
   const speed = world.num("core.moveSpeed") * world.stat("moveSpeed", 1);
 
   players.forEachAlive((slot) => {
+    if (players.field("downed")[slot]) return; // downed players can't move
     const input = world.inputs.find((i) => i.playerId === slot);
     let mx = 0;
     let my = 0;
@@ -68,6 +71,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "projectiles",
     "zones",
     "contact-damage",
+    "revive",
     "deaths",
     "gems",
     "pickups",
@@ -107,6 +111,11 @@ export const DEFAULT_RULESET: RulesetDef = {
     "weapon.zoneHitCooldown": 10,
     "status.burnDps": 1,
     "status.reactionDamage": 2,
+    "coop.reviveRadius": 26,
+    "coop.reviveTicks": 90,
+    "coop.reviveHp": 0.5,
+    "director.enemyScalePerPlayer": 0.6,
+    "director.hpScalePerPlayer": 0.15,
   },
   features: {},
   contentPacks: [],

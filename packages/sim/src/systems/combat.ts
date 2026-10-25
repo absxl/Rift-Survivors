@@ -11,7 +11,9 @@ export function registerCombatSystems(reg: Registries): void {
 
 function weapons(world: World): void {
   const weapons = world.stores.weapons;
+  const players = world.stores.players;
   weapons.forEachAlive((slot) => {
+    if (players.field("downed")[weapons.field("owner")[slot]]) return;
     const cd = weapons.field("cooldown")[slot] - 1;
     if (cd > 0) {
       weapons.field("cooldown")[slot] = cd;
@@ -99,6 +101,7 @@ function projectiles(world: World): void {
 function contactDamage(world: World): void {
   const players = world.stores.players;
   players.forEachAlive((slot) => {
+    if (players.field("downed")[slot]) return;
     const iFrames = players.field("iFrames")[slot];
     if (iFrames > 0) {
       players.field("iFrames")[slot] = iFrames - 1;
@@ -129,8 +132,22 @@ function contactDamage(world: World): void {
       });
       if (players.field("hp")[slot] <= 0) {
         players.field("hp")[slot] = 0;
-        world.over = true;
-        world.emit({ type: "run-end", victory: false });
+        if (players.count <= 1) {
+          world.over = true;
+          world.emit({ type: "run-end", victory: false });
+        } else {
+          players.field("downed")[slot] = 1;
+          players.field("reviveProgress")[slot] = 0;
+          world.emit({ type: "player-downed", playerId: slot });
+          let anyAlive = false;
+          players.forEachAlive((p) => {
+            if (!players.field("downed")[p]) anyAlive = true;
+          });
+          if (!anyAlive) {
+            world.over = true;
+            world.emit({ type: "run-end", victory: false });
+          }
+        }
       }
     }
   });

@@ -287,8 +287,14 @@ export class GameRenderer {
           this.playerSprites.set(slot, sprite);
           this.playerLayer.addChild(sprite);
         }
+        const downed = store.fields.downed[i] === 1;
         sprite.position.set(store.fields.x[i], store.fields.y[i]);
-        sprite.tint = slot === this.localPlayerId ? this.championColor : 0x88aaff;
+        sprite.tint = downed
+          ? 0x666666
+          : slot === this.localPlayerId
+            ? this.championColor
+            : 0x88aaff;
+        sprite.alpha = downed ? 0.65 : 1;
         sprite.scale.x = store.fields.facingX[i] < 0 ? -1 : 1;
       }
     }
@@ -306,13 +312,19 @@ export class GameRenderer {
     if (!store) return;
     const w = 16;
     for (let i = 0; i < store.slots.length; i++) {
-      const hp = store.fields.hp[i];
-      const maxHp = store.fields.maxHp[i];
-      const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
       const x = store.fields.x[i];
       const y = store.fields.y[i];
       this.playerHpBar.rect(x - w / 2, y + 9, w, 2).fill(0x000000);
-      this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
+      if (store.fields.downed[i] === 1) {
+        // Revive progress bar (orange) instead of HP.
+        const prog = Math.max(0, Math.min(1, store.fields.reviveProgress[i] / 90));
+        this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * prog, 1).fill(0xffaa33);
+      } else {
+        const hp = store.fields.hp[i];
+        const maxHp = store.fields.maxHp[i];
+        const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+        this.playerHpBar.rect(x - w / 2 + 1, y + 10, (w - 2) * pct, 1).fill(0x44ff66);
+      }
     }
   }
 

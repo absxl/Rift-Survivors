@@ -86,4 +86,21 @@ describe("co-op sim", () => {
     // One offer queued per player.
     expect(world.pendingOffers().length).toBe(2);
   });
+
+  it("revives a downed player when an ally stands nearby", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: COOP_PACK }, 1);
+    const players = world.stores.players;
+
+    // Down player 1 and park player 0 next to it.
+    players.field("downed")[1] = 1;
+    players.field("hp")[1] = 0;
+    players.field("x")[0] = players.field("x")[1];
+    players.field("y")[0] = players.field("y")[1];
+
+    for (let t = 0; t < 100 && !world.over; t++) step(world, []);
+
+    expect(world.over).toBe(false);
+    expect(players.field("downed")[1]).toBe(0);
+    expect(players.field("hp")[1]).toBeGreaterThan(0);
+  });
 });

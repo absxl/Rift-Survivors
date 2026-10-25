@@ -98,8 +98,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] 4-player stress test with simulated latency
 
 ## M12 — Co-op features & deploy
-- [ ] Co-op rules per decisions (revive, enemy scaling, level-up model)
-- [ ] Lobby UI; Dockerfile; deploy per `docs/08`; reconnect support
+- [x] Co-op rules: shared level + downed/marker revive + enemy scaling by player count
+- [x] Lobby UI (host/join by code) + Dockerfile
+- [ ] Actual deploy (needs hosting credentials — `docs/08`), reconnect support
 
 ## M13 — Polish
 - [ ] Gamepad, rebinding, accessibility; performance pass on M1 (500+ enemies); optional replays

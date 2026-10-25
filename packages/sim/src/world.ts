@@ -70,6 +70,8 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "maxHp", type: "f32" },
     { name: "gold", type: "f32" },
     { name: "kills", type: "f32" },
+    { name: "downed", type: "u8" },
+    { name: "reviveProgress", type: "f32" },
   ],
 };
 

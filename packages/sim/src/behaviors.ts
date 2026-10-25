@@ -30,6 +30,7 @@ function chase(world: World, slot: number, def: EnemyDef): void {
   let targetY = 0;
   let bestD2 = Number.POSITIVE_INFINITY;
   players.forEachAlive((p) => {
+    if (players.field("downed")[p]) return;
     const dx = players.field("x")[p] - ex;
     const dy = players.field("y")[p] - ey;
     const d2 = dx * dx + dy * dy;

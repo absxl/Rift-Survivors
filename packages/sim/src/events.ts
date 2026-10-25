@@ -14,6 +14,8 @@ export type SimEvent =
       kind: string;
     }
   | { type: "level-up"; playerId: number; level: number }
+  | { type: "player-downed"; playerId: number }
+  | { type: "player-revived"; playerId: number }
   | { type: "gem-pickup"; playerId: number; value: number }
   | { type: "weapon-fire"; playerId: number; weaponId: number }
   | { type: "offer"; offer: unknown }

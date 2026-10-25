@@ -24,7 +24,10 @@ function spawnDirector(world: World): void {
   if (!world.bossRush && world.tick % interval === 0 && alive < maxEnemies) {
     const rampTicks = world.num("director.rampTicks");
     const ramp = rampTicks > 0 ? Math.min(1, world.tick / rampTicks) : 1;
-    const batch = Math.max(1, Math.round(world.num("director.batchSize") * ramp));
+    const playerCount = world.stores.players.count;
+    const playerScale =
+      1 + Math.max(0, playerCount - 1) * world.num("director.enemyScalePerPlayer");
+    const batch = Math.max(1, Math.round(world.num("director.batchSize") * ramp * playerScale));
     for (let i = 0; i < batch && alive < maxEnemies; i++) {
       if (spawnEnemy(world, 0) >= 0) alive++;
     }
@@ -70,7 +73,9 @@ function spawnEnemy(world: World, defIndex: number): number {
   enemies.field("y")[slot] = py + Math.sin(angle) * dist;
 
   const minutes = world.tick / (30 * 60);
-  const scale = 1 + minutes * world.num("director.hpScalePerMin");
+  const playerCount = world.stores.players.count;
+  const playerScale = 1 + Math.max(0, playerCount - 1) * world.num("director.hpScalePerPlayer");
+  const scale = (1 + minutes * world.num("director.hpScalePerMin")) * playerScale;
   enemies.field("hp")[slot] = def.hp * scale;
   enemies.field("maxHp")[slot] = def.hp * scale;
   enemies.field("kind")[slot] = defIndex;
