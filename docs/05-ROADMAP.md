@@ -81,8 +81,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Second stage (content only), stage select
 
 ## M9 — Content, balance & feel
-- [ ] Fill content to the proposed scope in `03`
-- [ ] Juice pass using the checklist in `13` §15; chiptune/SFX set with voice caps; settings menu
+- [ ] Fill content to the proposed scope in `03` (4 mages now; full roster in the champion-design pass)
+- [x] Juice pass: weapon-fire visuals (sweep arc / aura ring / ground pools), screen shake, procedural SFX with rate caps, settings (sound/shake)
 - [ ] Balance pass with the bot; numbers recorded in `docs/BALANCE.md`
 
 ## M10 — Opt-in extras (only the ones the user picked)

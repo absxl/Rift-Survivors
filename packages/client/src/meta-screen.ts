@@ -8,6 +8,7 @@ import { persistSave } from "./save/save";
 export class MetaScreen {
   private readonly root: HTMLElement;
   private playCb: (() => void) | null = null;
+  private settingsCb: ((settings: SaveData["settings"]) => void) | null = null;
 
   constructor(
     private readonly save: SaveData,
@@ -22,6 +23,10 @@ export class MetaScreen {
 
   onPlay(cb: () => void): void {
     this.playCb = cb;
+  }
+
+  onSettingsChange(cb: (settings: SaveData["settings"]) => void): void {
+    this.settingsCb = cb;
   }
 
   show(): void {
@@ -101,6 +106,30 @@ export class MetaScreen {
       ach.appendChild(tag);
     }
     this.root.appendChild(ach);
+
+    // Settings
+    this.root.appendChild(this.sectionTitle("SETTINGS"));
+    const settings = document.createElement("div");
+    settings.className = "meta-row";
+    const soundBtn = document.createElement("button");
+    soundBtn.className = "meta-btn";
+    soundBtn.textContent = this.save.settings.volume > 0 ? "SOUND: ON" : "SOUND: OFF";
+    soundBtn.addEventListener("click", () => {
+      this.save.settings.volume = this.save.settings.volume > 0 ? 0 : 0.22;
+      this.persist();
+      this.settingsCb?.(this.save.settings);
+    });
+    settings.appendChild(soundBtn);
+    const shakeBtn = document.createElement("button");
+    shakeBtn.className = "meta-btn";
+    shakeBtn.textContent = this.save.settings.shake ? "SHAKE: ON" : "SHAKE: OFF";
+    shakeBtn.addEventListener("click", () => {
+      this.save.settings.shake = !this.save.settings.shake;
+      this.persist();
+      this.settingsCb?.(this.save.settings);
+    });
+    settings.appendChild(shakeBtn);
+    this.root.appendChild(settings);
 
     // Play
     const play = document.createElement("button");

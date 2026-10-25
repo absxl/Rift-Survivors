@@ -2,6 +2,7 @@
 import { loadGamePack } from "@rift/content";
 import type { WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
+import { Sfx } from "./audio";
 import { CharacterSelect } from "./charselect";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
@@ -51,12 +52,13 @@ async function main(): Promise<void> {
   app.stage.addChild(worldLayer);
   app.stage.addChild(hudLayer);
 
-  const renderer = new GameRenderer(worldLayer);
+  const renderer = new GameRenderer(worldLayer, pack.weapons);
   const hud = new Hud(hudLayer);
   const input = new Input();
   input.attach();
 
   const host = new WorkerHost();
+  const sfx = new Sfx();
   const levelUp = new LevelUpUI();
   host.onOffer((offer) => levelUp.show(offer));
   levelUp.onChoose((index) => host.sendChoice(index));
@@ -68,6 +70,13 @@ async function main(): Promise<void> {
   host.onSnapshot((snap, events) => {
     renderer.receive(snap, events);
     lastSnap = snap;
+    for (const e of events) {
+      if (e.type === "hit") sfx.play("hit");
+      else if (e.type === "enemy-died") sfx.play("kill");
+      else if (e.type === "gem-pickup") sfx.play("pickup");
+      else if (e.type === "level-up") sfx.play("levelup");
+      else if (e.type === "weapon-fire") sfx.play("fire");
+    }
     if (snap.over && !runEnded) {
       runEnded = true;
       const playerStore = snap.stores.find((s) => s.kind === "player");
@@ -84,6 +93,12 @@ async function main(): Promise<void> {
   });
 
   const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters);
+  sfx.setVolume(save.settings.volume);
+  renderer.setShake(save.settings.shake);
+  metaScreen.onSettingsChange((settings) => {
+    sfx.setVolume(settings.volume);
+    renderer.setShake(settings.shake);
+  });
 
   const startRun = (characterId: string): void => {
     runEnded = false;
@@ -93,6 +108,7 @@ async function main(): Promise<void> {
 
   metaScreen.onPlay(() => {
     metaScreen.hide();
+    sfx.unlock();
     const unlocked = pack.characters.filter((c) => save.unlockedCharacters.includes(c.id));
     const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
     charSelect.onChoose((id) => startRun(id));

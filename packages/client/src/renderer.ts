@@ -1,4 +1,4 @@
-import type { SimEvent, StoreSnapshot, WorldSnapshot } from "@rift/sim";
+import type { SimEvent, StoreSnapshot, WeaponDef, WorldSnapshot } from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
 // the local player, interpolating between the two most recent snapshots. Also
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
@@ -39,6 +39,18 @@ interface DamageEntry {
   life: number;
 }
 
+interface FireEffect {
+  kind: "arc" | "ring";
+  x: number;
+  y: number;
+  angle: number;
+  arc: number;
+  radius: number;
+  life: number;
+  maxLife: number;
+  color: number;
+}
+
 export class GameRenderer {
   private prev: WorldSnapshot | null = null;
   private curr: WorldSnapshot | null = null;
@@ -59,10 +71,18 @@ export class GameRenderer {
   private readonly enemySprites = new Map<number, Sprite>();
   private readonly enemyFlash = new Map<number, number>();
   private readonly enemyHpBar: Graphics;
+  private readonly zoneGraphics: Graphics;
+  private readonly fxGraphics: Graphics;
   private readonly damage: DamageEntry[] = [];
+  private readonly effects: FireEffect[] = [];
   private readonly textures: PlaceholderTextures;
+  private shake = 0;
+  private shakeEnabled = true;
 
-  constructor(private readonly stage: Container) {
+  constructor(
+    private readonly stage: Container,
+    private readonly weapons: WeaponDef[],
+  ) {
     this.textures = createPlaceholderTextures();
 
     this.ground = new TilingSprite({
@@ -83,6 +103,12 @@ export class GameRenderer {
 
     this.enemyHpBar = new Graphics();
     this.enemyLayer.addChild(this.enemyHpBar);
+
+    this.zoneGraphics = new Graphics();
+    this.gemLayer.addChild(this.zoneGraphics);
+
+    this.fxGraphics = new Graphics();
+    this.enemyLayer.addChild(this.fxGraphics);
 
     this.playerSprite = new Sprite(this.textures.player);
     this.playerSprite.anchor.set(0.5, 0.5);
@@ -141,18 +167,29 @@ export class GameRenderer {
 
     const player = this.playerPosition();
 
-    // Camera follows the player (infinite map — no bounds clamp).
+    // Camera follows the player (infinite map — no bounds clamp) + optional shake.
     const camX = player ? player.x : 0;
     const camY = player ? player.y : 0;
+    let shakeX = 0;
+    let shakeY = 0;
+    if (this.shakeEnabled && this.shake > 0) {
+      shakeX = (Math.random() - 0.5) * this.shake;
+      shakeY = (Math.random() - 0.5) * this.shake;
+      this.shake *= 0.85;
+      if (this.shake < 0.15) this.shake = 0;
+    }
 
-    const ox = Math.round(camX - VIEW_W / 2);
-    const oy = Math.round(camY - VIEW_H / 2);
+    const ox = Math.round(camX - VIEW_W / 2 + shakeX);
+    const oy = Math.round(camY - VIEW_H / 2 + shakeY);
 
-    // Process events → hit flash + damage numbers.
+    // Process events → hit flash, damage numbers, weapon-fire visuals, shake.
     for (const e of this.events) {
       if (e.type === "hit") {
         if (e.target === "enemy") this.enemyFlash.set(e.targetSlot, FLASH_FRAMES);
         this.spawnDamage(e.x, e.y, e.amount);
+        this.shake = Math.min(4, this.shake + 0.6);
+      } else if (e.type === "weapon-fire") {
+        this.spawnFireEffect(e.weaponId);
       }
     }
 
@@ -161,6 +198,9 @@ export class GameRenderer {
     this.pickupLayer.position.set(-ox, -oy);
     this.projectileLayer.position.set(-ox, -oy);
     this.enemyLayer.position.set(-ox, -oy);
+
+    this.drawZones();
+    this.drawEffects();
 
     this.syncEntities(
       this.gemSprites,
@@ -310,6 +350,100 @@ export class GameRenderer {
         this.pickupLayer.removeChild(sprite);
         this.pickupSprites.delete(slot);
       }
+    }
+  }
+
+  /** Toggle screen shake (settings). */
+  setShake(enabled: boolean): void {
+    this.shakeEnabled = enabled;
+    if (!enabled) this.shake = 0;
+  }
+
+  /** Find a weapon def by its weapon-store slot (for fire visuals). */
+  private weaponDefAt(slot: number): WeaponDef | null {
+    if (!this.curr) return null;
+    const store = getStore(this.curr, "weapon");
+    if (!store) return null;
+    const idx = store.slots.indexOf(slot);
+    if (idx < 0) return null;
+    return this.weapons[store.fields.defIndex[idx]] ?? null;
+  }
+
+  /** Spawn a short visual for a weapon firing (arc for sweeps, ring for auras). */
+  private spawnFireEffect(weaponSlot: number): void {
+    const def = this.weaponDefAt(weaponSlot);
+    const p = this.playerPosition();
+    if (!def || !p) return;
+    const angle = Math.atan2(p.fy, p.fx);
+    if (def.behavior === "sweep") {
+      const arc = typeof def.params.arc === "number" ? def.params.arc : 1.2;
+      this.effects.push({
+        kind: "arc",
+        x: p.x,
+        y: p.y,
+        angle,
+        arc,
+        radius: def.base.area,
+        life: 6,
+        maxLife: 6,
+        color: 0xffffff,
+      });
+    } else if (def.behavior === "aura") {
+      this.effects.push({
+        kind: "ring",
+        x: p.x,
+        y: p.y,
+        angle: 0,
+        arc: 0,
+        radius: def.base.area,
+        life: 8,
+        maxLife: 8,
+        color: 0x66ccff,
+      });
+    } else {
+      this.effects.push({
+        kind: "ring",
+        x: p.x,
+        y: p.y,
+        angle: 0,
+        arc: 0,
+        radius: 12,
+        life: 4,
+        maxLife: 4,
+        color: 0xffdd88,
+      });
+    }
+  }
+
+  /** Ground pools / damage zones (drawn under enemies). */
+  private drawZones(): void {
+    this.zoneGraphics.clear();
+    const store = this.curr ? getStore(this.curr, "zone") : undefined;
+    if (!store) return;
+    for (let i = 0; i < store.slots.length; i++) {
+      this.zoneGraphics.circle(store.fields.x[i], store.fields.y[i], store.fields.radius[i]);
+      this.zoneGraphics.fill({ color: 0xaa44ff, alpha: 0.18 });
+      this.zoneGraphics.circle(store.fields.x[i], store.fields.y[i], store.fields.radius[i]);
+      this.zoneGraphics.stroke({ width: 1, color: 0xcc88ff, alpha: 0.4 });
+    }
+  }
+
+  /** Transient weapon-fire visuals (arcs/rings). */
+  private drawEffects(): void {
+    this.fxGraphics.clear();
+    for (const fx of this.effects) {
+      const alpha = fx.life / fx.maxLife;
+      if (fx.kind === "arc") {
+        this.fxGraphics.arc(fx.x, fx.y, fx.radius, fx.angle - fx.arc / 2, fx.angle + fx.arc / 2);
+        this.fxGraphics.stroke({ width: 2, color: fx.color, alpha });
+      } else {
+        this.fxGraphics.circle(fx.x, fx.y, fx.radius * (1 - alpha * 0.4));
+        this.fxGraphics.stroke({ width: 2, color: fx.color, alpha });
+      }
+      fx.life -= 1;
+    }
+    for (let i = this.effects.length - 1; i >= 0; i--) {
+      if (this.effects[i].life <= 0) this.effects.splice(i, 1);
     }
   }
 }

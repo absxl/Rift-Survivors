@@ -11,6 +11,7 @@ export interface SaveData {
   achievements: string[];
   totalKills: number;
   bestTimeSec: number;
+  settings: { volume: number; shake: boolean };
 }
 
 export const SAVE_VERSION = 1;
@@ -26,6 +27,7 @@ export function defaultSave(firstCharacter: string): SaveData {
     achievements: [],
     totalKills: 0,
     bestTimeSec: 0,
+    settings: { volume: 0.22, shake: true },
   };
 }
 
