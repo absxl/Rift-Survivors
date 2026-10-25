@@ -41,7 +41,7 @@ describe("growth", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: GROWTH_PACK }, 1);
     expect(world.stat("might", 1)).toBeCloseTo(1);
 
-    world.stores.players.field("xp")[0] = 100;
+    world.partyXp = 100;
     step(world, []);
     expect(world.stores.players.field("level")[0]).toBe(2);
     // everyLevels = 1 => stacks = 2 => +0.2 might

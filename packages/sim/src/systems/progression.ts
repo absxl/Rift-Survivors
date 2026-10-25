@@ -17,19 +17,25 @@ function xpToNext(world: World, level: number): number {
 }
 
 function progression(world: World): void {
+  const needed = xpToNext(world, world.partyLevel);
+  if (world.partyXp < needed) return;
+
+  world.partyXp -= needed;
+  world.partyLevel += 1;
+  world.partyXpToNext = xpToNext(world, world.partyLevel);
+
   const players = world.stores.players;
   players.forEachAlive((slot) => {
-    const xp = players.field("xp")[slot];
-    const level = players.field("level")[slot];
-    const needed = xpToNext(world, level);
-    if (xp >= needed) {
-      players.field("xp")[slot] = xp - needed;
-      players.field("level")[slot] = level + 1;
-      players.field("xpToNext")[slot] = xpToNext(world, level + 1);
-      refreshGrowth(world);
-      world.emit({ type: "level-up", playerId: slot, level: level + 1 });
-      world.queueOffer(buildLevelUpOffer(world, slot));
-    }
+    players.field("level")[slot] = world.partyLevel;
+    players.field("xp")[slot] = world.partyXp;
+    players.field("xpToNext")[slot] = world.partyXpToNext;
+  });
+  refreshGrowth(world);
+
+  // Every player levels up together and picks their own cards.
+  players.forEachAlive((slot) => {
+    world.emit({ type: "level-up", playerId: slot, level: world.partyLevel });
+    world.queueOffer(buildLevelUpOffer(world, slot));
   });
 }
 

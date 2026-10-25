@@ -78,7 +78,7 @@ describe("synergy", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: SYNERGY_PACK }, 1);
     expect(world.stat("area", 1)).toBeCloseTo(1);
 
-    world.stores.players.field("xp")[0] = 100;
+    world.partyXp = 100;
     step(world, []); // level up
     const offer = world.pendingOffers()[0];
     const idx = offer.options.findIndex((o) => o.ref.id === "fire-b");
@@ -92,7 +92,7 @@ describe("synergy", () => {
   it("keeps stats finite over many ticks with the synergy pack", () => {
     for (const seed of [1, 2, 3]) {
       const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: SYNERGY_PACK }, seed);
-      world.stores.players.field("xp")[0] = 100;
+      world.partyXp = 100;
       for (let t = 0; t < 600 && !world.over; t++)
         step(world, [{ playerId: 0, moveX: 0, moveY: 0 }]);
       expect(Number.isFinite(world.stat("area", 1))).toBe(true);

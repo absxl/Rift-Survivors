@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   app.stage.addChild(hudLayer);
 
   const renderer = new GameRenderer(worldLayer, pack.weapons);
-  const hud = new Hud(hudLayer);
+  const hud = new Hud(hudLayer, pack.weapons, pack.passives);
   const input = new Input();
   input.attach();
   const sfx = new Sfx();
@@ -129,6 +129,8 @@ async function main(): Promise<void> {
     metaScreen.hide();
     renderer.setLocalPlayer(0);
     renderer.setChampionColor(championColor(characterId));
+    hud.setLocalPlayer(0);
+    hud.setChampion(characterId, championColor(characterId));
     activeChoice = (i) => host.sendChoice(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
     host.start(characterId, computeMetaBonuses(save, pack.powerUps));
@@ -149,6 +151,8 @@ async function main(): Promise<void> {
     runEnded = false;
     renderer.setLocalPlayer(yourPlayerId);
     renderer.setChampionColor(championColor(coopCharacterId));
+    hud.setLocalPlayer(yourPlayerId);
+    hud.setChampion(coopCharacterId, championColor(coopCharacterId));
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);
     activeChoice = (i) => netHost.sendChoice(i);
@@ -175,6 +179,14 @@ async function main(): Promise<void> {
     const i = input.read();
     inputSender(i.moveX, i.moveY);
   }, 1000 / 30);
+
+  app.canvas.addEventListener("pointermove", (e) => {
+    const rect = app.canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * VIEW_W;
+    const y = ((e.clientY - rect.top) / rect.height) * VIEW_H;
+    hud.setPointer(x, y, true);
+  });
+  app.canvas.addEventListener("pointerleave", () => hud.setPointer(0, 0, false));
 
   app.ticker.add(() => {
     renderer.render();

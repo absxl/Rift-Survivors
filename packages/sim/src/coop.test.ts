@@ -72,4 +72,18 @@ describe("co-op sim", () => {
     expect(a.stores.players.field("x")[0]).toBeGreaterThan(a.stores.players.field("x")[1]);
     expect(a.stores.players.field("y")[1]).toBeGreaterThan(a.stores.players.field("y")[0]);
   });
+
+  it("shared party XP levels every player together with their own offers", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: COOP_PACK }, 1);
+    expect(world.partyLevel).toBe(1);
+
+    world.partyXp = 100;
+    step(world, []);
+
+    expect(world.partyLevel).toBe(2);
+    expect(world.stores.players.field("level")[0]).toBe(2);
+    expect(world.stores.players.field("level")[1]).toBe(2);
+    // One offer queued per player.
+    expect(world.pendingOffers().length).toBe(2);
+  });
 });

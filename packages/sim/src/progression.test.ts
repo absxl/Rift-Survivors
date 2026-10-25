@@ -58,7 +58,7 @@ const PROG_PACK: ContentPack = {
 describe("progression", () => {
   it("levels up on XP threshold and offers exactly 3 cards", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
-    world.stores.players.field("xp")[0] = 100;
+    world.partyXp = 100;
     step(world, []);
     expect(world.stores.players.field("level")[0]).toBe(2);
     expect(world.pendingOffers().length).toBe(1);
@@ -67,7 +67,7 @@ describe("progression", () => {
 
   it("applying a passive adds it and applies its modifier via the stack", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
-    world.stores.players.field("xp")[0] = 100;
+    world.partyXp = 100;
     step(world, []);
     const offer = world.pendingOffers()[0];
     const idx = offer.options.findIndex((o) => o.ref.id === "might");
@@ -81,7 +81,7 @@ describe("progression", () => {
 
   it("upgrading a weapon raises its level", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
-    world.stores.players.field("xp")[0] = 100;
+    world.partyXp = 100;
     step(world, []);
     const offer = world.pendingOffers()[0];
     const idx = offer.options.findIndex((o) => o.ref.type === "weapon" && o.level !== undefined);

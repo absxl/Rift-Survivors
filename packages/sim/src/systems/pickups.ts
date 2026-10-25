@@ -82,7 +82,7 @@ function applyPickup(world: World, playerId: number, kind: number, value: number
       total += gems.field("value")[slot];
       gems.free(slot);
     });
-    players.field("xp")[playerId] += total;
+    world.partyXp += total;
   } else if (kind === PICKUP_NUKE) {
     enemies.forEachAlive((slot) => {
       enemies.field("hp")[slot] -= value;

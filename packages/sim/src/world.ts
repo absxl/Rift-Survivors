@@ -181,6 +181,9 @@ export interface WorldSnapshot {
   over: boolean;
   rngState: RngState;
   modifiers: Record<string, number>;
+  partyXp: number;
+  partyLevel: number;
+  partyXpToNext: number;
   worldWidth: number;
   worldHeight: number;
   stores: StoreSnapshot[];
@@ -201,6 +204,10 @@ export class World {
   inputs: PlayerInput[] = [];
   events: SimEvent[] = [];
   over = false;
+  /** Shared party progression (all players level up together). */
+  partyXp = 0;
+  partyLevel = 1;
+  partyXpToNext = 5;
   /** True once the final threat is defeated (switches the run into a boss rush). */
   bossRush = false;
   finalThreatSpawned = false;
@@ -251,6 +258,7 @@ export class World {
       (characterId ? content.characters.find((c) => c.id === characterId) : undefined) ??
       content.characters[0];
     this.character = primary ?? null;
+    this.partyXpToNext = this.ruleset.xpCurve[0] ?? 5;
     if (primary?.baseStats) {
       for (const [key, value] of Object.entries(primary.baseStats)) {
         this.modifiers.add(key, { op: "add", value, source: `character:${primary.id}` });
@@ -468,6 +476,9 @@ export function snapshot(world: World): WorldSnapshot {
     over: world.over,
     rngState: world.rng.getState(),
     modifiers: world.modifiers.snapshot(),
+    partyXp: world.partyXp,
+    partyLevel: world.partyLevel,
+    partyXpToNext: world.partyXpToNext,
     worldWidth: Number(world.ruleset.rules["core.fieldWidth"] ?? 0),
     worldHeight: Number(world.ruleset.rules["core.fieldHeight"] ?? 0),
     stores: [

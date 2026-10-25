@@ -35,7 +35,7 @@ function gems(world: World): void {
 
     if (bestD2 <= pickup2) {
       const value = gems.field("value")[slot];
-      players.field("xp")[nearest] += value;
+      world.partyXp += value;
       world.emit({ type: "gem-pickup", playerId: nearest, value });
       gems.free(slot);
       return;
