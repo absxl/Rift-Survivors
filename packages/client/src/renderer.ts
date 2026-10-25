@@ -78,6 +78,7 @@ export class GameRenderer {
   private readonly textures: PlaceholderTextures;
   private shake = 0;
   private shakeEnabled = true;
+  private championColor = 0x44aaff;
 
   constructor(
     private readonly stage: Container,
@@ -240,6 +241,7 @@ export class GameRenderer {
       this.playerSprite.visible = true;
       this.playerSprite.position.set(player.x - ox, player.y - oy);
       this.playerSprite.scale.x = player.fx < 0 ? -1 : 1;
+      this.playerSprite.tint = this.championColor;
       this.drawHpBar(player.x - ox, player.y - oy, player.hp, player.maxHp);
     } else {
       this.playerSprite.visible = false;
@@ -357,6 +359,11 @@ export class GameRenderer {
   setShake(enabled: boolean): void {
     this.shakeEnabled = enabled;
     if (!enabled) this.shake = 0;
+  }
+
+  /** Set the local player's champion tint. */
+  setChampionColor(color: number): void {
+    this.championColor = color;
   }
 
   /** Find a weapon def by its weapon-store slot (for fire visuals). */

@@ -28,11 +28,12 @@ export interface PlaceholderTextures {
 
 export function createPlaceholderTextures(): PlaceholderTextures {
   const player = makeTexture(PX, (ctx) => {
-    ctx.fillStyle = "#3a6ea5";
+    // Light base so the champion color tint reads clearly.
+    ctx.fillStyle = "#c8d0dc";
     ctx.fillRect(3, 2, 10, 12);
-    ctx.fillStyle = "#5b93cf";
+    ctx.fillStyle = "#eef3f8";
     ctx.fillRect(3, 2, 10, 4);
-    ctx.fillStyle = "#0e1724";
+    ctx.fillStyle = "#1a2230";
     ctx.fillRect(6, 5, 2, 2);
   });
 

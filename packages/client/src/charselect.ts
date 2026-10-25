@@ -1,6 +1,7 @@
 // Character select overlay (plain DOM). Lists the pack's characters; picking one
 // starts the run with that character.
 import type { CharacterDef } from "@rift/sim";
+import { championColor } from "./champion-colors";
 
 export class CharacterSelect {
   private chooseCb: ((id: string) => void) | null = null;
@@ -19,7 +20,18 @@ export class CharacterSelect {
     for (const c of characters) {
       const card = document.createElement("button");
       card.className = "charselect-card";
-      card.textContent = c.id.toUpperCase();
+      card.style.borderColor = `#${championColor(c.id).toString(16).padStart(6, "0")}`;
+
+      const name = document.createElement("div");
+      name.className = "charselect-name";
+      name.textContent = c.id.toUpperCase();
+      card.appendChild(name);
+
+      const ability = document.createElement("div");
+      ability.className = "charselect-ability";
+      ability.textContent = c.startingWeapon.replace(/-/g, " ").toUpperCase();
+      card.appendChild(ability);
+
       card.addEventListener("click", () => this.choose(c.id, root));
       row.appendChild(card);
     }

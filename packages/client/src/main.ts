@@ -3,6 +3,7 @@ import { loadGamePack } from "@rift/content";
 import type { WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
 import { Sfx } from "./audio";
+import { championColor } from "./champion-colors";
 import { CharacterSelect } from "./charselect";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
@@ -103,6 +104,7 @@ async function main(): Promise<void> {
   const startRun = (characterId: string): void => {
     runEnded = false;
     metaScreen.hide();
+    renderer.setChampionColor(championColor(characterId));
     host.start(characterId, computeMetaBonuses(save, pack.powerUps));
   };
 
