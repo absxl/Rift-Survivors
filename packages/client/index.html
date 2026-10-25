@@ -87,6 +87,110 @@
       .charselect-card:hover {
         border-color: #ffcc44;
       }
+      .meta {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #0d0f1a;
+        color: #fff;
+        font-family: monospace;
+        z-index: 30;
+        overflow: auto;
+        padding: 20px;
+      }
+      .meta-header {
+        font-size: 20px;
+        color: #ffcc44;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+      }
+      .meta-section {
+        font-size: 13px;
+        color: #7fb0e0;
+        letter-spacing: 1px;
+        margin-top: 8px;
+      }
+      .meta-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .meta-label {
+        min-width: 230px;
+        font-size: 12px;
+      }
+      .meta-btn {
+        background: #16202e;
+        border: 2px solid #3a5a7a;
+        color: #fff;
+        font-family: monospace;
+        font-size: 12px;
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      .meta-btn:hover:not(:disabled) {
+        border-color: #ffcc44;
+      }
+      .meta-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .meta-chip {
+        font-size: 11px;
+        padding: 3px 8px;
+        border: 1px solid #3a5a7a;
+        color: #5a6a7a;
+      }
+      .meta-chip.on {
+        border-color: #44ff66;
+        color: #44ff66;
+      }
+      .meta-play {
+        margin-top: 14px;
+        background: #16203a;
+        border: 2px solid #44aa66;
+        color: #fff;
+        font-family: monospace;
+        font-size: 18px;
+        padding: 10px 40px;
+        cursor: pointer;
+      }
+      .meta-play:hover {
+        border-color: #ffcc44;
+      }
+      .run-end {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        font-family: monospace;
+        z-index: 40;
+      }
+      .run-end-title {
+        font-size: 26px;
+        color: #ff4444;
+      }
+      .run-end-stats {
+        font-size: 14px;
+        white-space: pre-line;
+        text-align: center;
+      }
     </style>
   </head>
   <body>

@@ -19,7 +19,7 @@ let currentInput: PlayerInput = { playerId: 0, moveX: 0, moveY: 0 };
 let paused = false;
 
 function loop(): void {
-  if (world && !paused) {
+  if (world && !paused && !world.over) {
     const events = step(world, [currentInput]);
     ctx.postMessage({ type: "snapshot", snapshot: snapshot(world), events });
     const offers = world.pendingOffers();
@@ -37,6 +37,7 @@ ctx.onmessage = (event: MessageEvent) => {
     input?: PlayerInput;
     choiceIndex?: number;
     characterId?: string;
+    metaBonuses?: Record<string, number>;
   };
   if (msg.type === "input" && msg.input) currentInput = msg.input;
   else if (msg.type === "choice" && world) {
@@ -45,7 +46,12 @@ ctx.onmessage = (event: MessageEvent) => {
   } else if (msg.type === "start") {
     world = createWorld(
       DEFAULT_RULESET,
-      { playerCount: 1, content: pack, characterId: msg.characterId },
+      {
+        playerCount: 1,
+        content: pack,
+        characterId: msg.characterId,
+        metaBonuses: msg.metaBonuses,
+      },
       SEED,
     );
     paused = false;

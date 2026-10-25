@@ -44,6 +44,7 @@ const TEST_PACK: ContentPack = {
   ],
   passives: [],
   characters: [{ id: "champion", startingWeapon: "blade" }],
+  powerUps: [],
 };
 
 function run(

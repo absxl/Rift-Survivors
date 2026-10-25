@@ -76,8 +76,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Log new/superseded decisions; ADRs for anything that moves a seam; adjust roadmap
 
 ## M8 — Meta progression & unlocks
-- [ ] Persistent gold, permanent-upgrade shop with refunds, versioned save + migrations + fixtures
-- [ ] Achievements → unlocks (characters, weapons, stages); collection/recipes screen
+- [x] Persistent gold, permanent-upgrade shop with refunds, versioned save + migration hook
+- [x] Gacha (performance-earned chests → unlocks champions) + achievements
 - [ ] Second stage (content only), stage select
 
 ## M9 — Content, balance & feel

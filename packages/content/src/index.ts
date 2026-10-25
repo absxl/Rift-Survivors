@@ -20,5 +20,6 @@ export function loadGamePack(): ContentPack {
     weapons: [...core.weapons, ...lol.weapons],
     passives: [...core.passives, ...lol.passives],
     characters: [...core.characters, ...lol.characters],
+    powerUps: [...core.powerUps, ...lol.powerUps],
   };
 }

@@ -3,6 +3,7 @@ import type {
   ContentPack,
   EnemyDef,
   PassiveDef,
+  PowerUpDef,
   StatDelta,
   WeaponDef,
   WeaponStats,
@@ -75,6 +76,14 @@ const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   baseStats: z.record(z.number()).optional(),
 });
 
+const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({
+  id: z.string(),
+  stat: z.string(),
+  perRank: z.number(),
+  maxRank: z.number().int().positive(),
+  costs: z.array(z.number()),
+});
+
 export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   id: z.string(),
   schemaVersion: z.number().int().positive(),
@@ -82,4 +91,5 @@ export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   weapons: z.array(weaponDefSchema),
   passives: z.array(passiveDefSchema),
   characters: z.array(characterDefSchema),
+  powerUps: z.array(powerUpDefSchema),
 });

@@ -36,6 +36,8 @@ export interface RunConfig {
   content?: ContentPack;
   /** Character id to start as; defaults to the first character. */
   characterId?: string;
+  /** Permanent meta-shop bonuses (stat key → additive bonus). */
+  metaBonuses?: Record<string, number>;
 }
 
 const EMPTY_PACK: ContentPack = {
@@ -45,6 +47,7 @@ const EMPTY_PACK: ContentPack = {
   weapons: [],
   passives: [],
   characters: [],
+  powerUps: [],
 };
 
 const PLAYER_SCHEMA: EntitySchema = {
@@ -204,6 +207,7 @@ export class World {
     playerCount: number,
     content: ContentPack = EMPTY_PACK,
     characterId?: string,
+    metaBonuses?: Record<string, number>,
   ) {
     this.seed = seed;
     this.ruleset = ruleset;
@@ -253,19 +257,27 @@ export class World {
           this.modifiers.add(key, { op: "add", value, source: `character:${character.id}` });
         }
       }
-      // Sync maxHp (character base stats may grant +maxHp).
-      this.stores.players.forEachAlive((slot) => {
-        const oldMax = this.stores.players.field("maxHp")[slot];
-        const newMax = 100 * this.stat("maxHp", 1);
-        this.stores.players.field("maxHp")[slot] = newMax;
-        if (newMax > oldMax) {
-          this.stores.players.field("hp")[slot] = Math.min(
-            newMax,
-            this.stores.players.field("hp")[slot] + (newMax - oldMax),
-          );
-        }
-      });
     }
+
+    // Permanent meta-shop bonuses.
+    if (metaBonuses) {
+      for (const [key, value] of Object.entries(metaBonuses)) {
+        if (value !== 0) this.modifiers.add(key, { op: "add", value, source: `meta:${key}` });
+      }
+    }
+
+    // Sync maxHp from character/meta bonuses.
+    this.stores.players.forEachAlive((slot) => {
+      const oldMax = this.stores.players.field("maxHp")[slot];
+      const newMax = 100 * this.stat("maxHp", 1);
+      this.stores.players.field("maxHp")[slot] = newMax;
+      if (newMax > oldMax) {
+        this.stores.players.field("hp")[slot] = Math.min(
+          newMax,
+          this.stores.players.field("hp")[slot] + (newMax - oldMax),
+        );
+      }
+    });
 
     registerCoreSystems(this.registries);
   }
@@ -407,7 +419,14 @@ export class World {
 }
 
 export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number): World {
-  return new World(ruleset, seed, config.playerCount, config.content, config.characterId);
+  return new World(
+    ruleset,
+    seed,
+    config.playerCount,
+    config.content,
+    config.characterId,
+    config.metaBonuses,
+  );
 }
 
 /** Advance exactly one tick. Returns the events produced this tick. */

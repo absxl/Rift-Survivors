@@ -37,6 +37,7 @@ export type {
   DamageType,
   EnemyDef,
   PassiveDef,
+  PowerUpDef,
   StatDelta,
   StatusApply,
   WeaponDef,

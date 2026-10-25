@@ -302,6 +302,7 @@ const lolPack: ContentPack = {
     },
     { id: "ryze", startingWeapon: "overload", baseStats: { cooldown: 0.15 } },
   ],
+  powerUps: [],
 };
 
 /** Load and validate the lol pack (champions + abilities). */

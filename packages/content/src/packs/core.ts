@@ -90,6 +90,16 @@ const corePack: ContentPack = {
     { id: "charm", maxLevel: 5, perLevel: { luck: 0.1 } },
   ],
   characters: [],
+  powerUps: [
+    { id: "power", stat: "might", perRank: 0.05, maxRank: 5, costs: [10, 20, 30, 40, 50] },
+    { id: "vitality", stat: "maxHp", perRank: 0.1, maxRank: 5, costs: [10, 20, 30, 40, 50] },
+    { id: "swiftness", stat: "moveSpeed", perRank: 0.05, maxRank: 5, costs: [10, 20, 30, 40, 50] },
+    { id: "focus", stat: "cooldown", perRank: 0.05, maxRank: 5, costs: [15, 30, 45, 60, 75] },
+    { id: "reach", stat: "area", perRank: 0.05, maxRank: 5, costs: [10, 20, 30, 40, 50] },
+    { id: "attraction", stat: "magnet", perRank: 0.2, maxRank: 5, costs: [5, 10, 15, 20, 25] },
+    { id: "plating", stat: "armor", perRank: 1, maxRank: 5, costs: [15, 30, 45, 60, 75] },
+    { id: "fortune", stat: "luck", perRank: 0.1, maxRank: 5, costs: [20, 40, 60, 80, 100] },
+  ],
 };
 
 /** Load and validate the core pack (enemies + items). */

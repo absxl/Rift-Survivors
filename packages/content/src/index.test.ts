@@ -56,4 +56,12 @@ describe("content packs", () => {
     }
     expect(evolutions).toBeGreaterThanOrEqual(4);
   });
+
+  it("has the M8 power-up shop scope (>= 8)", () => {
+    const game = loadGamePack();
+    expect(game.powerUps.length).toBeGreaterThanOrEqual(8);
+    for (const p of game.powerUps) {
+      expect(p.costs.length).toBe(p.maxRank);
+    }
+  });
 });

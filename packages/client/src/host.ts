@@ -6,7 +6,7 @@ export type SnapshotHandler = (snapshot: WorldSnapshot, events: SimEvent[]) => v
 export type OfferHandler = (offer: Offer) => void;
 
 export interface Host {
-  start(characterId: string): void;
+  start(characterId: string, metaBonuses?: Record<string, number>): void;
   sendInput(input: PlayerInput): void;
   sendChoice(choiceIndex: number): void;
   onSnapshot(cb: SnapshotHandler): void;
@@ -37,8 +37,8 @@ export class WorkerHost implements Host {
     };
   }
 
-  start(characterId: string): void {
-    this.worker.postMessage({ type: "start", characterId });
+  start(characterId: string, metaBonuses?: Record<string, number>): void {
+    this.worker.postMessage({ type: "start", characterId, metaBonuses });
   }
 
   sendInput(input: PlayerInput): void {

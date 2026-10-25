@@ -79,6 +79,18 @@ export interface CharacterDef {
   baseStats?: Record<string, number>;
 }
 
+/** Permanent-upgrade shop entry (meta progression). */
+export interface PowerUpDef {
+  id: string;
+  /** Stat key the rank adds to (e.g. "might", "maxHp"). */
+  stat: string;
+  /** Bonus added per rank. */
+  perRank: number;
+  maxRank: number;
+  /** Gold cost for each rank (length = maxRank). */
+  costs: number[];
+}
+
 export interface ContentPack {
   id: string;
   schemaVersion: number;
@@ -86,4 +98,5 @@ export interface ContentPack {
   weapons: WeaponDef[];
   passives: PassiveDef[];
   characters: CharacterDef[];
+  powerUps: PowerUpDef[];
 }

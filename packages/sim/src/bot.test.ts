@@ -82,6 +82,7 @@ const BOT_PACK: ContentPack = {
   ],
   passives: [],
   characters: [{ id: "champion", startingWeapon: "blade" }],
+  powerUps: [],
 };
 
 const BOT_RULESET: RulesetDef = {
