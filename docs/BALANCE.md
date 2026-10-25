@@ -4,7 +4,7 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
 `lux`, `DEFAULT_RULESET`. Numbers are a regression baseline, not a substitute for a human playtest.
 
 - Date: 2026-10-25
-- Commit: `88d7f6b` (gold drops + per-player kill credit included)
+- Commit: `f6b49d5` (gold drops + per-player kill credit included)
 - Run command: `$env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance`
 - Seeds: 101, 202, 303 (baseline) · seed 101 (variants)
 - Reference: 30:00 final threat → boss rush; solo run ends when the player dies.
