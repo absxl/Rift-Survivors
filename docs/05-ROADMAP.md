@@ -103,7 +103,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [ ] Actual deploy (needs hosting credentials — `docs/08`), reconnect support
 
 ## M13 — Polish
-- [ ] Gamepad, rebinding, accessibility; performance pass on M1 (500+ enemies); optional replays
+- [x] Gamepad (left stick + D-pad), rebindable movement keys, accessibility toggles (sound / shake / damage numbers)
+- [x] Performance coverage: 600-enemy spatial-hash smoke test + F3 FPS/entity debug overlay
+- [ ] Optional replays (not implemented; can be layered on the deterministic sim later)
 
 ## Notes
 - **pnpm on PATH:** `corepack enable` failed (no admin on `C:\Program Files\nodejs`). Use `corepack pnpm …`
@@ -123,7 +125,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Freeze fix:** level-up/chest offers now always include a fallback card, always clear on apply, dot-stats
   are clamped finite, and worker/server ticks are wrapped so one bad tick ends the run instead of freezing it.
 - **QoL:** separate name screen before the co-op lobby; Esc pause menu (solo freezes the sim, co-op does not;
-  Resume · Restart (solo) · Quit to Menu · Sound · Shake).
+  Resume · Restart (solo) · Quit to Menu · Sound · Shake · Damage Numbers).
+- **M13 controls:** movement is rebindable in Settings → Controls (arrow keys always work, Esc cancels a
+  rebind); gamepad left stick + D-pad; F3 toggles an FPS/live-entity overlay; damage numbers can be disabled.
 - **Deviation (D-028):** full-screen fractional scaling (fills the window) instead of the kit's integer +
   letterbox rule; recorded in `docs/10`.
 - **Deviation (M0):** tsconfig uses `extends` per package rather than composite project references.

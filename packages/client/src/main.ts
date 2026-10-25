@@ -73,6 +73,7 @@ async function main(): Promise<void> {
   const hud = new Hud(hudLayer, pack.weapons, pack.passives);
   const input = new Input();
   input.attach();
+  input.setKeybinds(save.settings.keybinds);
   const sfx = new Sfx();
 
   // The active choice/input senders are swapped depending on solo vs co-op.
@@ -90,6 +91,20 @@ async function main(): Promise<void> {
   const pauseMenu = new PauseMenu();
   let runEnded = false;
   let lastSnap: WorldSnapshot | null = null;
+
+  // F3 diagnostics overlay (FPS + live entity counts) for the M13 perf pass.
+  const debugOverlay = document.createElement("div");
+  debugOverlay.className = "debug-overlay";
+  debugOverlay.style.display = "none";
+  document.body.appendChild(debugOverlay);
+  let debugFrames = 0;
+  let debugElapsed = 0;
+  let debugLast = performance.now();
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "F3") return;
+    e.preventDefault();
+    debugOverlay.style.display = debugOverlay.style.display === "none" ? "block" : "none";
+  });
 
   const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
     renderer.receive(snap, events);
@@ -125,9 +140,12 @@ async function main(): Promise<void> {
   const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters);
   sfx.setVolume(save.settings.volume);
   renderer.setShake(save.settings.shake);
+  renderer.setDamageNumbers(save.settings.damageNumbers);
   metaScreen.onSettingsChange((settings) => {
     sfx.setVolume(settings.volume);
     renderer.setShake(settings.shake);
+    renderer.setDamageNumbers(settings.damageNumbers);
+    input.setKeybinds(settings.keybinds);
   });
 
   const startSolo = (characterId: string): void => {
@@ -200,9 +218,11 @@ async function main(): Promise<void> {
   pauseMenu.onSettingsChange((settings) => {
     save.settings.volume = settings.volume;
     save.settings.shake = settings.shake;
+    save.settings.damageNumbers = settings.damageNumbers;
     persistSave(save);
     sfx.setVolume(settings.volume);
     renderer.setShake(settings.shake);
+    renderer.setDamageNumbers(settings.damageNumbers);
   });
 
   window.addEventListener("keydown", (e) => {
@@ -234,6 +254,21 @@ async function main(): Promise<void> {
   app.ticker.add(() => {
     renderer.render();
     if (lastSnap) hud.update(lastSnap);
+
+    debugFrames++;
+    const now = performance.now();
+    debugElapsed += now - debugLast;
+    debugLast = now;
+    if (debugElapsed >= 500) {
+      const fps = Math.round((debugFrames * 1000) / debugElapsed);
+      debugFrames = 0;
+      debugElapsed = 0;
+      if (debugOverlay.style.display !== "none") {
+        const count = (kind: string): number =>
+          lastSnap?.stores.find((s) => s.kind === kind)?.slots.length ?? 0;
+        debugOverlay.textContent = `FPS ${fps}  TICK ${lastSnap?.tick ?? 0}  ENEMY ${count("enemy")}  PROJ ${count("projectile")}  GEM ${count("gem")}`;
+      }
+    }
   });
 }
 

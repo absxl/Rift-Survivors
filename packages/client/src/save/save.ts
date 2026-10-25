@@ -1,5 +1,19 @@
 // Persistent save (localStorage). Versioned with a migration hook so old saves
 // survive schema changes (docs/12 "Everything versioned").
+export interface Keybinds {
+  up: string;
+  down: string;
+  left: string;
+  right: string;
+}
+
+export interface SaveSettings {
+  volume: number;
+  shake: boolean;
+  damageNumbers: boolean;
+  keybinds: Keybinds;
+}
+
 export interface SaveData {
   version: number;
   gold: number;
@@ -11,7 +25,7 @@ export interface SaveData {
   achievements: string[];
   totalKills: number;
   bestTimeSec: number;
-  settings: { volume: number; shake: boolean };
+  settings: SaveSettings;
 }
 
 export const SAVE_VERSION = 1;
@@ -27,7 +41,12 @@ export function defaultSave(firstCharacter: string): SaveData {
     achievements: [],
     totalKills: 0,
     bestTimeSec: 0,
-    settings: { volume: 0.22, shake: true },
+    settings: {
+      volume: 0.22,
+      shake: true,
+      damageNumbers: true,
+      keybinds: { up: "w", down: "s", left: "a", right: "d" },
+    },
   };
 }
 
@@ -49,7 +68,15 @@ export function persistSave(save: SaveData): void {
 /** Upgrade an old save to the current version. Only v1 exists so far. */
 function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
   const base = defaultSave(firstCharacter);
-  const merged: SaveData = { ...base, ...parsed };
+  const merged: SaveData = {
+    ...base,
+    ...parsed,
+    settings: {
+      ...base.settings,
+      ...parsed.settings,
+      keybinds: { ...base.settings.keybinds, ...parsed.settings?.keybinds },
+    },
+  };
   if (merged.unlockedCharacters.length === 0) merged.unlockedCharacters = [firstCharacter];
   merged.version = SAVE_VERSION;
   return merged;

@@ -80,6 +80,7 @@ export class GameRenderer {
   private readonly textures: PlaceholderTextures;
   private shake = 0;
   private shakeEnabled = true;
+  private damageNumbersEnabled = true;
   private championColor = 0x44aaff;
 
   constructor(
@@ -244,6 +245,7 @@ export class GameRenderer {
   }
 
   private spawnDamage(x: number, y: number, amount: number): void {
+    if (!this.damageNumbersEnabled) return;
     if (this.damage.length >= MAX_DAMAGE) {
       const oldest = this.damage.shift();
       if (oldest) oldest.sprite.destroy();
@@ -404,6 +406,15 @@ export class GameRenderer {
   setShake(enabled: boolean): void {
     this.shakeEnabled = enabled;
     if (!enabled) this.shake = 0;
+  }
+
+  /** Toggle floating damage numbers (accessibility). */
+  setDamageNumbers(enabled: boolean): void {
+    this.damageNumbersEnabled = enabled;
+    if (!enabled) {
+      for (const d of this.damage) d.sprite.destroy();
+      this.damage.length = 0;
+    }
   }
 
   /** Set the local player's champion tint. */
