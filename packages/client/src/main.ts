@@ -48,6 +48,18 @@ async function main(): Promise<void> {
   const firstCharacter = pack.characters[0]?.id ?? "lux";
   const save = loadSave(firstCharacter);
 
+  // Dev convenience: unlock every champion for playtesting (production keeps the gacha).
+  if (import.meta.env.DEV) {
+    let changed = false;
+    for (const c of pack.characters) {
+      if (!save.unlockedCharacters.includes(c.id)) {
+        save.unlockedCharacters.push(c.id);
+        changed = true;
+      }
+    }
+    if (changed) persistSave(save);
+  }
+
   const worldLayer = new Container();
   const hudLayer = new Container();
   app.stage.addChild(worldLayer);
