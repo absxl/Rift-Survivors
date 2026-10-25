@@ -77,6 +77,8 @@ export interface CharacterDef {
   startingWeapon: string;
   /** Stat key → additive bonus applied as modifiers at run start. */
   baseStats?: Record<string, number>;
+  /** Growth: every N levels, add these stat bonuses (cumulative). */
+  growth?: { everyLevels: number; mods: Record<string, number> };
 }
 
 /** Permanent-upgrade shop entry (meta progression). */

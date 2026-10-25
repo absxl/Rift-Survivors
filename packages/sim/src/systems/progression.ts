@@ -25,6 +25,7 @@ function progression(world: World): void {
       players.field("xp")[slot] = xp - needed;
       players.field("level")[slot] = level + 1;
       players.field("xpToNext")[slot] = xpToNext(world, level + 1);
+      refreshGrowth(world);
       world.emit({ type: "level-up", playerId: slot, level: level + 1 });
       world.queueOffer(buildLevelUpOffer(world, slot));
     }
@@ -269,6 +270,32 @@ function refreshPassiveModifiers(world: World): void {
   });
 
   const players = world.stores.players;
+  players.forEachAlive((slot) => {
+    const oldMax = players.field("maxHp")[slot];
+    const newMax = 100 * world.stat("maxHp", 1);
+    players.field("maxHp")[slot] = newMax;
+    if (newMax > oldMax) {
+      players.field("hp")[slot] = Math.min(newMax, players.field("hp")[slot] + (newMax - oldMax));
+    }
+  });
+}
+
+/** Re-apply the character's level-based growth bonuses (stacks every N levels). */
+function refreshGrowth(world: World): void {
+  const growth = world.character?.growth;
+  world.modifiers.removeSource("growth");
+  if (!growth) return;
+
+  const players = world.stores.players;
+  players.forEachAlive((slot) => {
+    const stacks = Math.floor(players.field("level")[slot] / growth.everyLevels);
+    if (stacks > 0) {
+      for (const [key, amount] of Object.entries(growth.mods)) {
+        world.modifiers.add(key, { op: "add", value: amount * stacks, source: "growth" });
+      }
+    }
+  });
+
   players.forEachAlive((slot) => {
     const oldMax = players.field("maxHp")[slot];
     const newMax = 100 * world.stat("maxHp", 1);

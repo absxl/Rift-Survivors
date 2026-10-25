@@ -74,6 +74,9 @@ const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   id: z.string(),
   startingWeapon: z.string(),
   baseStats: z.record(z.number()).optional(),
+  growth: z
+    .object({ everyLevels: z.number().int().positive(), mods: z.record(z.number()) })
+    .optional(),
 });
 
 const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({

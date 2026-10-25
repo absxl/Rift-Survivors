@@ -12,7 +12,7 @@ describe("content packs", () => {
 
   it("lol pack loads champions + abilities", () => {
     const lol = loadLolPack();
-    expect(lol.characters.length).toBeGreaterThanOrEqual(4);
+    expect(lol.characters.length).toBeGreaterThanOrEqual(8);
     expect(lol.weapons.length).toBeGreaterThanOrEqual(10);
     const behaviors = new Set(lol.weapons.map((w) => w.behavior));
     expect(behaviors.size).toBeGreaterThanOrEqual(7);

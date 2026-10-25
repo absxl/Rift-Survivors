@@ -2,7 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
-import type { ContentPack, StatusApply, WeaponDef } from "./content-types";
+import type { CharacterDef, ContentPack, StatusApply, WeaponDef } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -191,6 +191,7 @@ export class World {
   readonly modifiers: ModifierStack;
   readonly spatialHash: SpatialHash;
   readonly content: ContentPack;
+  readonly character: CharacterDef | null;
 
   tick = 0;
   inputs: PlayerInput[] = [];
@@ -243,6 +244,7 @@ export class World {
     const character = characterId
       ? content.characters.find((c) => c.id === characterId)
       : content.characters[0];
+    this.character = character ?? null;
     if (character) {
       const weaponIndex = content.weapons.findIndex((w) => w.id === character.startingWeapon);
       if (weaponIndex >= 0) {
