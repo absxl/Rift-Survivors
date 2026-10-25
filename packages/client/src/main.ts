@@ -102,6 +102,7 @@ async function main(): Promise<void> {
   let debugFrames = 0;
   let debugElapsed = 0;
   let debugLast = performance.now();
+  let frameErrorLogged = false;
   window.addEventListener("keydown", (e) => {
     if (e.key !== "F3") return;
     e.preventDefault();
@@ -257,21 +258,31 @@ async function main(): Promise<void> {
   app.canvas.addEventListener("pointerleave", () => hud.setPointer(0, 0, false));
 
   app.ticker.add(() => {
-    renderer.render();
-    if (lastSnap) hud.update(lastSnap);
+    try {
+      renderer.render();
+      if (lastSnap) hud.update(lastSnap);
 
-    debugFrames++;
-    const now = performance.now();
-    debugElapsed += now - debugLast;
-    debugLast = now;
-    if (debugElapsed >= 500) {
-      const fps = Math.round((debugFrames * 1000) / debugElapsed);
-      debugFrames = 0;
-      debugElapsed = 0;
-      if (debugOverlay.style.display !== "none") {
-        const count = (kind: string): number =>
-          lastSnap?.stores.find((s) => s.kind === kind)?.slots.length ?? 0;
-        debugOverlay.textContent = `FPS ${fps}  TICK ${lastSnap?.tick ?? 0}  ENEMY ${count("enemy")}  PROJ ${count("projectile")}  GEM ${count("gem")}`;
+      debugFrames++;
+      const now = performance.now();
+      debugElapsed += now - debugLast;
+      debugLast = now;
+      if (debugElapsed >= 500) {
+        const fps = Math.round((debugFrames * 1000) / debugElapsed);
+        debugFrames = 0;
+        debugElapsed = 0;
+        if (debugOverlay.style.display !== "none") {
+          const count = (kind: string): number =>
+            lastSnap?.stores.find((s) => s.kind === kind)?.slots.length ?? 0;
+          debugOverlay.textContent = `FPS ${fps}  TICK ${lastSnap?.tick ?? 0}  ENEMY ${count("enemy")}  PROJ ${count("projectile")}  GEM ${count("gem")}`;
+        }
+      }
+    } catch (err) {
+      // A single bad frame must not silently freeze the whole game.
+      if (!frameErrorLogged) {
+        frameErrorLogged = true;
+        console.error("[client] frame error", err);
+        debugOverlay.style.display = "block";
+        debugOverlay.textContent = "FRAME ERROR — SEE CONSOLE";
       }
     }
   });

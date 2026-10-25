@@ -247,7 +247,9 @@ export function startServer(port: number): ServerHandle {
     ws.on("message", (data) => {
       try {
         handle(ws, clientMessageSchema.parse(JSON.parse(data.toString())));
-      } catch {
+      } catch (err) {
+        // Log so an internal applyChoice/tick error isn't silently hidden.
+        console.error("[server] message error", err);
         send(ws, { type: "error", message: "invalid message" });
       }
     });

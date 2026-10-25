@@ -1,9 +1,10 @@
 // League-style in-game hotbar drawn inside the pixel canvas (bottom of the screen):
 // champion portrait + level, HP/XP bars, ability icons (weapons) with cooldowns,
 // item icons (passives), and hover tooltips.
-import type { PassiveDef, StoreSnapshot, WeaponDef, WorldSnapshot } from "@rift/sim";
+import type { PassiveDef, WeaponDef, WorldSnapshot } from "@rift/sim";
 import { Container, Graphics } from "pixi.js";
 import { PixelText } from "./assets/pixel-font";
+import { ownedIndices } from "./loadout";
 import { VIEW_H, VIEW_W } from "./renderer";
 
 const PANEL_TOP = 216;
@@ -222,8 +223,8 @@ export class Hud {
     // Loadout (local player).
     const weaponStore = s.stores.find((st) => st.kind === "weapon");
     const passiveStore = s.stores.find((st) => st.kind === "passive");
-    const ownedWeapons = this.ownedIndices(weaponStore, this.localPlayerId);
-    const ownedPassives = this.ownedIndices(passiveStore, this.localPlayerId);
+    const ownedWeapons = ownedIndices(weaponStore, this.localPlayerId);
+    const ownedPassives = ownedIndices(passiveStore, this.localPlayerId);
 
     this.fillWeaponSlot(this.abilitySlots[0], ownedWeapons[0]);
     this.fillWeaponSlot(this.abilitySlots[1], ownedWeapons[1]);
@@ -248,23 +249,6 @@ export class Hud {
     this.updateTooltip();
   }
 
-  private ownedIndices(
-    store: StoreSnapshot | undefined,
-    playerId: number,
-  ): { defIndex: number; level: number; cooldown: number }[] {
-    if (!store) return [];
-    const out: { defIndex: number; level: number; cooldown: number }[] = [];
-    for (let i = 0; i < store.slots.length; i++) {
-      if (store.fields.owner[i] !== playerId) continue;
-      out.push({
-        defIndex: store.fields.defIndex[i],
-        level: store.fields.level[i],
-        cooldown: store.fields.cooldown[i],
-      });
-    }
-    return out;
-  }
-
   private fillWeaponSlot(
     slot: IconSlot,
     entry: { defIndex: number; level: number; cooldown: number } | undefined,
@@ -276,7 +260,7 @@ export class Hud {
     const def = this.weapons[entry.defIndex];
     const color = weaponColor(def);
     const base = def?.base.cooldown ?? 1;
-    const frac = Math.max(0, Math.min(1, entry.cooldown / base));
+    const frac = base > 0 ? Math.max(0, Math.min(1, entry.cooldown / base)) : 0;
     this.drawSlot(slot, def?.id ?? "?", entry.level, color, frac);
     slot.cooldownFrac = frac;
     slot.label = def?.id ?? null;
