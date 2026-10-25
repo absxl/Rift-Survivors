@@ -397,13 +397,24 @@ export class GameRenderer {
   private drawEnemyHealthBars(store: StoreSnapshot | undefined): void {
     this.enemyHpBar.clear();
     if (!store) return;
+    const prev = this.prev ? getStore(this.prev, "enemy") : undefined;
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prev) {
+      for (let i = 0; i < prev.slots.length; i++) prevIndex.set(prev.slots[i], i);
+    }
     const w = 12;
     for (let i = 0; i < store.slots.length; i++) {
       const hp = store.fields.hp[i];
       const maxHp = store.fields.maxHp[i];
       if (hp >= maxHp) continue;
-      const x = store.fields.x[i];
-      const y = store.fields.y[i];
+      let x = store.fields.x[i];
+      let y = store.fields.y[i];
+      const pi = prevIndex.get(store.slots[i]);
+      if (pi !== undefined && prev) {
+        x = lerp(prev.fields.x[pi], x, a);
+        y = lerp(prev.fields.y[pi], y, a);
+      }
       const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
       this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(0x000000);
       this.enemyHpBar.rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1).fill(0xff4444);
