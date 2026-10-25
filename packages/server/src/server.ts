@@ -1,5 +1,6 @@
 // Authoritative co-op room server (docs/07). Runs the same @rift/sim at 30 Hz;
 // clients send inputs and receive snapshots + events + their own offers.
+import { randomUUID } from "node:crypto";
 import { type Server, createServer } from "node:http";
 import { loadGamePack } from "@rift/content";
 import {
@@ -32,6 +33,10 @@ interface Client {
   characterId: string;
   ready: boolean;
   input: PlayerInput;
+  /** Opaque token used to rejoin this slot after a disconnect. */
+  token: string;
+  connected: boolean;
+  disconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 interface Room {
@@ -49,7 +54,13 @@ export interface ServerHandle {
   close: () => void;
 }
 
-export function startServer(port: number): ServerHandle {
+export interface ServerOptions {
+  /** How long a mid-run slot stays reserved for a reconnect. Default 60s. */
+  reconnectGraceMs?: number;
+}
+
+export function startServer(port: number, options: ServerOptions = {}): ServerHandle {
+  const reconnectGraceMs = options.reconnectGraceMs ?? 60_000;
   const pack = loadGamePack();
   const rooms = new Map<string, Room>();
   const conns = new Map<WebSocket, { room: Room; client: Client }>();
@@ -66,6 +77,7 @@ export function startServer(port: number): ServerHandle {
       name: c.name,
       characterId: c.characterId,
       ready: c.ready,
+      connected: c.connected,
     }));
     broadcast(room, { type: "lobby", code: room.code, players });
   };
@@ -112,6 +124,9 @@ export function startServer(port: number): ServerHandle {
       characterId,
       ready: true,
       input: { playerId, moveX: 0, moveY: 0 },
+      token: randomUUID(),
+      connected: true,
+      disconnectTimer: null,
     };
     room.clients.push(client);
     conns.set(ws, { room, client });
@@ -130,12 +145,19 @@ export function startServer(port: number): ServerHandle {
       room.seed,
     );
     for (const c of room.clients)
-      send(c.ws, { type: "start", seed: room.seed, yourPlayerId: c.playerId });
+      send(c.ws, {
+        type: "start",
+        seed: room.seed,
+        yourPlayerId: c.playerId,
+        token: c.token,
+      });
     room.timer = setInterval(() => tickRoom(room), TICK_MS);
   };
 
   const tickRoom = (room: Room): void => {
     if (!room.world || room.paused) return;
+    // Don't advance a room while everyone is in the reconnect grace period.
+    if (!room.clients.some((c) => c.connected)) return;
     let events: ReturnType<typeof step>;
     try {
       events = step(
@@ -175,6 +197,58 @@ export function startServer(port: number): ServerHandle {
   };
 
   const handle = (ws: WebSocket, msg: ClientMessage): void => {
+    if (msg.type === "rejoin") {
+      if (conns.has(ws)) {
+        send(ws, { type: "error", message: "already in a room" });
+        return;
+      }
+      if (msg.protocolVersion !== PROTOCOL_VERSION) {
+        send(ws, { type: "error", message: "protocol mismatch" });
+        return;
+      }
+      let target: { room: Room; client: Client } | null = null;
+      for (const room of rooms.values()) {
+        const client = room.clients.find((c) => c.token === msg.token);
+        if (client) {
+          target = { room, client };
+          break;
+        }
+      }
+      if (!target) {
+        send(ws, { type: "error", message: "could not rejoin" });
+        return;
+      }
+      if (target.client.connected) {
+        send(ws, { type: "error", message: "already connected" });
+        return;
+      }
+      const { room, client } = target;
+      if (client.disconnectTimer) {
+        clearTimeout(client.disconnectTimer);
+        client.disconnectTimer = null;
+      }
+      client.connected = true;
+      client.ws = ws;
+      conns.set(ws, { room, client });
+      send(ws, {
+        type: "start",
+        seed: room.seed,
+        yourPlayerId: client.playerId,
+        token: client.token,
+      });
+      // Immediate full state so the client can render before the next tick.
+      if (room.world) {
+        send(ws, {
+          type: "snapshot",
+          tick: room.world.tick,
+          snapshot: snapshot(room.world),
+          events: [],
+        });
+      }
+      lobby(room);
+      return;
+    }
+
     if (msg.type === "create" || msg.type === "join") {
       if (conns.has(ws)) {
         send(ws, { type: "error", message: "already in a room" });
@@ -240,11 +314,12 @@ export function startServer(port: number): ServerHandle {
     }
   };
 
-  const removeClient = (ws: WebSocket): void => {
-    const conn = conns.get(ws);
-    if (!conn) return;
-    conns.delete(ws);
-    const { room, client } = conn;
+  /** Remove a client permanently (lobby leave, or reconnect grace expired). */
+  const finalizeRemoval = (room: Room, client: Client): void => {
+    if (client.disconnectTimer) {
+      clearTimeout(client.disconnectTimer);
+      client.disconnectTimer = null;
+    }
     room.clients = room.clients.filter((c) => c !== client);
     if (room.world) {
       // Drop any pending offer so the room can't stay paused forever.
@@ -253,10 +328,35 @@ export function startServer(port: number): ServerHandle {
     }
     if (room.clients.length === 0) {
       if (room.timer) clearInterval(room.timer);
+      room.timer = null;
       rooms.delete(room.code);
     } else {
       lobby(room);
     }
+  };
+
+  const removeClient = (ws: WebSocket): void => {
+    const conn = conns.get(ws);
+    if (!conn) return;
+    conns.delete(ws);
+    const { room, client } = conn;
+
+    // Mid-run: reserve the slot for a reconnect instead of dropping the player.
+    if (room.world && client.connected) {
+      client.connected = false;
+      client.input.moveX = 0;
+      client.input.moveY = 0;
+      room.world.clearOffer(client.playerId);
+      if (room.world.pendingOffers().length === 0) room.paused = false;
+      lobby(room);
+      client.disconnectTimer = setTimeout(() => {
+        client.disconnectTimer = null;
+        finalizeRemoval(room, client);
+      }, reconnectGraceMs);
+      return;
+    }
+
+    finalizeRemoval(room, client);
   };
 
   const http: Server = createServer((req, res) => {
@@ -291,6 +391,9 @@ export function startServer(port: number): ServerHandle {
     close: () => {
       for (const room of rooms.values()) {
         if (room.timer) clearInterval(room.timer);
+        for (const client of room.clients) {
+          if (client.disconnectTimer) clearTimeout(client.disconnectTimer);
+        }
       }
       rooms.clear();
       wss.close();

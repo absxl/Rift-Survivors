@@ -200,8 +200,15 @@ async function main(): Promise<void> {
     hud.setChampion(coopCharacterId, championColor(coopCharacterId));
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);
-    netHost.onClose(() => {
-      if (!runEnded) connectionLost.show();
+    netHost.onReconnect((status) => {
+      if (runEnded) return;
+      if (status === "reconnected") {
+        connectionLost.hide();
+      } else if (status === "lost") {
+        connectionLost.show("CONNECTION LOST");
+      } else {
+        connectionLost.show("RECONNECTING...", "TRYING TO REJOIN THE ROOM...");
+      }
     });
     activeChoice = (i) => netHost.sendChoice(i);
     activeReroll = () => netHost.sendReroll();

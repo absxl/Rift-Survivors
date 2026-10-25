@@ -34,6 +34,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("reroll") }),
   z.object({ type: z.literal("skip") }),
   z.object({ type: z.literal("banish"), optionIndex: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("rejoin"), token: z.string(), protocolVersion: z.number() }),
   z.object({ type: z.literal("start") }),
   z.object({ type: z.literal("ping"), t: z.number() }),
 ]);
@@ -41,7 +42,7 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>;
 
 export type ServerMessage =
   | { type: "lobby"; code: string; players: LobbyPlayer[] }
-  | { type: "start"; seed: number; yourPlayerId: number }
+  | { type: "start"; seed: number; yourPlayerId: number; token?: string }
   | { type: "snapshot"; tick: number; snapshot: unknown; events: unknown[] }
   | { type: "offer"; offer: unknown }
   | { type: "end"; stats: unknown }

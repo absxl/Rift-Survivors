@@ -1,21 +1,23 @@
-// Full-screen notice shown when the authoritative co-op connection drops mid-run.
+// Full-screen notice shown while a co-op connection drops or is being retried.
 export class ConnectionLost {
   private readonly root: HTMLElement;
+  private readonly title: HTMLElement;
+  private readonly hint: HTMLElement;
 
   constructor() {
     this.root = document.createElement("div");
     this.root.className = "connection-lost";
     this.root.style.display = "none";
 
-    const title = document.createElement("div");
-    title.className = "pause-title";
-    title.textContent = "CONNECTION LOST";
-    this.root.appendChild(title);
+    this.title = document.createElement("div");
+    this.title.className = "pause-title";
+    this.title.textContent = "CONNECTION LOST";
+    this.root.appendChild(this.title);
 
-    const hint = document.createElement("div");
-    hint.className = "pause-hint";
-    hint.textContent = "THE ROOM SERVER IS UNREACHABLE.";
-    this.root.appendChild(hint);
+    this.hint = document.createElement("div");
+    this.hint.className = "pause-hint";
+    this.hint.textContent = "THE ROOM SERVER IS UNREACHABLE.";
+    this.root.appendChild(this.hint);
 
     const button = document.createElement("button");
     button.className = "meta-play";
@@ -26,7 +28,9 @@ export class ConnectionLost {
     document.body.appendChild(this.root);
   }
 
-  show(): void {
+  show(message = "CONNECTION LOST", hint = "THE ROOM SERVER IS UNREACHABLE."): void {
+    this.title.textContent = message;
+    this.hint.textContent = hint;
     this.root.style.display = "flex";
   }
 

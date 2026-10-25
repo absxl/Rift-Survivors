@@ -328,6 +328,61 @@ describe("room server", () => {
       ws.close();
     }
   }, 20_000);
+
+  it("rejoins a mid-run slot with the start token", async () => {
+    const host = await connect();
+    const next = inbox(host);
+    host.send(
+      JSON.stringify({
+        type: "create",
+        name: "host",
+        protocolVersion: PROTOCOL_VERSION,
+        characterId: "lux",
+      }),
+    );
+    const created = await nextOfType(next, "lobby");
+    const code = created.code as string;
+    host.send(JSON.stringify({ type: "start" }));
+    const start = await nextOfType(next, "start");
+    expect(typeof start.token).toBe("string");
+    const token = start.token as string;
+    const playerId = start.yourPlayerId;
+    await nextOfType(next, "snapshot");
+
+    host.close();
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    const room = [...server.rooms.values()].find((r) => r.code === code);
+    expect(room?.clients.length).toBe(1);
+    expect(room?.clients[0]?.connected).toBe(false);
+
+    const rejoin = await connect();
+    try {
+      const next2 = inbox(rejoin);
+      rejoin.send(JSON.stringify({ type: "rejoin", token, protocolVersion: PROTOCOL_VERSION }));
+      const resumed = await nextOfType(next2, "start");
+      expect(resumed.yourPlayerId).toBe(playerId);
+      expect(resumed.token).toBe(token);
+      const snap = await nextOfType(next2, "snapshot");
+      expect(typeof snap.tick).toBe("number");
+      expect(room?.clients[0]?.connected).toBe(true);
+
+      const bad = await connect();
+      try {
+        const badInbox = inbox(bad);
+        bad.send(
+          JSON.stringify({ type: "rejoin", token: "nope", protocolVersion: PROTOCOL_VERSION }),
+        );
+        const err = await badInbox();
+        expect(err.type).toBe("error");
+        expect(err.message).toBe("could not rejoin");
+      } finally {
+        bad.close();
+      }
+    } finally {
+      rejoin.close();
+    }
+  }, 20_000);
 });
 
 /** Consume inbox messages until the requested type arrives. */

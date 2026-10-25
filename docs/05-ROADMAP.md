@@ -100,7 +100,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 ## M12 — Co-op features & deploy
 - [x] Co-op rules: shared level + downed/marker revive + enemy scaling by player count
 - [x] Lobby UI (host/join by code) + Dockerfile
-- [ ] Actual deploy (needs hosting credentials — `docs/08`), reconnect support
+- [x] Reconnect support: per-client token in `start`, 60 s server grace period, client auto-retry
+- [ ] Actual deploy (needs hosting credentials — `docs/08`)
 
 ## M13 — Polish
 - [x] Gamepad (left stick + D-pad), rebindable movement keys, accessibility toggles (sound / shake / damage numbers)
@@ -129,7 +130,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **M13 controls:** movement is rebindable in Settings → Controls (arrow keys always work, Esc cancels a
   rebind); gamepad left stick + D-pad; F3 toggles an FPS/live-entity overlay; damage numbers can be disabled.
 - **Co-op robustness:** stable player slots (lowest free id), mid-run joins rejected, lobby BACK closes the
-  socket, and a dropped mid-run connection shows a CONNECTION LOST screen instead of freezing silently.
+  socket, and a dropped mid-run connection retries a token rejoin (60 s server grace) before showing
+  CONNECTION LOST.
 - **Stats HUD:** Tab toggles a panel showing Might/Haste/Area/Speed/Magnet/Armor/Luck plus the local
   player's kills/gold/max HP.
 - **Co-op stats:** each player has their own `ModifierStack`; character base stats/growth, passives,
