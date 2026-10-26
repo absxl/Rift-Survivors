@@ -130,6 +130,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
   Resume · Restart (solo) · Quit to Menu · Sound · Shake · Damage Numbers).
 - **M13 controls:** movement is rebindable in Settings → Controls (arrow keys always work, Esc cancels a
   rebind); gamepad left stick + D-pad; F3 toggles an FPS/live-entity overlay; damage numbers can be disabled.
+- **Enemy pass:** 14 types (8 minions, 2 elites, 3 bosses, 1 final) with chase/weaver/charge/ranged
+  behaviors and exploder deaths; weighted, minute-gated spawns in ring/stream/swarm/wall patterns; elite
+  variety; placeholder tint + radius visuals. Baselines in `docs/BALANCE.md`.
 - **Netcode:** the server sends a full snapshot on join/rejoin/resync and every 150 ticks, and changed entity
   rows (`snapshot-delta`) otherwise. The client applies deltas (resync on mismatch), interpolates all entities
   and players between snapshots, and gives the local sprite/camera a capped 6px visual input lead. The server

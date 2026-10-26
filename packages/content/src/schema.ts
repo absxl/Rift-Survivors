@@ -66,6 +66,10 @@ const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
   behavior: z.string(),
   params: z.record(z.union([z.number(), z.string()])),
   dropsChest: z.boolean().optional(),
+  tint: z.number().int().optional(),
+  spawnWeight: z.number().nonnegative().optional(),
+  minMinute: z.number().nonnegative().optional(),
+  maxMinute: z.number().nonnegative().optional(),
 });
 
 const passiveDefSchema: z.ZodType<PassiveDef> = z.object({

@@ -77,6 +77,35 @@ function projectiles(world: World): void {
     const px = projs.field("x")[slot];
     const py = projs.field("y")[slot];
     const hitRadius = 8;
+
+    // Hostile enemy projectile: damage the nearest player on contact.
+    if (mode === 5) {
+      let target = -1;
+      let bestD2 = hitRadius * hitRadius;
+      players.forEachAlive((p) => {
+        if (players.field("downed")[p] || players.field("iFrames")[p] > 0) return;
+        const dx = players.field("x")[p] - px;
+        const dy = players.field("y")[p] - py;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          target = p;
+        }
+      });
+      if (target >= 0) {
+        damagePlayer(
+          world,
+          target,
+          projs.field("damage")[slot],
+          players.field("x")[target],
+          players.field("y")[target],
+          "projectile",
+        );
+        projs.free(slot);
+      }
+      return;
+    }
+
     world.enemiesInCircle(px, py, hitRadius, (enemySlot) => {
       if (!projs.isAlive(slot)) return;
       if (!world.canHit(enemySlot)) return;
@@ -104,6 +133,55 @@ function projectiles(world: World): void {
   });
 }
 
+/**
+ * Apply damage to a player with armor, i-frames, hit event, and death/downed
+ * handling. Callers must check i-frames first (contact/projectiles differ).
+ */
+export function damagePlayer(
+  world: World,
+  slot: number,
+  rawDamage: number,
+  x: number,
+  y: number,
+  kind: string,
+): void {
+  const players = world.stores.players;
+  if (players.field("downed")[slot] || players.field("hp")[slot] <= 0) return;
+
+  const final = Math.max(1, rawDamage - world.playerStat(slot, "armor", 0));
+  players.field("hp")[slot] -= final;
+  players.field("iFrames")[slot] = world.num("player.iFrames");
+  world.emit({
+    type: "hit",
+    target: "player",
+    targetSlot: slot,
+    targetGen: players.gen(slot),
+    x,
+    y,
+    amount: final,
+    kind,
+  });
+
+  if (players.field("hp")[slot] > 0) return;
+  players.field("hp")[slot] = 0;
+  if (players.count <= 1) {
+    world.over = true;
+    world.emit({ type: "run-end", victory: false });
+    return;
+  }
+  players.field("downed")[slot] = 1;
+  players.field("reviveProgress")[slot] = 0;
+  world.emit({ type: "player-downed", playerId: slot });
+  let anyAlive = false;
+  players.forEachAlive((p) => {
+    if (!players.field("downed")[p]) anyAlive = true;
+  });
+  if (!anyAlive) {
+    world.over = true;
+    world.emit({ type: "run-end", victory: false });
+  }
+}
+
 function contactDamage(world: World): void {
   const players = world.stores.players;
   players.forEachAlive((slot) => {
@@ -123,38 +201,7 @@ function contactDamage(world: World): void {
     });
 
     if (damage > 0) {
-      const final = Math.max(1, damage - world.playerStat(slot, "armor", 0));
-      players.field("hp")[slot] -= final;
-      players.field("iFrames")[slot] = world.num("player.iFrames");
-      world.emit({
-        type: "hit",
-        target: "player",
-        targetSlot: slot,
-        targetGen: players.gen(slot),
-        x: px,
-        y: py,
-        amount: final,
-        kind: "enemy",
-      });
-      if (players.field("hp")[slot] <= 0) {
-        players.field("hp")[slot] = 0;
-        if (players.count <= 1) {
-          world.over = true;
-          world.emit({ type: "run-end", victory: false });
-        } else {
-          players.field("downed")[slot] = 1;
-          players.field("reviveProgress")[slot] = 0;
-          world.emit({ type: "player-downed", playerId: slot });
-          let anyAlive = false;
-          players.forEachAlive((p) => {
-            if (!players.field("downed")[p]) anyAlive = true;
-          });
-          if (!anyAlive) {
-            world.over = true;
-            world.emit({ type: "run-end", victory: false });
-          }
-        }
-      }
+      damagePlayer(world, slot, damage, px, py, "contact");
     }
   });
 }

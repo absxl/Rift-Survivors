@@ -1,3 +1,4 @@
+import { DEFAULT_RULESET, createWorld } from "@rift/sim";
 import { describe, expect, it } from "vitest";
 import { loadCorePack, loadGamePack, loadLolPack } from "./index";
 
@@ -72,6 +73,28 @@ describe("content packs", () => {
       if (s.source.kind === "tagCount") {
         expect(s.source.tiers.length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("has the enemy variety scope and every behavior is registered", () => {
+    const game = loadGamePack();
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: game }, 1);
+    expect(game.enemies.length).toBeGreaterThanOrEqual(12);
+
+    const minions = game.enemies.filter((e) => e.category === "minion");
+    const elites = game.enemies.filter((e) => e.category === "elite");
+    const bosses = game.enemies.filter((e) => e.category === "boss");
+    const finals = game.enemies.filter((e) => e.category === "final-threat");
+    expect(minions.length).toBeGreaterThanOrEqual(6);
+    expect(elites.length).toBeGreaterThanOrEqual(2);
+    expect(bosses.length).toBeGreaterThanOrEqual(3);
+    expect(finals.length).toBe(1);
+
+    for (const def of game.enemies) {
+      expect(world.registries.enemyBehaviors.has(def.behavior)).toBe(true);
+    }
+    for (const def of minions) {
+      expect(def.spawnWeight ?? 1).toBeGreaterThan(0);
     }
   });
 });

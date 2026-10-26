@@ -90,14 +90,22 @@ interface EnemyDef extends BaseDef {
   category: "minion" | "elite" | "boss" | "final-threat";
   hp: number; damage: number; moveSpeed: number; radius: number;
   xp: { tier: 1 | 2 | 3; amount?: number };
-  behavior: string;                     // "chase" | "ranged" | "charge" | "splitter" | "ghost" | boss script id
+  behavior: string;                     // "chase" | "ranged" | "charge" | "weaver" | ...
   params?: Record<string, number | string>;
   knockbackResist?: number; immuneTo?: string[];
   drops?: DropTable;                    // gold, pickups, chest (elites/bosses)
   recycle?: boolean;                    // default true for minions (see 13 §9)
+  // implemented placeholder extras:
+  tint?: number;                        // 0xRRGGBB placeholder tint (presentation only)
+  spawnWeight?: number;                 // relative weight within minion/elite (default 1)
+  minMinute?: number; maxMinute?: number; // spawn availability window
 }
 interface DropTable { gold?: [number, number]; pickups?: { id: string; chance: number }[]; chest?: boolean }
 ```
+Death traits live in `params` (e.g. `explodeRadius` + `explodeDamage`); the `ranged` behavior reads
+`period`, `range`, `preferredRange`, `speed`, `lifetime`, `damage`; `charge` reads `period`, `dashTicks`,
+`dashSpeed`; `weaver` reads `amplitude`, `frequency`.
+
 
 ## Stage (the timeline)
 ```ts

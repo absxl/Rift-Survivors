@@ -2,6 +2,7 @@
 // and death → gem drop (+ chest/pickup drops for elites and lucky kills).
 import type { Registries } from "../registry";
 import type { World } from "../world";
+import { damagePlayer } from "./combat";
 import {
   PICKUP_CHEST,
   PICKUP_FREEZE,
@@ -54,6 +55,7 @@ function enemyAi(world: World): void {
 function deaths(world: World): void {
   const enemies = world.stores.enemies;
   const gems = world.stores.gems;
+  const players = world.stores.players;
   enemies.forEachAlive((slot) => {
     if (enemies.field("hp")[slot] > 0) return;
     const def = world.content.enemies[enemies.field("kind")[slot]];
@@ -84,13 +86,28 @@ function deaths(world: World): void {
       dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
     }
 
+    // Exploder: burst on death (players only, i-frame aware).
+    const explodeRadius =
+      def && typeof def.params.explodeRadius === "number" ? def.params.explodeRadius : 0;
+    if (def && explodeRadius > 0) {
+      const explodeDamage =
+        typeof def.params.explodeDamage === "number" ? def.params.explodeDamage : def.damage;
+      const r2 = explodeRadius * explodeRadius;
+      players.forEachAlive((p) => {
+        if (players.field("downed")[p] || players.field("iFrames")[p] > 0) return;
+        const dx = players.field("x")[p] - x;
+        const dy = players.field("y")[p] - y;
+        if (dx * dx + dy * dy <= r2) damagePlayer(world, p, explodeDamage, x, y, "explosion");
+      });
+      world.emit({ type: "explosion", x, y, radius: explodeRadius });
+    }
+
     if (def?.category === "final-threat" && !world.bossRush) {
       world.bossRush = true;
       world.emit({ type: "boss-rush", reason: "killed" });
     }
 
     const killer = enemies.field("lastHitBy")[slot];
-    const players = world.stores.players;
     if (killer < players.count) players.field("kills")[killer] += 1;
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);

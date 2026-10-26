@@ -5,6 +5,168 @@ import type { World } from "./world";
 
 export function registerEnemyBehaviors(reg: Registries): void {
   reg.enemyBehaviors.register("chase", chase);
+  reg.enemyBehaviors.register("weaver", weaver);
+  reg.enemyBehaviors.register("charge", charge);
+  reg.enemyBehaviors.register("ranged", ranged);
+}
+
+function numParam(def: EnemyDef, key: string, fallback: number): number {
+  const value = def.params[key];
+  return typeof value === "number" ? value : fallback;
+}
+
+interface PlayerTarget {
+  slot: number;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  dist: number;
+}
+
+/** Nearest non-downed player relative to (x, y), or null. */
+function nearestPlayer(world: World, x: number, y: number): PlayerTarget | null {
+  const players = world.stores.players;
+  let best: PlayerTarget | null = null;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  players.forEachAlive((p) => {
+    if (players.field("downed")[p]) return;
+    const dx = players.field("x")[p] - x;
+    const dy = players.field("y")[p] - y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = {
+        slot: p,
+        x: players.field("x")[p],
+        y: players.field("y")[p],
+        dx,
+        dy,
+        dist: Math.sqrt(d2),
+      };
+    }
+  });
+  return best;
+}
+
+function moveToward(world: World, slot: number, target: PlayerTarget, speed: number): void {
+  if (target.dist < 0.001) return;
+  const enemies = world.stores.enemies;
+  enemies.field("x")[slot] += (target.dx / target.dist) * speed;
+  enemies.field("y")[slot] += (target.dy / target.dist) * speed;
+}
+
+/** Straight chase, slowed by the slow status. */
+function chase(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  moveToward(world, slot, target, def.moveSpeed * slow);
+}
+
+/** Chase with a lateral sine weave (harder to hit / less predictable). */
+function weaver(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const ex = enemies.field("x")[slot];
+  const ey = enemies.field("y")[slot];
+  const target = nearestPlayer(world, ex, ey);
+  if (!target || target.dist < 0.001) return;
+
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  const frequency = numParam(def, "frequency", 0.07);
+  const amplitude = numParam(def, "amplitude", 0.8);
+  const wave = Math.sin((world.tick + slot * 23) * frequency) * amplitude;
+  const nx = target.dx / target.dist;
+  const ny = target.dy / target.dist;
+  const dx = nx - ny * wave;
+  const dy = ny + nx * wave;
+  const len = Math.hypot(dx, dy) || 1;
+  const speed = def.moveSpeed * slow;
+  enemies.field("x")[slot] += (dx / len) * speed;
+  enemies.field("y")[slot] += (dy / len) * speed;
+}
+
+/** Slow drift, then a fast dash toward the player on a fixed cycle. */
+function charge(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+
+  const period = Math.max(1, Math.floor(numParam(def, "period", 110)));
+  const dashTicks = Math.min(period, Math.max(1, Math.floor(numParam(def, "dashTicks", 16))));
+  const dashSpeed = numParam(def, "dashSpeed", 2.3);
+  const phase = (((world.tick + slot * 31) % period) + period) % period;
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  const speed = (phase < dashTicks ? dashSpeed : def.moveSpeed) * slow;
+  moveToward(world, slot, target, speed);
+}
+
+/** Keep distance and fire hostile projectiles on a fixed cadence. */
+function ranged(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const ex = enemies.field("x")[slot];
+  const ey = enemies.field("y")[slot];
+  const target = nearestPlayer(world, ex, ey);
+  if (!target) return;
+
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  const preferred = numParam(def, "preferredRange", 180);
+  if (target.dist > preferred + 20) {
+    moveToward(world, slot, target, def.moveSpeed * slow);
+  } else if (target.dist < preferred - 30 && target.dist > 0.001) {
+    const speed = def.moveSpeed * slow * 0.7;
+    enemies.field("x")[slot] -= (target.dx / target.dist) * speed;
+    enemies.field("y")[slot] -= (target.dy / target.dist) * speed;
+  }
+
+  const period = Math.max(1, Math.floor(numParam(def, "period", 90)));
+  const range = numParam(def, "range", 280);
+  if (target.dist > range) return;
+  if ((((world.tick + slot * 7) % period) + period) % period !== 0) return;
+  if (target.dist < 0.001) return;
+
+  spawnHostileProjectile(
+    world,
+    ex,
+    ey,
+    target.dx / target.dist,
+    target.dy / target.dist,
+    numParam(def, "damage", def.damage),
+    numParam(def, "speed", 3.4),
+    Math.max(1, Math.floor(numParam(def, "lifetime", 120))),
+  );
+}
+
+/** Allocate a straight hostile projectile (mode 5, owner 255). */
+function spawnHostileProjectile(
+  world: World,
+  x: number,
+  y: number,
+  dirX: number,
+  dirY: number,
+  damage: number,
+  speed: number,
+  lifetime: number,
+): void {
+  const proj = world.stores.projectiles.alloc();
+  if (proj < 0) return;
+  const p = world.stores.projectiles;
+  p.field("x")[proj] = x + dirX * 8;
+  p.field("y")[proj] = y + dirY * 8;
+  p.field("vx")[proj] = dirX * speed;
+  p.field("vy")[proj] = dirY * speed;
+  p.field("damage")[proj] = damage;
+  p.field("pierce")[proj] = 0;
+  p.field("hitCooldown")[proj] = 0;
+  p.field("knockback")[proj] = 0;
+  p.field("lifetime")[proj] = lifetime;
+  p.field("owner")[proj] = 255;
+  p.field("mode")[proj] = 5;
 }
 
 export function registerWeaponBehaviors(reg: Registries): void {
@@ -16,39 +178,6 @@ export function registerWeaponBehaviors(reg: Registries): void {
   reg.weaponBehaviors.register("orbit", orbit);
   reg.weaponBehaviors.register("bounce", bounce);
   reg.weaponBehaviors.register("boomerang", boomerang);
-}
-
-/** Move toward the nearest player, slowed by the slow status. */
-function chase(world: World, slot: number, def: EnemyDef): void {
-  const enemies = world.stores.enemies;
-  if (enemies.field("freezeTicks")[slot] > 0) return; // frozen solid
-  const players = world.stores.players;
-  const ex = enemies.field("x")[slot];
-  const ey = enemies.field("y")[slot];
-
-  let targetX = 0;
-  let targetY = 0;
-  let bestD2 = Number.POSITIVE_INFINITY;
-  players.forEachAlive((p) => {
-    if (players.field("downed")[p]) return;
-    const dx = players.field("x")[p] - ex;
-    const dy = players.field("y")[p] - ey;
-    const d2 = dx * dx + dy * dy;
-    if (d2 < bestD2) {
-      bestD2 = d2;
-      targetX = players.field("x")[p];
-      targetY = players.field("y")[p];
-    }
-  });
-  if (bestD2 === Number.POSITIVE_INFINITY) return;
-
-  const dx = targetX - ex;
-  const dy = targetY - ey;
-  const dist = Math.sqrt(bestD2);
-  if (dist < 0.001) return;
-  const slowFactor = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
-  enemies.field("x")[slot] += (dx / dist) * def.moveSpeed * slowFactor;
-  enemies.field("y")[slot] += (dy / dist) * def.moveSpeed * slowFactor;
 }
 
 /** Melee arc in the facing direction (instant, hits all enemies in the cone). */

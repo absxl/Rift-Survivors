@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   app.stage.addChild(worldLayer);
   app.stage.addChild(hudLayer);
 
-  const renderer = new GameRenderer(worldLayer, pack.weapons);
+  const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies);
   const hud = new Hud(hudLayer, pack.weapons, pack.passives);
   const input = new Input();
   input.attach();
@@ -128,6 +128,7 @@ async function main(): Promise<void> {
       else if (e.type === "level-up") sfx.play("levelup");
       else if (e.type === "weapon-fire") sfx.play("fire");
       else if (e.type === "boss-rush") banner.show("BOSS RUSH");
+      else if (e.type === "explosion") sfx.play("kill");
     }
     if (snap.over && !runEnded) {
       runEnded = true;

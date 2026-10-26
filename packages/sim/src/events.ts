@@ -20,6 +20,7 @@ export type SimEvent =
   | { type: "weapon-fire"; playerId: number; weaponId: number }
   | { type: "offer"; offer: unknown }
   | { type: "boss-rush"; reason: "killed" | "timeout" }
+  | { type: "explosion"; x: number; y: number; radius: number }
   | { type: "run-end"; victory: boolean };
 
 export type SimEventType = SimEvent["type"];

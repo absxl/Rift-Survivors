@@ -158,6 +158,10 @@ interface RunResult {
   finalThreatSpawned: boolean;
   bossRush: boolean;
   bossRushReason: "killed" | "timeout" | null;
+  hpAtEnd: number;
+  lastHitKind: string | null;
+  lastHitSec: number;
+  hitKinds: Record<string, number>;
   weapons: string[];
   passives: string[];
   msPerTick: number;
@@ -177,6 +181,9 @@ function runSeed(
   let gemsCollected = 0;
   let xpFromGems = 0;
   let bossRushReason: "killed" | "timeout" | null = null;
+  let lastHitKind: string | null = null;
+  let lastHitSec = 0;
+  const hitKinds: Record<string, number> = {};
 
   const maxTicks = MAX_MINUTES * 60 * 30;
   for (let t = 0; t < maxTicks && !world.over; t++) {
@@ -191,6 +198,10 @@ function runSeed(
         levelUps++;
       } else if (e.type === "boss-rush") {
         bossRushReason = e.reason;
+      } else if (e.type === "hit" && e.target === "player") {
+        lastHitKind = e.kind;
+        lastHitSec = Math.round(world.tick / 30);
+        hitKinds[e.kind] = (hitKinds[e.kind] ?? 0) + 1;
       }
     }
     while (world.pendingOffers().length > 0) chooseOffer(world);
@@ -225,6 +236,10 @@ function runSeed(
     finalThreatSpawned: world.finalThreatSpawned,
     bossRush: world.bossRush,
     bossRushReason,
+    hpAtEnd: world.stores.players.field("hp")[0],
+    lastHitKind,
+    lastHitSec,
+    hitKinds,
     weapons: weaponIds,
     passives: passiveIds,
     msPerTick: totalMs / Math.max(1, ticks),

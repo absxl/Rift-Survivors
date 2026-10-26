@@ -61,10 +61,18 @@ export interface EnemyDef {
   moveSpeed: number;
   radius: number;
   xp: number;
-  behavior: string; // registry id: "chase" | ...
+  behavior: string; // registry id: "chase" | "weaver" | "charge" | "ranged" | ...
   params: Record<string, number | string>;
   /** Elites/bosses drop a chest on death. */
   dropsChest?: boolean;
+  /** Content-authored placeholder tint (0xRRGGBB); presentation only. */
+  tint?: number;
+  /** Relative spawn weight among its category (default 1). */
+  spawnWeight?: number;
+  /** First minute this enemy may spawn (default 0). */
+  minMinute?: number;
+  /** Last minute it may spawn (inclusive); omitted = forever. */
+  maxMinute?: number;
 }
 
 export interface PassiveDef {

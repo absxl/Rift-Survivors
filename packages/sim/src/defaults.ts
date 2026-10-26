@@ -91,6 +91,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "director.batchSize": 3,
     "director.rampTicks": 600,
     "director.recycleDistance": 500,
+    "director.patternInterval": 450,
     "director.eliteInterval": 2700,
     "director.hpScalePerMin": 0.15,
     "timeline.bossIntervalSec": 300,

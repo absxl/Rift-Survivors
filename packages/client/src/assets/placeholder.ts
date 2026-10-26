@@ -38,11 +38,12 @@ export function createPlaceholderTextures(): PlaceholderTextures {
   });
 
   const enemy = makeTexture(PX, (ctx) => {
-    ctx.fillStyle = "#a53a3a";
+    // Light base so per-enemy tints read clearly (like the player sprite).
+    ctx.fillStyle = "#c8d0dc";
     ctx.fillRect(2, 2, 12, 12);
-    ctx.fillStyle = "#cf5b5b";
+    ctx.fillStyle = "#eef3f8";
     ctx.fillRect(2, 2, 12, 3);
-    ctx.fillStyle = "#240e0e";
+    ctx.fillStyle = "#1a2230";
     ctx.fillRect(6, 6, 2, 2);
   });
 

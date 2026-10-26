@@ -1,4 +1,4 @@
-import type { SimEvent, StoreSnapshot, WeaponDef, WorldSnapshot } from "@rift/sim";
+import type { EnemyDef, SimEvent, StoreSnapshot, WeaponDef, WorldSnapshot } from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
 // the local player, interpolating between the two most recent snapshots. Also
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
@@ -72,6 +72,7 @@ export class GameRenderer {
   private readonly projectileSprites = new Map<number, Sprite>();
   private readonly enemySprites = new Map<number, Sprite>();
   private readonly enemyFlash = new Map<number, number>();
+  private readonly enemyBaseScale = new Map<number, number>();
   private readonly enemyHpBar: Graphics;
   private readonly zoneGraphics: Graphics;
   private readonly fxGraphics: Graphics;
@@ -91,6 +92,7 @@ export class GameRenderer {
   constructor(
     private readonly stage: Container,
     private readonly weapons: WeaponDef[],
+    private readonly enemies: EnemyDef[],
   ) {
     this.textures = createPlaceholderTextures();
 
@@ -241,6 +243,19 @@ export class GameRenderer {
         this.shake = Math.min(4, this.shake + 0.6);
       } else if (e.type === "weapon-fire") {
         this.spawnFireEffect(e.weaponId);
+      } else if (e.type === "explosion") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: e.radius,
+          life: 12,
+          maxLife: 12,
+          color: 0xff8844,
+        });
+        this.shake = Math.min(4, this.shake + 0.8);
       }
     }
 
@@ -264,29 +279,29 @@ export class GameRenderer {
       getStore(this.curr, "pickup"),
       this.prev ? getStore(this.prev, "pickup") : undefined,
     );
+    const projectiles = getStore(this.curr, "projectile");
     this.syncEntities(
       this.projectileSprites,
       this.projectileLayer,
-      getStore(this.curr, "projectile"),
+      projectiles,
       this.prev ? getStore(this.prev, "projectile") : undefined,
       this.textures.projectile,
+      (i) => (projectiles?.fields.mode[i] === 5 ? 0xff6666 : 0xffffff),
     );
-    this.syncEntities(
-      this.enemySprites,
-      this.enemyLayer,
+    this.syncEnemies(
       getStore(this.curr, "enemy"),
       this.prev ? getStore(this.prev, "enemy") : undefined,
-      this.textures.enemy,
     );
 
-    // Enemy hit flash (brief scale pop).
+    // Enemy hit flash (brief scale pop), preserving per-type base scale.
     for (const [slot, sprite] of this.enemySprites) {
       const flash = this.enemyFlash.get(slot) ?? 0;
+      const base = this.enemyBaseScale.get(slot) ?? 1;
       if (flash > 0) {
-        sprite.scale.set(1.2);
+        sprite.scale.set(base * 1.15);
         this.enemyFlash.set(slot, flash - 1);
       } else {
-        sprite.scale.set(1);
+        sprite.scale.set(base);
         this.enemyFlash.delete(slot);
       }
     }
@@ -403,11 +418,12 @@ export class GameRenderer {
     if (prev) {
       for (let i = 0; i < prev.slots.length; i++) prevIndex.set(prev.slots[i], i);
     }
-    const w = 12;
     for (let i = 0; i < store.slots.length; i++) {
       const hp = store.fields.hp[i];
       const maxHp = store.fields.maxHp[i];
       if (hp >= maxHp) continue;
+      const def = this.enemies[store.fields.kind[i]];
+      const w = def ? Math.min(30, Math.max(12, def.radius * 2)) : 12;
       let x = store.fields.x[i];
       let y = store.fields.y[i];
       const pi = prevIndex.get(store.slots[i]);
@@ -427,6 +443,7 @@ export class GameRenderer {
     store: StoreSnapshot | undefined,
     prevStore: StoreSnapshot | undefined,
     texture: Texture,
+    tintFor?: (index: number) => number,
   ): void {
     const seen = new Set<number>();
     const a = this.alpha();
@@ -453,12 +470,60 @@ export class GameRenderer {
           y = lerp(prevStore.fields.y[pi], y, a);
         }
         sprite.position.set(x, y);
+        sprite.tint = tintFor ? tintFor(i) : 0xffffff;
       }
     }
     for (const [slot, sprite] of map) {
       if (!seen.has(slot)) {
         layer.removeChild(sprite);
         map.delete(slot);
+      }
+    }
+  }
+
+  /** Enemies: interpolated positions + per-content tint and radius-based scale. */
+  private syncEnemies(
+    store: StoreSnapshot | undefined,
+    prevStore: StoreSnapshot | undefined,
+  ): void {
+    const seen = new Set<number>();
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prevStore) {
+      for (let i = 0; i < prevStore.slots.length; i++) prevIndex.set(prevStore.slots[i], i);
+    }
+    if (store) {
+      for (let i = 0; i < store.slots.length; i++) {
+        const slot = store.slots[i];
+        seen.add(slot);
+        let sprite = this.enemySprites.get(slot);
+        if (!sprite) {
+          sprite = new Sprite(this.textures.enemy);
+          sprite.anchor.set(0.5, 0.5);
+          this.enemySprites.set(slot, sprite);
+          this.enemyLayer.addChild(sprite);
+        }
+        const def = this.enemies[store.fields.kind[i]];
+        const baseScale = def ? Math.max(0.6, def.radius / 6) : 1;
+        this.enemyBaseScale.set(slot, baseScale);
+        sprite.tint = def?.tint ?? 0xffffff;
+        sprite.scale.set(baseScale);
+
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const pi = prevIndex.get(slot);
+        if (pi !== undefined && prevStore) {
+          x = lerp(prevStore.fields.x[pi], x, a);
+          y = lerp(prevStore.fields.y[pi], y, a);
+        }
+        sprite.position.set(x, y);
+      }
+    }
+    for (const [slot, sprite] of this.enemySprites) {
+      if (!seen.has(slot)) {
+        this.enemyLayer.removeChild(sprite);
+        this.enemySprites.delete(slot);
+        this.enemyBaseScale.delete(slot);
       }
     }
   }

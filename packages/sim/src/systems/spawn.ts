@@ -1,10 +1,19 @@
-// Spawn director: minions in ring/stream patterns, elites, a boss schedule, the
-// final threat, and a post-threat boss rush. Recycles enemies that drift away.
+// Spawn director: weighted minions in ring/stream/swarm/wall patterns, elites,
+// a boss schedule, the final threat, and a post-threat boss rush. Recycles
+// enemies that drift away from the nearest player.
 import type { Registries } from "../registry";
 import type { World } from "../world";
 
+const PATTERNS = ["ring", "stream", "swarm", "wall"] as const;
+type SpawnPattern = (typeof PATTERNS)[number];
+
 export function registerSpawn(reg: Registries): void {
   reg.systems.register("spawn-director", spawnDirector);
+}
+
+interface Point {
+  x: number;
+  y: number;
 }
 
 function spawnDirector(world: World): void {
@@ -12,8 +21,6 @@ function spawnDirector(world: World): void {
   const enemies = world.stores.enemies;
   const players = world.stores.players;
   if (players.count === 0) return;
-  const px = players.field("x")[0];
-  const py = players.field("y")[0];
 
   let alive = 0;
   enemies.forEachAlive(() => alive++);
@@ -24,53 +31,178 @@ function spawnDirector(world: World): void {
   if (!world.bossRush && world.tick % interval === 0 && alive < maxEnemies) {
     const rampTicks = world.num("director.rampTicks");
     const ramp = rampTicks > 0 ? Math.min(1, world.tick / rampTicks) : 1;
-    const playerCount = world.stores.players.count;
+    const playerCount = players.count;
     const playerScale =
       1 + Math.max(0, playerCount - 1) * world.num("director.enemyScalePerPlayer");
     const batch = Math.max(1, Math.round(world.num("director.batchSize") * ramp * playerScale));
+    const center = pickSpawnCenter(world) ?? {
+      x: players.field("x")[0],
+      y: players.field("y")[0],
+    };
+    const pattern = pickPattern(world);
+    const baseAngle = world.rng.range(0, Math.PI * 2);
+
     for (let i = 0; i < batch && alive < maxEnemies; i++) {
-      if (spawnEnemy(world, 0) >= 0) alive++;
+      const defIndex = pickMinion(world);
+      if (defIndex < 0) break;
+      const point = patternPoint(world, pattern, center, i, batch, baseAngle);
+      if (spawnEnemyAt(world, defIndex, point.x, point.y) >= 0) alive++;
     }
   }
 
   // Elites (drop chests).
   const eliteInterval = world.num("director.eliteInterval");
   if (world.tick % eliteInterval === 0 && world.tick > 0) {
-    const eliteIndex = world.content.enemies.findIndex((e) => e.category === "elite");
+    const eliteIndex = pickElite(world);
     if (eliteIndex >= 0) spawnEnemy(world, eliteIndex);
   }
 
   spawnBosses(world);
 
-  // Recycle enemies that drifted far from the player.
+  // Recycle enemies that drifted far from their nearest player.
   const recycleDist = world.num("director.recycleDistance");
   const recycleDist2 = recycleDist * recycleDist;
   enemies.forEachAlive((slot) => {
-    const dx = enemies.field("x")[slot] - px;
-    const dy = enemies.field("y")[slot] - py;
-    if (dx * dx + dy * dy > recycleDist2) {
+    const ex = enemies.field("x")[slot];
+    const ey = enemies.field("y")[slot];
+    let nearestX = players.field("x")[0];
+    let nearestY = players.field("y")[0];
+    let bestD2 = Number.POSITIVE_INFINITY;
+    players.forEachAlive((p) => {
+      if (players.field("downed")[p]) return;
+      const dx = players.field("x")[p] - ex;
+      const dy = players.field("y")[p] - ey;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        nearestX = players.field("x")[p];
+        nearestY = players.field("y")[p];
+      }
+    });
+    if (bestD2 > recycleDist2) {
       const angle = world.rng.range(0, Math.PI * 2);
       const dist = world.rng.range(200, 240);
-      enemies.field("x")[slot] = px + Math.cos(angle) * dist;
-      enemies.field("y")[slot] = py + Math.sin(angle) * dist;
+      enemies.field("x")[slot] = nearestX + Math.cos(angle) * dist;
+      enemies.field("y")[slot] = nearestY + Math.sin(angle) * dist;
     }
   });
 }
 
-/** Spawn a single enemy near the player, scaling HP with elapsed time. */
-function spawnEnemy(world: World, defIndex: number): number {
-  const enemies = world.stores.enemies;
+/** Pick a random alive player as the wave center (deterministic per seed). */
+function pickSpawnCenter(world: World): Point | null {
   const players = world.stores.players;
-  const px = players.field("x")[0];
-  const py = players.field("y")[0];
+  const alive: number[] = [];
+  players.forEachAlive((p) => {
+    if (!players.field("downed")[p]) alive.push(p);
+  });
+  if (alive.length === 0) return null;
+  const slot = alive[world.rng.int(0, alive.length - 1)];
+  return { x: players.field("x")[slot], y: players.field("y")[slot] };
+}
+
+/** Patterns rotate on a fixed interval (no extra state needed). */
+function pickPattern(world: World): SpawnPattern {
+  const interval = Math.max(1, Math.floor(world.num("director.patternInterval")));
+  return PATTERNS[Math.floor(world.tick / interval) % PATTERNS.length];
+}
+
+function patternPoint(
+  world: World,
+  pattern: SpawnPattern,
+  center: Point,
+  index: number,
+  batch: number,
+  baseAngle: number,
+): Point {
+  const dirX = Math.cos(baseAngle);
+  const dirY = Math.sin(baseAngle);
+  const perpX = -dirY;
+  const perpY = dirX;
+
+  if (pattern === "ring") {
+    const angle = baseAngle + (index / Math.max(1, batch)) * Math.PI * 2;
+    const dist = world.rng.range(200, 280);
+    return { x: center.x + Math.cos(angle) * dist, y: center.y + Math.sin(angle) * dist };
+  }
+  if (pattern === "stream") {
+    const dist = 220 + index * 22 + world.rng.range(-8, 8);
+    const lateral = world.rng.range(-12, 12);
+    return {
+      x: center.x + dirX * dist + perpX * lateral,
+      y: center.y + dirY * dist + perpY * lateral,
+    };
+  }
+  if (pattern === "swarm") {
+    const angle = baseAngle + world.rng.range(-0.35, 0.35);
+    const dist = world.rng.range(170, 240);
+    return { x: center.x + Math.cos(angle) * dist, y: center.y + Math.sin(angle) * dist };
+  }
+
+  // wall: a perpendicular line at a fixed distance.
+  const offset = (index - (batch - 1) / 2) * 26 + world.rng.range(-4, 4);
+  const dist = 260 + world.rng.range(-10, 10);
+  return {
+    x: center.x + dirX * dist + perpX * offset,
+    y: center.y + dirY * dist + perpY * offset,
+  };
+}
+
+/** Weighted minion pick, gated by its minute window. */
+function pickMinion(world: World): number {
+  const minutes = world.tick / (30 * 60);
+  const eligible: { index: number; weight: number }[] = [];
+  world.content.enemies.forEach((def, index) => {
+    if (def.category !== "minion") return;
+    if (minutes < (def.minMinute ?? 0)) return;
+    if (def.maxMinute !== undefined && minutes > def.maxMinute) return;
+    const weight = Math.max(0, def.spawnWeight ?? 1);
+    if (weight > 0) eligible.push({ index, weight });
+  });
+  if (eligible.length === 0) {
+    return world.content.enemies.findIndex((e) => e.category === "minion");
+  }
+  let total = 0;
+  for (const entry of eligible) total += entry.weight;
+  let roll = world.rng.range(0, total);
+  for (const entry of eligible) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.index;
+  }
+  return eligible[eligible.length - 1].index;
+}
+
+/** Weighted elite pick, gated by its minute window (-1 if none). */
+function pickElite(world: World): number {
+  const minutes = world.tick / (30 * 60);
+  const eligible: { index: number; weight: number }[] = [];
+  world.content.enemies.forEach((def, index) => {
+    if (def.category !== "elite") return;
+    if (minutes < (def.minMinute ?? 0)) return;
+    if (def.maxMinute !== undefined && minutes > def.maxMinute) return;
+    const weight = Math.max(0, def.spawnWeight ?? 1);
+    if (weight > 0) eligible.push({ index, weight });
+  });
+  if (eligible.length === 0) return -1;
+  let total = 0;
+  for (const entry of eligible) total += entry.weight;
+  let roll = world.rng.range(0, total);
+  for (const entry of eligible) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.index;
+  }
+  return eligible[eligible.length - 1].index;
+}
+
+/** Spawn one enemy at an exact position, scaling HP with elapsed time. */
+export function spawnEnemyAt(world: World, defIndex: number, x: number, y: number): number {
+  const def = world.content.enemies[defIndex];
+  if (!def) return -1;
+  const enemies = world.stores.enemies;
   const slot = enemies.alloc();
   if (slot < 0) return -1;
 
-  const def = world.content.enemies[defIndex];
-  const angle = world.rng.range(0, Math.PI * 2);
-  const dist = world.rng.range(160, 300);
-  enemies.field("x")[slot] = px + Math.cos(angle) * dist;
-  enemies.field("y")[slot] = py + Math.sin(angle) * dist;
+  enemies.field("x")[slot] = x;
+  enemies.field("y")[slot] = y;
 
   const minutes = world.tick / (30 * 60);
   const playerCount = world.stores.players.count;
@@ -84,6 +216,20 @@ function spawnEnemy(world: World, defIndex: number): number {
   enemies.field("hitCooldown")[slot] = 0;
   enemies.field("lastHitBy")[slot] = 0;
   return slot;
+}
+
+/** Spawn one enemy at a random ring position around a random alive player. */
+function spawnEnemy(world: World, defIndex: number): number {
+  const center = pickSpawnCenter(world);
+  if (!center) return -1;
+  const angle = world.rng.range(0, Math.PI * 2);
+  const dist = world.rng.range(160, 300);
+  return spawnEnemyAt(
+    world,
+    defIndex,
+    center.x + Math.cos(angle) * dist,
+    center.y + Math.sin(angle) * dist,
+  );
 }
 
 /** Boss schedule, final threat, and the post-threat boss rush. */
