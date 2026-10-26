@@ -8,6 +8,8 @@ export interface RunResult {
   kills: number;
   timeSec: number;
   won: boolean;
+  /** Chests picked up during the run (saved for the shop). */
+  chestsFound?: number;
 }
 
 /** Sum of purchased ranks → additive stat bonuses for the next run. */
@@ -46,14 +48,18 @@ export function refundPowerUp(save: SaveData, powerUp: PowerUpDef): boolean {
   return true;
 }
 
-/** Award gold + performance-based chests after a run. Returns chests earned. */
+/** Award gold + performance/found chests after a run. Returns chests earned. */
 export function awardRun(save: SaveData, result: RunResult): number {
   save.gold += result.gold;
   save.totalKills += result.kills;
   save.bestTimeSec = Math.max(save.bestTimeSec, result.timeSec);
-  const chests = Math.min(5, Math.floor(result.timeSec / 300) + (result.timeSec >= 60 ? 1 : 0));
-  save.chests += chests;
-  return chests;
+  const performanceChests = Math.min(
+    5,
+    Math.floor(result.timeSec / 300) + (result.timeSec >= 60 ? 1 : 0),
+  );
+  const found = Math.max(0, Math.floor(result.chestsFound ?? 0));
+  save.chests += performanceChests + found;
+  return performanceChests + found;
 }
 
 /** Open one gacha chest: unlocks a random locked champion, or grants gold if all owned. */

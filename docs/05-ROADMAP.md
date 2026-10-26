@@ -133,6 +133,10 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **Enemy pass:** 14 types (8 minions, 2 elites, 3 bosses, 1 final) with chase/weaver/charge/ranged
   behaviors and exploder deaths; weighted, minute-gated spawns in ring/stream/swarm/wall patterns; elite
   variety; placeholder tint + radius visuals. Baselines in `docs/BALANCE.md`.
+- **Chests & progression (D-029):** in-run chests are saved for the meta shop (no mid-run offers);
+  evolutions are level-up cards; every level-up has 3 item cards + 1 repeatable training card; new stat
+  passives (learning/renewal/greed/warding/velocity/persistence/piercing/impact/vampirism/titan); flatter
+  XP curve; minion 5% gold + 1% chest, elite 100% gold + 50% chest, boss guaranteed chest + luck gold.
 - **Netcode:** the server sends a full snapshot on join/rejoin/resync and every 150 ticks, and changed entity
   rows (`snapshot-delta`) otherwise. The client applies deltas (resync on mismatch), interpolates all entities
   and players between snapshots, and gives the local sprite/camera a capped 6px visual input lead. The server

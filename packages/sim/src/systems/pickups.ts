@@ -2,7 +2,6 @@
 // player on touch; effects apply to that player (or globally for nuke/freeze).
 import type { Registries } from "../registry";
 import type { World } from "../world";
-import { buildChestOffer } from "./progression";
 
 export const PICKUP_HEAL = 0;
 export const PICKUP_VACUUM = 1;
@@ -16,13 +15,13 @@ export function registerPickupSystem(reg: Registries): void {
 }
 
 /** Drop a pickup of the given kind at (x, y), with a value based on its kind. */
-export function dropPickup(world: World, x: number, y: number, kind: number): void {
+export function dropPickup(world: World, x: number, y: number, kind: number, value?: number): void {
   const slot = world.stores.pickups.alloc();
   if (slot < 0) return;
   world.stores.pickups.field("x")[slot] = x;
   world.stores.pickups.field("y")[slot] = y;
   world.stores.pickups.field("kind")[slot] = kind;
-  world.stores.pickups.field("value")[slot] = pickupValue(world, kind);
+  world.stores.pickups.field("value")[slot] = value ?? pickupValue(world, kind);
 }
 
 function pickupValue(world: World, kind: number): number {
@@ -87,13 +86,16 @@ function applyPickup(world: World, playerId: number, kind: number, value: number
     enemies.forEachAlive((slot) => {
       enemies.field("hp")[slot] -= value;
     });
+    world.emit({ type: "nuke", playerId });
   } else if (kind === PICKUP_FREEZE) {
     enemies.forEachAlive((slot) => {
       enemies.field("freezeTicks")[slot] = value;
     });
   } else if (kind === PICKUP_GOLD) {
-    players.field("gold")[playerId] += value;
+    players.field("gold")[playerId] += Math.round(value * world.playerStat(playerId, "greed", 1));
   } else if (kind === PICKUP_CHEST) {
-    world.queueOffer(buildChestOffer(world, playerId));
+    const next = players.field("chests")[playerId] + 1;
+    players.field("chests")[playerId] = next;
+    world.emit({ type: "chest-found", playerId, chests: next });
   }
 }

@@ -65,6 +65,8 @@ export interface EnemyDef {
   params: Record<string, number | string>;
   /** Elites/bosses drop a chest on death. */
   dropsChest?: boolean;
+  /** Chance (0..1) to drop a chest for non-guaranteed enemies; luck scales it. */
+  chestChance?: number;
   /** Content-authored placeholder tint (0xRRGGBB); presentation only. */
   tint?: number;
   /** Relative spawn weight among its category (default 1). */

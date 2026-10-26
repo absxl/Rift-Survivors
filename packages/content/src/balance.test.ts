@@ -113,6 +113,7 @@ function optionScore(world: World, playerId: number, option: OfferOption): numbe
   });
 
   if (option.isEvolution) return 1000;
+  if (option.ref.type === "training") return 450;
   if (option.ref.type === "heal") {
     const hp = world.stores.players.field("hp")[playerId];
     const max = world.stores.players.field("maxHp")[playerId];
@@ -152,6 +153,7 @@ interface RunResult {
   levelUps: number;
   kills: number;
   gold: number;
+  chestsFound: number;
   gemsCollected: number;
   xpFromGems: number;
   maxEnemies: number;
@@ -230,6 +232,7 @@ function runSeed(
     levelUps,
     kills: world.stores.players.field("kills")[0],
     gold: world.stores.players.field("gold")[0],
+    chestsFound: world.stores.players.field("chests")[0],
     gemsCollected,
     xpFromGems,
     maxEnemies,

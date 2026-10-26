@@ -21,6 +21,8 @@ export type SimEvent =
   | { type: "offer"; offer: unknown }
   | { type: "boss-rush"; reason: "killed" | "timeout" }
   | { type: "explosion"; x: number; y: number; radius: number }
+  | { type: "chest-found"; playerId: number; chests: number }
+  | { type: "nuke"; playerId: number }
   | { type: "run-end"; victory: boolean };
 
 export type SimEventType = SimEvent["type"];

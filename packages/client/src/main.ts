@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   app.stage.addChild(hudLayer);
 
   const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies);
-  const hud = new Hud(hudLayer, pack.weapons, pack.passives);
+  const hud = new Hud(hudLayer, pack.weapons, pack.passives, pack.enemies);
   const input = new Input();
   input.attach();
   input.setKeybinds(save.settings.keybinds);
@@ -112,6 +112,16 @@ async function main(): Promise<void> {
   let debugElapsed = 0;
   let debugLast = performance.now();
   let frameErrorLogged = false;
+
+  // Full-screen flash for the nuke pickup.
+  const screenFlash = document.createElement("div");
+  screenFlash.className = "screen-flash";
+  document.body.appendChild(screenFlash);
+  const flashScreen = (): void => {
+    screenFlash.classList.remove("flash-on");
+    void screenFlash.offsetWidth;
+    screenFlash.classList.add("flash-on");
+  };
   window.addEventListener("keydown", (e) => {
     if (e.key !== "F3") return;
     e.preventDefault();
@@ -129,15 +139,27 @@ async function main(): Promise<void> {
       else if (e.type === "weapon-fire") sfx.play("fire");
       else if (e.type === "boss-rush") banner.show("BOSS RUSH");
       else if (e.type === "explosion") sfx.play("kill");
+      else if (e.type === "chest-found") {
+        if (e.playerId === localPlayerId) {
+          banner.show("CHEST SAVED");
+          sfx.play("pickup");
+        }
+      } else if (e.type === "nuke") {
+        banner.show("NUKE");
+        flashScreen();
+        renderer.addShake(4);
+        sfx.play("kill");
+      }
     }
     if (snap.over && !runEnded) {
       runEnded = true;
       const playerStore = snap.stores.find((s) => s.kind === "player");
       const idx = playerStore ? playerStore.slots.indexOf(localPlayerId) : -1;
-      const gold = idx >= 0 && playerStore ? playerStore.fields.gold[idx] : 0;
+      const gold = idx >= 0 && playerStore ? Math.round(playerStore.fields.gold[idx]) : 0;
       const kills = idx >= 0 && playerStore ? playerStore.fields.kills[idx] : 0;
+      const chestsFound = idx >= 0 && playerStore ? playerStore.fields.chests[idx] : 0;
       const timeSec = Math.floor(snap.tick / 30);
-      const result = { gold, kills, timeSec, won: false };
+      const result = { gold, kills, timeSec, won: false, chestsFound };
       const chests = awardRun(save, result);
       const newAchievements = checkAchievements(save, result);
       persistSave(save);

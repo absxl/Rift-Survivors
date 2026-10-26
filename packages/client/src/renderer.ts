@@ -423,6 +423,8 @@ export class GameRenderer {
       const maxHp = store.fields.maxHp[i];
       if (hp >= maxHp) continue;
       const def = this.enemies[store.fields.kind[i]];
+      // Bosses/final threats use the HUD overlay bar instead.
+      if (def?.category === "boss" || def?.category === "final-threat") continue;
       const w = def ? Math.min(30, Math.max(12, def.radius * 2)) : 12;
       let x = store.fields.x[i];
       let y = store.fields.y[i];
@@ -567,6 +569,12 @@ export class GameRenderer {
         this.pickupSprites.delete(slot);
       }
     }
+  }
+
+  /** Add screen shake (used by explosions/nukes). */
+  addShake(amount: number): void {
+    if (!this.shakeEnabled) return;
+    this.shake = Math.min(4, this.shake + amount);
   }
 
   /** Toggle screen shake (settings). */

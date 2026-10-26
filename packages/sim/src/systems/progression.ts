@@ -5,6 +5,27 @@ import type { Offer, OfferOption } from "../types";
 import type { World } from "../world";
 import { refreshSynergies } from "./synergies";
 
+/** Repeatable direct stat training cards (one is guaranteed in every level-up). */
+const TRAININGS: { key: string; amount: number }[] = [
+  { key: "growth", amount: 0.05 },
+  { key: "maxHp", amount: 0.1 },
+  { key: "regen", amount: 0.1 },
+  { key: "greed", amount: 0.05 },
+  { key: "resist", amount: 0.03 },
+  { key: "might", amount: 0.05 },
+  { key: "cooldown", amount: 0.04 },
+  { key: "area", amount: 0.05 },
+  { key: "moveSpeed", amount: 0.05 },
+  { key: "magnet", amount: 0.1 },
+  { key: "armor", amount: 1 },
+  { key: "luck", amount: 0.05 },
+  { key: "projectileSpeed", amount: 0.05 },
+  { key: "duration", amount: 0.05 },
+  { key: "pierce", amount: 1 },
+  { key: "knockback", amount: 0.1 },
+  { key: "lifesteal", amount: 0.01 },
+];
+
 export function registerProgression(reg: Registries): void {
   reg.systems.register("progression", progression);
 }
@@ -13,7 +34,8 @@ function xpToNext(world: World, level: number): number {
   const curve = world.ruleset.xpCurve;
   if (level <= curve.length) return curve[level - 1];
   const last = curve[curve.length - 1];
-  return Math.round(last * 1.2 ** (level - curve.length));
+  // After the explicit table, grow linearly (much gentler than the old x1.2).
+  return last + world.num("xp.growthPerLevel") * (level - curve.length);
 }
 
 function progression(world: World): void {
@@ -45,6 +67,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
 
   const ownedWeapons = new Map<number, number>(); // defIndex -> level
   const ownedPassives = new Map<number, number>();
+  const ownedPassiveIds = new Set<string>();
   weapons.forEachAlive((slot) => {
     if (weapons.field("owner")[slot] === playerId) {
       ownedWeapons.set(weapons.field("defIndex")[slot], weapons.field("level")[slot]);
@@ -52,7 +75,10 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   });
   passives.forEachAlive((slot) => {
     if (passives.field("owner")[slot] === playerId) {
-      ownedPassives.set(passives.field("defIndex")[slot], passives.field("level")[slot]);
+      const defIndex = passives.field("defIndex")[slot];
+      ownedPassives.set(defIndex, passives.field("level")[slot]);
+      const def = world.content.passives[defIndex];
+      if (def) ownedPassiveIds.add(def.id);
     }
   });
 
@@ -102,12 +128,18 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     }
   }
 
+  // Evolutions are level-up cards now that chests no longer open in-run.
+  for (const option of evolutionOptions(world, ownedWeapons, ownedPassiveIds)) {
+    consider(option);
+  }
+
   // Fallback so a level-up never produces an empty offer (docs/13 §6).
   if (options.length === 0) {
     options.push({ optionId: "fallback-heal", ref: { type: "heal", id: "heal" } });
   }
 
   const chosen = world.rng.shuffle(options).slice(0, world.num("levelUp.choices"));
+  chosen.push(trainingOption(world, playerId));
   const tokens = world.offerTokens(playerId);
 
   return {
@@ -119,6 +151,38 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     skips: tokens.skips,
     banishes: tokens.banishes,
   };
+}
+
+/** Build the guaranteed training card for a level-up. */
+function trainingOption(world: World, playerId: number): OfferOption {
+  const training = TRAININGS[world.rng.int(0, TRAININGS.length - 1)];
+  return {
+    optionId: `training:${training.key}:${playerId}`,
+    ref: { type: "training", id: training.key },
+    statKey: training.key,
+    statAmount: training.amount,
+  };
+}
+
+/** Evolution cards available when a weapon is maxed and its passive is owned. */
+function evolutionOptions(
+  world: World,
+  ownedWeapons: Map<number, number>,
+  ownedPassiveIds: Set<string>,
+): OfferOption[] {
+  const options: OfferOption[] = [];
+  for (const [defIndex, level] of ownedWeapons) {
+    const def = world.content.weapons[defIndex];
+    if (!def?.evolution) continue;
+    if (level < def.maxLevel) continue;
+    if (!ownedPassiveIds.has(def.evolution.requiresPassive)) continue;
+    options.push({
+      optionId: `evolve:${defIndex}`,
+      ref: { type: "weapon", id: def.evolution.evolvesTo },
+      isEvolution: true,
+    });
+  }
+  return options;
 }
 
 /** Chest offer: evolutions (if available) + item upgrades, 1/3/5 items by luck. */
@@ -148,16 +212,8 @@ export function buildChestOffer(world: World, playerId: number): Offer {
     if (!banished.has(option.optionId)) options.push(option);
   };
 
-  for (const [defIndex, level] of ownedWeapons) {
-    const def = world.content.weapons[defIndex];
-    if (!def?.evolution) continue;
-    if (level < def.maxLevel) continue;
-    if (!ownedPassiveIds.has(def.evolution.requiresPassive)) continue;
-    consider({
-      optionId: `evolve:${defIndex}`,
-      ref: { type: "weapon", id: def.evolution.evolvesTo },
-      isEvolution: true,
-    });
+  for (const option of evolutionOptions(world, ownedWeapons, ownedPassiveIds)) {
+    consider(option);
   }
   for (const [defIndex, level] of ownedWeapons) {
     const def = world.content.weapons[defIndex];
@@ -247,6 +303,16 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
       players.field("hp")[playerId] = Math.min(max, players.field("hp")[playerId] + max * 0.25);
     } else if (ref.type === "gold") {
       world.stores.players.field("gold")[playerId] += 10;
+    } else if (ref.type === "training") {
+      const key = option.statKey;
+      const amount = option.statAmount;
+      if (key && amount !== undefined) {
+        world.playerModifiers[playerId]?.add(key, {
+          op: "add",
+          value: amount,
+          source: `training:${key}`,
+        });
+      }
     }
 
     refreshSynergies(world);
@@ -289,6 +355,7 @@ export function banishOfferOption(world: World, playerId: number, optionIndex: n
   const option = offer.options[optionIndex];
   if (!option) return false;
   if (option.optionId.startsWith("fallback-")) return false;
+  if (option.ref.type === "training") return false;
   world.banishes[playerId] -= 1;
   world.banishedOptions[playerId]?.add(option.optionId);
   const rebuilt =

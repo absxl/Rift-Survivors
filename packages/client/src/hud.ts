@@ -1,12 +1,13 @@
 // League-style in-game hotbar drawn inside the pixel canvas (bottom of the screen):
 // champion portrait + level, HP/XP bars, ability icons (weapons) with cooldowns,
 // item icons (passives), and hover tooltips.
-import type { PassiveDef, WeaponDef, WorldSnapshot } from "@rift/sim";
+import type { EnemyDef, PassiveDef, WeaponDef, WorldSnapshot } from "@rift/sim";
 import { Container, Graphics } from "pixi.js";
 import { PixelText } from "./assets/pixel-font";
+import { pickBossBar } from "./hud-boss";
 import { ownedIndices } from "./loadout";
 import { VIEW_H, VIEW_W } from "./renderer";
-import { PRIMARY_LABELS, SECONDARY_LABELS, formatStats } from "./stats-format";
+import { PRIMARY_LABELS, formatStats } from "./stats-format";
 
 const PANEL_TOP = 216;
 const PORTRAIT_X = 6;
@@ -27,10 +28,13 @@ const ITEM_Y = 232;
 const ITEM_SIZE = 15;
 const ITEM_GAP = 3;
 const ITEM_COUNT = 8;
-const STATS_W = 198;
-const STATS_H = 94;
+const STATS_W = 300;
+const STATS_H = 116;
 const STATS_ROW_TOP = 20;
 const STATS_ROW_H = 10;
+const STATS_COL_X = [6, 154];
+const STATS_VALUE_X = [144, 294];
+const STATS_FOOTER_Y = 104;
 
 function weaponColor(def: WeaponDef | undefined): number {
   const tags = def?.tags ?? [];
@@ -71,8 +75,11 @@ export class Hud {
   private readonly tooltipText: PixelText;
   private readonly statsPanel: Container;
   private readonly statsPrimaryValues: PixelText[] = [];
-  private readonly statsSecondaryValues: PixelText[] = [];
+  private readonly statsFooter: PixelText;
   private statsVisible = false;
+  private readonly bossPanel: Container;
+  private readonly bossName: PixelText;
+  private readonly bossBar: Graphics;
 
   private readonly weapons: WeaponDef[];
   private readonly passives: PassiveDef[];
@@ -83,7 +90,12 @@ export class Hud {
   private pointerY = -1;
   private pointerOver = false;
 
-  constructor(stage: Container, weapons: WeaponDef[], passives: PassiveDef[]) {
+  constructor(
+    stage: Container,
+    weapons: WeaponDef[],
+    passives: PassiveDef[],
+    private readonly enemies: EnemyDef[],
+  ) {
     this.weapons = weapons;
     this.passives = passives;
 
@@ -134,9 +146,9 @@ export class Hud {
     this.timer.display.position.set(VIEW_W / 2, 5);
     stage.addChild(this.timer.display);
 
-    // Tab stats panel (top-left; hidden by default).
+    // Tab stats panel (upper-left; hidden by default).
     this.statsPanel = new Container();
-    this.statsPanel.position.set(6, 8);
+    this.statsPanel.position.set(6, 36);
     this.statsPanel.visible = false;
     stage.addChild(this.statsPanel);
 
@@ -156,28 +168,32 @@ export class Hud {
     this.statsPanel.addChild(closeHint.display);
 
     PRIMARY_LABELS.forEach((label, i) => {
-      const y = STATS_ROW_TOP + i * STATS_ROW_H;
+      const col = i < 8 ? 0 : 1;
+      const y = STATS_ROW_TOP + (i % 8) * STATS_ROW_H;
       const text = new PixelText(label, 1, 0x8ab0c0);
-      text.display.position.set(6, y);
+      text.display.position.set(STATS_COL_X[col], y);
       this.statsPanel.addChild(text.display);
       const value = new PixelText("", 1);
       value.display.anchor.set(1, 0);
-      value.display.position.set(112, y);
+      value.display.position.set(STATS_VALUE_X[col], y);
       this.statsPanel.addChild(value.display);
       this.statsPrimaryValues.push(value);
     });
 
-    SECONDARY_LABELS.forEach((label, i) => {
-      const y = STATS_ROW_TOP + i * STATS_ROW_H;
-      const text = new PixelText(label, 1, 0x8ab0c0);
-      text.display.position.set(122, y);
-      this.statsPanel.addChild(text.display);
-      const value = new PixelText("", 1);
-      value.display.anchor.set(1, 0);
-      value.display.position.set(STATS_W - 6, y);
-      this.statsPanel.addChild(value.display);
-      this.statsSecondaryValues.push(value);
-    });
+    this.statsFooter = new PixelText("", 1, 0x8ab0c0);
+    this.statsFooter.display.position.set(6, STATS_FOOTER_Y);
+    this.statsPanel.addChild(this.statsFooter.display);
+
+    // Top-center boss/final-threat overlay bar.
+    this.bossPanel = new Container();
+    this.bossPanel.visible = false;
+    stage.addChild(this.bossPanel);
+    this.bossName = new PixelText("", 1, 0xffcc44);
+    this.bossName.display.anchor.set(0.5, 0);
+    this.bossName.display.position.set(VIEW_W / 2, 16);
+    this.bossPanel.addChild(this.bossName.display);
+    this.bossBar = new Graphics();
+    this.bossPanel.addChild(this.bossBar);
   }
 
   setLocalPlayer(playerId: number): void {
@@ -256,6 +272,7 @@ export class Hud {
     const maxHp = pIdx >= 0 && playerStore ? playerStore.fields.maxHp[pIdx] : 100;
     const kills = pIdx >= 0 && playerStore ? playerStore.fields.kills[pIdx] : 0;
     const gold = pIdx >= 0 && playerStore ? playerStore.fields.gold[pIdx] : 0;
+    const chests = pIdx >= 0 && playerStore ? playerStore.fields.chests[pIdx] : 0;
 
     this.hpBar.clear();
     this.hpBar.rect(BAR_X, BAR_TOP, BAR_W, HP_H).fill(0x000000);
@@ -313,17 +330,45 @@ export class Hud {
     if (this.statsVisible) {
       const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0];
       if (stats) {
-        const { primary, secondary } = formatStats(stats, { kills, gold, maxHp });
+        const { primary, secondary } = formatStats(stats, {
+          kills,
+          gold,
+          maxHp,
+          chests,
+        });
         primary.forEach((row, i) => {
           const value = this.statsPrimaryValues[i];
           if (value) value.text = row.value;
         });
-        secondary.forEach((row, i) => {
-          const value = this.statsSecondaryValues[i];
-          if (value) value.text = row.value;
-        });
+        this.statsFooter.text = secondary.map((r) => `${r.label} ${r.value}`).join("  ");
       }
     }
+
+    this.updateBossBar(s);
+  }
+
+  /** Top-center boss/final-threat HP bar (nearest to the local player). */
+  private updateBossBar(s: WorldSnapshot): void {
+    const target = pickBossBar(s, this.enemies, this.localPlayerId);
+    if (!target) {
+      this.bossPanel.visible = false;
+      return;
+    }
+    this.bossPanel.visible = true;
+    const color = target.final ? 0xcc66ff : 0xff6644;
+    this.bossName.text = target.name;
+    this.bossName.display.tint = color;
+
+    const x = 120;
+    const y = 26;
+    const w = 240;
+    const h = 8;
+    const pct = target.maxHp > 0 ? Math.max(0, Math.min(1, target.hp / target.maxHp)) : 0;
+    this.bossBar.clear();
+    this.bossBar.rect(x - 2, y - 2, w + 4, h + 4).fill({ color: 0x0a0e16, alpha: 0.92 });
+    this.bossBar.rect(x - 2, y - 2, w + 4, h + 4).stroke({ width: 1, color: 0x3a5a7a });
+    this.bossBar.rect(x, y, w, h).fill(0x222c38);
+    if (pct > 0) this.bossBar.rect(x, y, w * pct, h).fill(color);
   }
 
   private fillWeaponSlot(

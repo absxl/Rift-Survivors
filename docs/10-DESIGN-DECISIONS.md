@@ -136,6 +136,25 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
 - Consequences: no black bars on typical 16:9 windows; pixels can be slightly uneven on non-integer scales.
   Revert to integer scale by flooring the scale factor if crispness is ever preferred over fill.
 
+### D-029 · Chests as shop currency, deeper level stats, gentler XP
+- Date: 2026-10-26 · Status: decided (user)
+- Decision:
+  - **In-run chest pickups are saved, not opened mid-run.** Each pickup increments the player's run chest
+    count; the results screen adds them to `save.chests`, and they are opened from the meta shop.
+  - **Evolutions move to the level-up pool** (maxed weapon + required passive) because chests no longer open
+    card offers in a run.
+  - **Loot:** minions 5% gold + 1% chest; elites 100% gold + 50% chest; bosses/final threat guaranteed chest
+    + luck-scaled gold. Luck scales the chance-based drops and the elite/boss gold amount.
+  - **Every level-up has 3 item cards + 1 guaranteed repeatable Training card** (direct stat gain, no item
+    slot). Training can stack.
+  - **New stat passives:** Learning (growth), Renewal (regen), Greed, Warding (resist), Velocity
+    (projectileSpeed), Persistence (duration), Piercing, Impact (knockback), Vampirism (lifesteal), Titan
+    (maxHp + armor). Heart already covers max HP.
+  - **XP curve:** first 10 costs unchanged; 11–20 flattened; after 20 linear **+7/level** (was ×1.2).
+    Target ≈ level 40 by 30:00.
+- Consequences: in-run power comes from levels/training; chests fund the meta gacha; evolutions are no
+  longer chest-gated; the gold/chest economy is much richer and needs a playtest/balance pass (D-029 tuning).
+
 ## Active ruleset(s)
 `classic` — configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 

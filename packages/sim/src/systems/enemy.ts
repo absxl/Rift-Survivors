@@ -62,6 +62,11 @@ function deaths(world: World): void {
     const x = enemies.field("x")[slot];
     const y = enemies.field("y")[slot];
 
+    const killer = enemies.field("lastHitBy")[slot];
+    const killerValid = killer >= 0 && killer < players.count;
+    const luck = killerValid ? world.playerStat(killer, "luck", 0) : 0;
+    const luckMult = 1 + Math.max(0, luck);
+
     const gemSlot = gems.alloc();
     if (gemSlot >= 0) {
       gems.field("x")[gemSlot] = x;
@@ -69,21 +74,34 @@ function deaths(world: World): void {
       gems.field("value")[gemSlot] = def ? def.xp : 1;
     }
 
-    if (def?.dropsChest) {
+    const isElite = def?.category === "elite";
+    const isBoss = def?.category === "boss" || def?.category === "final-threat";
+    if (isElite) {
+      // Elites always pay gold; their chest is a luck-scaled 50% roll.
+      dropPickup(world, x, y, PICKUP_GOLD, world.num("pickup.eliteGold"));
+      const chance = Math.min(1, (def?.chestChance ?? 0.5) * luckMult);
+      if (chance > 0 && world.rng.chance(chance)) {
+        dropPickup(world, x, y, PICKUP_CHEST);
+      }
+    } else if (isBoss) {
+      // Bosses/final threat guarantee a chest and a luck-scaled gold drop.
+      dropPickup(world, x, y, PICKUP_GOLD, Math.round(world.num("pickup.bossGold") * luckMult));
       dropPickup(world, x, y, PICKUP_CHEST);
-    } else if (world.rng.chance(world.num("pickup.dropChance"))) {
-      // Weighted: gold is the most common lucky drop so runs fund the shop.
-      const kinds = [
-        PICKUP_HEAL,
-        PICKUP_HEAL,
-        PICKUP_VACUUM,
-        PICKUP_NUKE,
-        PICKUP_FREEZE,
-        PICKUP_GOLD,
-        PICKUP_GOLD,
-        PICKUP_GOLD,
-      ];
-      dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
+    } else {
+      // Minions: independent gold/chest rolls, plus consumables and a rare nuke.
+      if (world.rng.chance(Math.min(1, world.num("pickup.goldDropChance") * luckMult))) {
+        dropPickup(world, x, y, PICKUP_GOLD);
+      }
+      if (world.rng.chance(Math.min(1, world.num("pickup.chestDropChance") * luckMult))) {
+        dropPickup(world, x, y, PICKUP_CHEST);
+      }
+      if (world.rng.chance(world.num("pickup.dropChance"))) {
+        const kinds = [PICKUP_HEAL, PICKUP_HEAL, PICKUP_VACUUM, PICKUP_FREEZE];
+        dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
+      }
+      if (world.rng.chance(world.num("pickup.nukeDropChance"))) {
+        dropPickup(world, x, y, PICKUP_NUKE);
+      }
     }
 
     // Exploder: burst on death (players only, i-frame aware).
@@ -107,7 +125,6 @@ function deaths(world: World): void {
       world.emit({ type: "boss-rush", reason: "killed" });
     }
 
-    const killer = enemies.field("lastHitBy")[slot];
     if (killer < players.count) players.field("kills")[killer] += 1;
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);

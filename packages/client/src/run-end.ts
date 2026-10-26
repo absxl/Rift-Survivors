@@ -39,7 +39,7 @@ export class RunEndUI {
   }
 
   show(stats: RunEndStats): void {
-    let text = `TIME ${stats.time}   KILLS ${stats.kills}   GOLD +${stats.gold}   CHESTS +${stats.chests}`;
+    let text = `TIME ${stats.time}   KILLS ${stats.kills}   GOLD +${stats.gold}   CHESTS +${stats.chests} (OPEN IN SHOP)`;
     if (stats.newAchievements.length > 0) {
       text += `\nACHIEVEMENT: ${stats.newAchievements.join(", ")}`;
     }

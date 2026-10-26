@@ -70,6 +70,7 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "maxHp", type: "f32" },
     { name: "gold", type: "f32" },
     { name: "kills", type: "f32" },
+    { name: "chests", type: "u16" },
     { name: "downed", type: "u8" },
     { name: "reviveProgress", type: "f32" },
   ],
@@ -194,6 +195,24 @@ export interface RunStats {
   armor: number;
   /** Bonus fraction: 0 = base (shown as +%). */
   luck: number;
+  /** XP gain multiplier (1 = base). */
+  growth: number;
+  /** HP regenerated per second. */
+  regen: number;
+  /** Gold gain multiplier (1 = base). */
+  greed: number;
+  /** Damage reduction fraction (0..0.7). */
+  resist: number;
+  /** Projectile velocity multiplier (1 = base). */
+  projectileSpeed: number;
+  /** Effect duration multiplier (1 = base). */
+  duration: number;
+  /** Extra projectile pierce (flat). */
+  pierce: number;
+  /** Knockback multiplier (1 = base). */
+  knockback: number;
+  /** Fraction of damage dealt healed back (0 = none). */
+  lifesteal: number;
 }
 
 export interface WorldSnapshot {
@@ -392,6 +411,15 @@ export class World {
       magnet: this.playerStat(playerId, "magnet", 1),
       armor: this.playerStat(playerId, "armor", 0),
       luck: this.playerStat(playerId, "luck", 0),
+      growth: this.playerStat(playerId, "growth", 1),
+      regen: this.playerStat(playerId, "regen", 0),
+      greed: this.playerStat(playerId, "greed", 1),
+      resist: this.playerStat(playerId, "resist", 0),
+      projectileSpeed: this.playerStat(playerId, "projectileSpeed", 1),
+      duration: this.playerStat(playerId, "duration", 1),
+      pierce: this.playerStat(playerId, "pierce", 0),
+      knockback: this.playerStat(playerId, "knockback", 1),
+      lifesteal: this.playerStat(playerId, "lifesteal", 0),
     };
   }
 
@@ -511,11 +539,24 @@ export class World {
     owner = 0,
   ): void {
     const enemies = this.stores.enemies;
+    const knock = knockback * this.playerStat(owner, "knockback", 1);
     enemies.field("hp")[slot] -= amount;
-    enemies.field("vx")[slot] += dirX * knockback;
-    enemies.field("vy")[slot] += dirY * knockback;
+    enemies.field("vx")[slot] += dirX * knock;
+    enemies.field("vy")[slot] += dirY * knock;
     enemies.field("hitCooldown")[slot] = hitCooldown;
     enemies.field("lastHitBy")[slot] = owner;
+
+    // Lifesteal, capped per hit so AoE hits cannot heal to full instantly.
+    const steal = this.playerStat(owner, "lifesteal", 0);
+    const players = this.stores.players;
+    if (steal > 0 && owner >= 0 && owner < players.count) {
+      const max = players.field("maxHp")[owner];
+      if (max > 0 && !players.field("downed")[owner] && players.field("hp")[owner] > 0) {
+        const heal = Math.min(amount * steal, max * 0.02);
+        players.field("hp")[owner] = Math.min(max, players.field("hp")[owner] + heal);
+      }
+    }
+
     this.emit({
       type: "hit",
       target: "enemy",

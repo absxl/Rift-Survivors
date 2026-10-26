@@ -30,11 +30,13 @@ interface BaseDef {
 
 ## Stats
 ```ts
-// Player stats (modifier-stack keys)
-type PlayerStat = "maxHp" | "recovery" | "armor" | "moveSpeed" | "magnet" | "luck" | "growth" | "greed"
-                | "curse" | "revival" | "reroll" | "skip" | "banish";
+// Player stats (modifier-stack keys; 1 = base for multipliers)
+type PlayerStat = "maxHp" | "regen" | "armor" | "resist" | "moveSpeed" | "magnet" | "luck"
+                | "growth" | "greed" | "projectileSpeed" | "duration" | "pierce" | "knockback"
+                | "lifesteal";
 // Weapon-wide stats, applied as multipliers/adders to every weapon
-type WeaponWideStat = "might" | "area" | "speed" | "duration" | "amount" | "cooldown";
+type WeaponWideStat = "might" | "area" | "cooldown" | "projectileSpeed" | "duration"
+                     | "pierce" | "knockback";
 // Per-weapon base stats
 interface WeaponStats {
   damage: number; cooldown: number;      // ticks
@@ -132,12 +134,18 @@ interface PropSpawn { prop: string; density: number; drops: DropTable }   // des
 interface PickupDef extends BaseDef { effect: EffectDef; despawnSec?: number; magnetizable: boolean }
 interface ChestDef extends BaseDef { itemsByLuck: { luckAtLeast: number; items: 1 | 3 | 5; weight: number }[] }
 interface LevelUpRules {
-  choices: number;                   // ≈3
+  choices: number;                   // 3 item cards
+  guaranteedTraining: 1;             // + one repeatable direct stat card
   weights: { newWeapon: number; newPassive: number; upgrade: number };
   fallback: { kind: "gold" | "heal"; amount: number };
-  xpCurve: { level: number; xpToNext: number }[];       // table with step changes (≈ at 20/40)
+  xpCurve: number[];                 // first 20 explicit, then +xp.growthPerLevel per level
 }
 ```
+- **D-029:** in-run chest pickups are **saved** (per player) and opened in the meta shop; they do not generate
+  a chest offer mid-run. `ChestDef.itemsByLuck` is therefore unused in-run (kept for future).
+- Enemy drops: minions 5% gold + 1% chest; elites 100% gold + 50% chest; bosses/final threat guaranteed chest
+  + luck-scaled gold. Luck scales the chance rolls and elite/boss gold.
+- Training cards are engine-side (stat key + amount), repeatable and slot-free.
 
 ## Meta
 ```ts

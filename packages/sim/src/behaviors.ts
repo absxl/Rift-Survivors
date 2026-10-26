@@ -245,16 +245,17 @@ function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
   const proj = world.stores.projectiles.alloc();
   if (proj < 0) return;
   const p = world.stores.projectiles;
+  const speed = def.base.speed * world.playerStat(owner, "projectileSpeed", 1);
   p.field("x")[proj] = px;
   p.field("y")[proj] = py;
-  p.field("vx")[proj] = dirX * def.base.speed;
-  p.field("vy")[proj] = dirY * def.base.speed;
+  p.field("vx")[proj] = dirX * speed;
+  p.field("vy")[proj] = dirY * speed;
   p.field("damage")[proj] = world.weaponDamage(
     def,
     world.stores.weapons.field("level")[weaponSlot],
     owner,
   );
-  p.field("pierce")[proj] = def.base.pierce;
+  p.field("pierce")[proj] = def.base.pierce + Math.floor(world.playerStat(owner, "pierce", 0));
   p.field("hitCooldown")[proj] = def.base.hitCooldown;
   p.field("knockback")[proj] = def.base.knockback;
   p.field("lifetime")[proj] = def.base.lifetime;
@@ -350,7 +351,10 @@ function groundPool(world: World, weaponSlot: number, def: WeaponDef): void {
   const py = players.field("y")[owner];
   const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot], owner);
   const scatter = typeof def.params.scatter === "number" ? def.params.scatter : 60;
-  const lifetime = def.base.duration || 120;
+  const lifetime = Math.max(
+    1,
+    Math.round((def.base.duration || 120) * world.playerStat(owner, "duration", 1)),
+  );
 
   world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
 
@@ -376,7 +380,10 @@ function orbit(world: World, weaponSlot: number, def: WeaponDef): void {
   const damage = world.weaponDamage(def, world.stores.weapons.field("level")[weaponSlot], owner);
   const count = Math.max(1, def.base.amount);
   const radius = world.weaponArea(def, world.stores.weapons.field("level")[weaponSlot], owner);
-  const lifetime = def.base.duration || 180;
+  const lifetime = Math.max(
+    1,
+    Math.round((def.base.duration || 180) * world.playerStat(owner, "duration", 1)),
+  );
 
   world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
 
@@ -440,20 +447,21 @@ function spawnProjectile(
   dirY: number,
   def: WeaponDef,
 ): number {
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
   const proj = world.stores.projectiles.alloc();
   if (proj < 0) return -1;
   const p = world.stores.projectiles;
+  const owner = world.stores.weapons.field("owner")[weaponSlot];
+  const speed = def.base.speed * world.playerStat(owner, "projectileSpeed", 1);
   p.field("x")[proj] = x;
   p.field("y")[proj] = y;
-  p.field("vx")[proj] = dirX * def.base.speed;
-  p.field("vy")[proj] = dirY * def.base.speed;
+  p.field("vx")[proj] = dirX * speed;
+  p.field("vy")[proj] = dirY * speed;
   p.field("damage")[proj] = world.weaponDamage(
     def,
     world.stores.weapons.field("level")[weaponSlot],
     owner,
   );
-  p.field("pierce")[proj] = def.base.pierce;
+  p.field("pierce")[proj] = def.base.pierce + Math.floor(world.playerStat(owner, "pierce", 0));
   p.field("hitCooldown")[proj] = def.base.hitCooldown;
   p.field("knockback")[proj] = def.base.knockback;
   p.field("lifetime")[proj] = def.base.lifetime;

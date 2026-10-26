@@ -66,6 +66,26 @@ describe("content packs", () => {
     }
   });
 
+  it("has the expanded stat passive roster", () => {
+    const game = loadGamePack();
+    expect(game.passives.length).toBeGreaterThanOrEqual(18);
+    const keys = new Set(game.passives.flatMap((p) => Object.keys(p.perLevel)));
+    for (const key of [
+      "growth",
+      "regen",
+      "greed",
+      "resist",
+      "projectileSpeed",
+      "duration",
+      "pierce",
+      "knockback",
+      "lifesteal",
+      "maxHp",
+    ]) {
+      expect(keys.has(key)).toBe(true);
+    }
+  });
+
   it("synergies resolve (tag tiers non-empty)", () => {
     const game = loadGamePack();
     expect(game.synergies.length).toBeGreaterThanOrEqual(1);

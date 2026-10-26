@@ -39,6 +39,8 @@
       }
       .levelup-row {
         display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 12px;
       }
       .levelup-card {
@@ -80,6 +82,10 @@
       }
       .levelup-card.banish-target:hover {
         border-color: #ff6666;
+      }
+      .levelup-card.training {
+        border-color: #3fa9ff;
+        color: #bfe3ff;
       }
       .levelup-hint {
         color: #7f93b0;
@@ -354,6 +360,21 @@
       }
       .banner-show {
         animation: banner-pop 2.6s ease-out forwards;
+      }
+      .screen-flash {
+        position: fixed;
+        inset: 0;
+        background: #ffffff;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 55;
+      }
+      .screen-flash.flash-on {
+        animation: screen-flash 0.35s ease-out;
+      }
+      @keyframes screen-flash {
+        0% { opacity: 0.75; }
+        100% { opacity: 0; }
       }
       @keyframes banner-pop {
         0% { opacity: 0; transform: translateX(-50%) scale(0.85); }

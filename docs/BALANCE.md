@@ -6,75 +6,74 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
 - Date: 2026-10-26
 - Run command: `$env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance`
 - Seeds: 101, 202, 303
-- Reference: 30:00 final threat → boss rush (fallback starts it at 30:45 if the threat lives); solo run ends
-  when the player dies.
-- Current pace: `director.spawnInterval 30`, `batchSize 3`, `eliteInterval 2700` (90 s), pattern rotates
-  every 15 s, `pickup.goldAmount 5`.
+- Reference: 30:00 final threat → boss rush (fallback at 30:45); solo run ends on death.
+- Current pace: spawn 30/3, elite chests 90 s, patterns rotate every 15 s, gold 5, drops per D-029
+  (minions 5% gold + 1% chest, elites 100% gold + 50% chest, bosses guaranteed chest + luck gold),
+  level-up = 3 item cards + 1 training card, XP table flattened after 10.
 
 ## Enemy roster (14 types)
 
-| Category | Enemies |
-| -------- | ------- |
-| Minions (8) | chaser (baseline), runner (fast), weaver (zigzag), mote (very fast/weak), ironhide (tank), hexer (ranged), bloater (death explosion), sparker (periodic dash) |
-| Elites (2) | brute (chase), warden (weaver, from minute 10) |
-| Bosses (3) | herald, dragon, baron |
-| Final (1) | void-threat |
-
-Spawning is weighted and minute-gated; regular waves rotate through **ring / stream / swarm / wall**
-placements and centre on a random alive player (co-op). Elites are weighted. Placeholder visuals derive
-from content tint + radius (no real art).
+8 minions (chaser, runner, weaver, mote, ironhide, hexer, bloater, sparker), 2 elites (brute, warden),
+3 bosses (herald, dragon, baron), 1 final threat (void-threat). Weighted/minute-gated spawns; ring /
+stream / swarm / wall patterns; placeholder tint + radius visuals.
 
 ## Bot behaviour
 
-- Kites the nearest enemy inside 140 px (tangential drift); runs straight away inside 45 px.
-- Otherwise walks to the nearest gem (220 px) or pickup (170 px).
-- Auto-picks offers with a 6-weapon → 6-passive → upgrade priority; heals only below 40% HP.
-- Does not dodge hostile projectiles, use reroll/skip/banish, or plan a build.
+- Kites the nearest enemy inside 140 px; otherwise collects gems/pickups.
+- Picks offers with a 6-weapon → 6-passive → upgrade priority; **ignores the training card** (score below
+  item cards). A human can take training every level.
+- Does not dodge hostile projectiles or use reroll/skip/banish.
 
 ## Baseline (current)
 
-| Seed | Survived | Level (picks) | Kills | Gold | Gems / XP | Max alive | Item levels | Boss rush | ms/tick |
-| ---- | -------- | ------------- | ----- | ---- | --------- | --------- | ----------- | --------- | ------- |
-| 101  | 32:00    | 20 (19)       | 5,538 | 430  | 5,052 / 8,702 | 57 | 36 / 60 | timeout | 0.0224 |
-| 202  | 32:00    | 21 (20)       | 5,540 | 330  | 4,847 / 8,901 | 65 | 39 / 60 | timeout | 0.0258 |
-| 303  | 32:00    | 20 (19)       | 5,536 | 440  | 5,002 / 8,593 | 69 | 36 / 60 | timeout | 0.0240 |
+| Seed | Survived | Level (picks) | Kills | Gold | Chests found | Gems / XP | Max alive | Item levels | Boss rush | ms/tick |
+| ---- | -------- | ------------- | ----- | ---- | ------------ | --------- | --------- | ----------- | --------- | ------- |
+| 101  | 32:00    | 45 (44)       | 5,539 | 2,230 | 72 | 4,136 / 7,486 | 66 | 40 / 60 | timeout | 0.0248 |
+| 202  | 32:00    | 45 (44)       | 5,540 | 2,148 | 68 | 4,258 / 8,192 | 84 | 45 / 60 | timeout | 0.0244 |
+| 303  | 32:00    | 45 (44)       | 5,538 | 1,645 | 90 | 4,254 / 7,657 | 59 | 40 / 60 | timeout | 0.0244 |
 
-“Item levels” is the sum of all owned weapon + passive levels (60 = 6×L5 + 6×L5).
+“Item levels” = all owned weapon + passive levels (60 = 6×L5 + 6×L5). “Chests found” are saved for the shop.
 
 Player damage taken by source (hits):
 
 | Seed | Contact | Projectile | Explosion |
 | ---- | ------- | ---------- | --------- |
-| 101  | 3 | 79 | 7 |
-| 202  | 1 | 77 | 2 |
-| 303  | 8 | 205 | 21 |
+| 101  | 0 | 39 | 4 |
+| 202  | 0 | 81 | 0 |
+| 303  | 0 | 46 | 0 |
 
 ## Observations
 
-1. **All three seeds survive to 32:00** with the full roster, at level 20–21 and 36–39/60 item levels.
-2. **Ranged casters are the dominant threat.** Projectiles account for ~90% of hits; the bot never dodges
-   them. An early version (period 90, speed 3.4, range 280, weight 0.8) killed the bot at ~7 minutes; the
-   tuned version (period 240, speed 2.2, range 180, weight 0.3, from minute 9) keeps it alive while still
-   making casters matter. A human can dodge, so treat this as bot-only pressure.
-3. **Contact is rare.** Fast minions (runner/mote) and chargers create pressure, but the bot outruns them;
-   most damage still comes from ranged fire. Bloaters add a small explosion chip.
-4. **Build pacing is similar to the pre-enemy pass** (36–39/60 vs 33–45/60) because the specials award more
-   XP but also demand more movement.
-5. **The endgame is still reached via the 45 s fallback** rather than a kill; the final threat remains
-   outrunnable at speed 1.0.
-6. **Performance is trivial:** 0.022–0.026 ms/tick with the richer wave mix (vs ~0.019 before).
+1. **XP is no longer a grind.** The flatter curve gives level **45 / 44 picks** by 32:00 (was level ~20).
+   Builds reach 40–45/60 item levels without chest item bursts, and evolutions now appear as level-up cards
+   (the bot picked `final-spark`, `spirit-rush`, `pyroclasm`, etc.).
+2. **Chests are meta-only now.** 68–90 found chests/run come from minion 1%, elite 50% and bosses; they no
+   longer give in-run items. The shop can unlock all champions very quickly and then converts chests to gold.
+3. **Gold is very high.** 1,645–2,230/run (minion 5% + elites 100% + bosses + Greed) against a ~1,425-gold
+   shop total: one good run nearly buys every permanent upgrade. This is the requested rate; tune the coin
+   value/shop costs after a playtest if it feels too fast.
+4. **Defensive stats are strong.** The bot ends at full HP with regen/lifesteal/plate and only projectile
+   hits; the new survivability passives may be too forgiving. Human pressure test needed.
+5. **Ranged casters remain the main threat** (39–81 projectile hits); contact is now zero in the bot runs.
+6. **The endgame is still reached via the 45 s fallback** — the final threat remains outrunnable/chase-only.
+   The new top-center boss bar makes the fight readable.
+7. **Performance** is unchanged at ~0.024 ms/tick with level-45 builds.
 
 ## Recommended follow-up
 
-- **Human difficulty pass:** watch a real run. The bot proves the roster is survivable with perfect kiting;
-  it does not prove casters/chargers feel fair to a human.
-- **Boss patterns:** bosses are all chase-only. A dash/ranged pattern would make the final threat and rush
-  more interesting than more HP.
-- **Optional:** tiered XP gems (`13-CLASSIC-FEEL-SPEC §6`) if level pacing should speed up.
-- **Co-op:** spawn centres are per-wave random; watch that 4-player rooms don't stack casters on one player.
+- **Economy pass:** the 5% minion gold / 1% chest + guaranteed elite/boss rewards make gold and gacha
+  chests abundant. Consider lowering `pickup.goldAmount` (5) or raising shop costs after a human run.
+- **Human difficulty pass:** full-HP bot endings suggest defensive stats (regen/lifesteal/resist/plate) might
+  need caps or lower values. Also watch the new training cards’ stacking.
+- **Boss patterns:** bosses are still chase-only; a dash/ranged pattern would make the final threat and rush
+  more interesting.
+- **Training card weighting:** the bot ignores training; a human can stack max HP/regen. Watch for a
+  “training-only” degenerate build.
+- **Meta chests:** after all champions are owned they give 50 gold each; with 68–90 chests this is a large
+  gold source. Decide if that is intended.
 
 ## Caveats
 
-- The bot does not dodge projectiles or use reroll/skip/banish, and its build choices are greedy.
-- A human kites worse but dodges better; the two roughly cancel, but only a playtest settles it.
+- The bot does not take the guaranteed training card, dodge projectiles, or use reroll/skip/banish.
+- A human kites worse but uses training/dodges better; only a playtest settles the feel.
 - The final threat is a chase-only boss; its threat depends on the build and route.

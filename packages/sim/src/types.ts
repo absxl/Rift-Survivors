@@ -20,6 +20,9 @@ export interface OfferOption {
   level?: number;
   isEvolution?: boolean;
   cost?: { currency: string; amount: number };
+  /** Direct training cards (repeatable stat gain, no item slot). */
+  statKey?: string;
+  statAmount?: number;
 }
 
 export interface Offer {

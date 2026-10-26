@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, applyChoice, createWorld, step } from "./index";
 import type { ContentPack } from "./index";
 
-// 2 weapons + 1 passive + 1 character → exactly 3 level-up options (deterministic).
+// 2 weapons + 1 passive + 1 character → 3 item cards + 1 guaranteed training card.
 const PROG_PACK: ContentPack = {
   id: "prog",
   schemaVersion: 1,
@@ -56,13 +56,37 @@ const PROG_PACK: ContentPack = {
 };
 
 describe("progression", () => {
-  it("levels up on XP threshold and offers exactly 3 cards", () => {
+  it("levels up and offers 3 item cards + 1 guaranteed training card", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
     world.partyXp = 100;
     step(world, []);
     expect(world.stores.players.field("level")[0]).toBe(2);
     expect(world.pendingOffers().length).toBe(1);
-    expect(world.pendingOffers()[0].options.length).toBe(3);
+    expect(world.pendingOffers()[0].options.length).toBe(4);
+    expect(world.pendingOffers()[0].options.filter((o) => o.ref.type === "training").length).toBe(
+      1,
+    );
+  });
+
+  it("training cards are repeatable and apply the stat directly", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 2);
+    world.partyXp = 100;
+    step(world, []);
+    const offer = world.pendingOffers()[0];
+    const training = offer.options.find((o) => o.ref.type === "training");
+    expect(training).toBeTruthy();
+    if (!training) throw new Error("training card missing");
+    const key = training.statKey ?? "";
+    const amount = training.statAmount ?? 0;
+    expect(amount).toBeGreaterThan(0);
+    const base = ["regen", "resist", "armor", "pierce", "lifesteal", "luck"].includes(key) ? 0 : 1;
+    expect(world.playerStat(0, key, base)).toBeCloseTo(base);
+    applyChoice(world, 0, offer.options.indexOf(training));
+    expect(world.playerStat(0, key, base)).toBeCloseTo(base + amount);
+
+    world.partyXp = world.partyXpToNext;
+    step(world, []);
+    expect(world.pendingOffers()[0].options.some((o) => o.ref.type === "training")).toBe(true);
   });
 
   it("applying a passive adds it and applies its modifier via the stack", () => {

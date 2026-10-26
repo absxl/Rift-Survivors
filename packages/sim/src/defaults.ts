@@ -7,6 +7,7 @@ import { registerEnemySystems } from "./systems/enemy";
 import { registerGemSystem } from "./systems/gems";
 import { registerPickupSystem } from "./systems/pickups";
 import { registerProgression } from "./systems/progression";
+import { registerRegenSystem } from "./systems/regen";
 import { registerReviveSystem } from "./systems/revive";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
@@ -26,6 +27,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerPickupSystem(reg);
   registerProgression(reg);
   registerReviveSystem(reg);
+  registerRegenSystem(reg);
 }
 
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
@@ -73,6 +75,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "zones",
     "contact-damage",
     "revive",
+    "regen",
     "deaths",
     "gems",
     "pickups",
@@ -103,6 +106,11 @@ export const DEFAULT_RULESET: RulesetDef = {
     "pickup.magnetRadius": 60,
     "pickup.magnetSpeed": 3,
     "pickup.dropChance": 0.04,
+    "pickup.goldDropChance": 0.05,
+    "pickup.chestDropChance": 0.01,
+    "pickup.nukeDropChance": 0.0025,
+    "pickup.eliteGold": 10,
+    "pickup.bossGold": 25,
     "pickup.healAmount": 30,
     "pickup.nukeDamage": 50,
     "pickup.freezeTicks": 120,
@@ -113,6 +121,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "levelUp.rerolls": 3,
     "levelUp.skips": 2,
     "levelUp.banishes": 2,
+    "xp.growthPerLevel": 7,
     "weapon.orbitSpeed": 0.08,
     "weapon.zoneHitCooldown": 10,
     "status.burnDps": 1,
@@ -126,6 +135,6 @@ export const DEFAULT_RULESET: RulesetDef = {
   features: {},
   contentPacks: [],
   xpCurve: [
-    5, 8, 12, 18, 25, 35, 50, 70, 100, 140, 190, 260, 350, 470, 620, 820, 1080, 1420, 1860, 2440,
+    5, 8, 12, 18, 25, 35, 50, 70, 100, 140, 160, 167, 174, 181, 188, 195, 202, 209, 216, 223,
   ],
 };

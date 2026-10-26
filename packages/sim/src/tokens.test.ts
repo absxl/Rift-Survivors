@@ -154,4 +154,14 @@ describe("offer agency tokens", () => {
     expect(banishOfferOption(world, 0, 0)).toBe(false);
     expect(offer.banishes).toBe(2);
   });
+
+  it("does not let players banish the guaranteed training card", () => {
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: TOKEN_PACK }, 6);
+    levelUp(world);
+    const offer = world.pendingOffers()[0];
+    const idx = offer.options.findIndex((o) => o.ref.type === "training");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(banishOfferOption(world, 0, idx)).toBe(false);
+    expect(offer.banishes).toBe(2);
+  });
 });

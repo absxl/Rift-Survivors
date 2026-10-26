@@ -2,6 +2,7 @@
 // emits; clicking a card sends its index back to the host. Also exposes the
 // reroll / skip / banish agency actions (`Offer.rerolls/skips/banishes`).
 import type { Offer } from "@rift/sim";
+import { trainingLabel } from "./stats-format";
 
 export class LevelUpUI {
   private readonly root: HTMLElement;
@@ -64,12 +65,17 @@ export class LevelUpUI {
 
     offer.options.forEach((option, index) => {
       const card = document.createElement("button");
-      card.className = this.banishMode ? "levelup-card banish-target" : "levelup-card";
+      const classes = ["levelup-card"];
+      if (this.banishMode) classes.push("banish-target");
+      if (option.ref.type === "training") classes.push("training");
+      card.className = classes.join(" ");
       const label = option.isEvolution
         ? `EVOLVE: ${option.ref.id}`
-        : option.level === undefined
-          ? `${option.ref.type}: ${option.ref.id} (new)`
-          : `${option.ref.type}: ${option.ref.id} Lv${option.level}`;
+        : option.ref.type === "training"
+          ? trainingLabel(option.statKey ?? "", option.statAmount ?? 0)
+          : option.level === undefined
+            ? `${option.ref.type}: ${option.ref.id} (new)`
+            : `${option.ref.type}: ${option.ref.id} Lv${option.level}`;
       card.textContent = `${index + 1}. ${label}`;
       card.addEventListener("click", () => this.pick(index));
       row.appendChild(card);
@@ -92,7 +98,7 @@ export class LevelUpUI {
 
     const hint = document.createElement("div");
     hint.className = "levelup-hint";
-    hint.textContent = "1-3 PICK  ·  R REROLL  ·  S SKIP  ·  B BANISH";
+    hint.textContent = "1-4 PICK  ·  R REROLL  ·  S SKIP  ·  B BANISH";
     this.root.appendChild(hint);
   }
 

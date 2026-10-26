@@ -69,7 +69,7 @@ export class MetaScreen {
     this.root.appendChild(shop);
 
     // Gacha
-    this.root.appendChild(this.sectionTitle("GACHA"));
+    this.root.appendChild(this.sectionTitle("CHESTS"));
     const gacha = document.createElement("div");
     gacha.className = "meta-row";
     const chestBtn = document.createElement("button");
@@ -88,6 +88,10 @@ export class MetaScreen {
     });
     gacha.appendChild(chestBtn);
     this.root.appendChild(gacha);
+    const chestHint = document.createElement("div");
+    chestHint.className = "meta-hint";
+    chestHint.textContent = "CHESTS FOUND IN RUNS OPEN HERE";
+    this.root.appendChild(chestHint);
 
     // Collection
     this.root.appendChild(this.sectionTitle("CHAMPIONS"));

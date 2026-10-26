@@ -148,7 +148,8 @@ export function damagePlayer(
   const players = world.stores.players;
   if (players.field("downed")[slot] || players.field("hp")[slot] <= 0) return;
 
-  const final = Math.max(1, rawDamage - world.playerStat(slot, "armor", 0));
+  const resist = Math.min(0.7, Math.max(0, world.playerStat(slot, "resist", 0)));
+  const final = Math.max(1, rawDamage * (1 - resist) - world.playerStat(slot, "armor", 0));
   players.field("hp")[slot] -= final;
   players.field("iFrames")[slot] = world.num("player.iFrames");
   world.emit({
