@@ -10,9 +10,12 @@ export class Lobby {
   private readonly playerList: HTMLElement;
   private readonly startBtn: HTMLButtonElement;
   private startCb: ((netHost: NetHost, yourPlayerId: number) => void) | null = null;
+  private playersCb: ((players: LobbyPlayer[]) => void) | null = null;
+  private backCb: (() => void) | null = null;
   private netHost: NetHost | null = null;
   private isHost = false;
   private characterId = "lux";
+  private metaBonuses: Record<string, number> = {};
 
   constructor(private readonly serverUrl: string) {
     this.root = document.createElement("div");
@@ -79,8 +82,20 @@ export class Lobby {
     this.startCb = cb;
   }
 
+  onPlayers(cb: (players: LobbyPlayer[]) => void): void {
+    this.playersCb = cb;
+  }
+
+  onBack(cb: () => void): void {
+    this.backCb = cb;
+  }
+
   setCharacter(characterId: string): void {
     this.characterId = characterId;
+  }
+
+  setMetaBonuses(bonuses: Record<string, number>): void {
+    this.metaBonuses = bonuses;
   }
 
   setName(name: string): void {
@@ -100,6 +115,7 @@ export class Lobby {
     this.netHost?.close();
     this.netHost = null;
     this.hide();
+    this.backCb?.();
   }
 
   private async connect(): Promise<NetHost> {
@@ -124,7 +140,7 @@ export class Lobby {
     try {
       this.netHost = await this.connect();
       this.isHost = true;
-      this.netHost.createRoom(this.nameInput.value || "host", this.characterId);
+      this.netHost.createRoom(this.nameInput.value || "host", this.characterId, this.metaBonuses);
     } catch {
       this.status.textContent = "server unreachable";
     }
@@ -140,7 +156,12 @@ export class Lobby {
     try {
       this.netHost = await this.connect();
       this.isHost = false;
-      this.netHost.joinRoom(code, this.nameInput.value || "player", this.characterId);
+      this.netHost.joinRoom(
+        code,
+        this.nameInput.value || "player",
+        this.characterId,
+        this.metaBonuses,
+      );
     } catch {
       this.status.textContent = "server unreachable";
     }
@@ -148,6 +169,7 @@ export class Lobby {
 
   private renderLobby(players: LobbyPlayer[], code: string): void {
     this.status.textContent = `ROOM ${code}`;
+    this.playersCb?.(players);
     this.playerList.replaceChildren();
     for (const p of players) {
       const chip = document.createElement("span");

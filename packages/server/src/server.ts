@@ -34,6 +34,8 @@ interface Client {
   playerId: number;
   name: string;
   characterId: string;
+  /** Per-champion meta-shop bonuses for this player. */
+  metaBonuses: Record<string, number>;
   ready: boolean;
   input: PlayerInput;
   /** Opaque token used to rejoin this slot after a disconnect. */
@@ -120,7 +122,13 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     return room;
   };
 
-  const addClient = (room: Room, ws: WebSocket, name: string, characterId: string): void => {
+  const addClient = (
+    room: Room,
+    ws: WebSocket,
+    name: string,
+    characterId: string,
+    metaBonuses: Record<string, number> = {},
+  ): void => {
     // Reuse the lowest free slot so ids stay stable and unique for the sim.
     const used = new Set(room.clients.map((c) => c.playerId));
     let playerId = 0;
@@ -130,6 +138,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       playerId,
       name,
       characterId,
+      metaBonuses,
       ready: true,
       input: { playerId, moveX: 0, moveY: 0 },
       token: randomUUID(),
@@ -150,6 +159,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
         playerCount: room.clients.length,
         content: pack,
         characterIds: room.clients.map((c) => c.characterId),
+        playerMetaBonuses: room.clients.map((c) => c.metaBonuses),
       },
       room.seed,
     );
@@ -289,7 +299,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
         return;
       }
       if (msg.type === "create") {
-        addClient(newRoom(), ws, msg.name, msg.characterId);
+        addClient(newRoom(), ws, msg.name, msg.characterId, msg.metaBonuses);
       } else {
         const room = rooms.get(msg.code.toUpperCase());
         if (!room) {
@@ -305,7 +315,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
           send(ws, { type: "error", message: "room full" });
           return;
         }
-        addClient(room, ws, msg.name, msg.characterId);
+        addClient(room, ws, msg.name, msg.characterId, msg.metaBonuses);
       }
       return;
     }
@@ -319,6 +329,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
 
     if (msg.type === "ready") {
       client.characterId = msg.characterId;
+      if (msg.metaBonuses) client.metaBonuses = msg.metaBonuses;
       client.ready = msg.ready;
       lobby(room);
     } else if (msg.type === "input") {

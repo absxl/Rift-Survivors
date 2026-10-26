@@ -42,7 +42,10 @@ const statDeltaSchema: z.ZodType<StatDelta> = z.object({
 
 const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
   id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  isMove: z.boolean().optional(),
   behavior: z.string(),
   params: z.record(z.union([z.number(), z.string(), z.boolean()])),
   maxLevel: z.number().int().positive(),
@@ -56,6 +59,7 @@ const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
 
 const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
   id: z.string(),
+  name: z.string().optional(),
   tags: z.array(z.string()).optional(),
   category: z.enum(["minion", "elite", "boss", "final-threat"]),
   hp: z.number().positive(),
@@ -75,6 +79,8 @@ const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
 
 const passiveDefSchema: z.ZodType<PassiveDef> = z.object({
   id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
   tags: z.array(z.string()).optional(),
   maxLevel: z.number().int().positive(),
   perLevel: z.record(z.number()),
@@ -82,16 +88,26 @@ const passiveDefSchema: z.ZodType<PassiveDef> = z.object({
 
 const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  region: z.string().optional(),
+  rarity: z.enum(["common", "rare", "epic", "legendary"]).optional(),
+  class: z.string().optional(),
+  starter: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
   startingWeapon: z.string(),
+  startingMove: z.string().optional(),
   baseStats: z.record(z.number()).optional(),
   growth: z
     .object({ everyLevels: z.number().int().positive(), mods: z.record(z.number()) })
     .optional(),
+  upgradeIds: z.array(z.string()).optional(),
 });
 
 const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({
   id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
   stat: z.string(),
   perRank: z.number(),
   maxRank: z.number().int().positive(),

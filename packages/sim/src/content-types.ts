@@ -4,6 +4,9 @@
 
 export type DamageType = "physical" | "magic" | "true";
 
+/** Gacha/collection rarity. Content-authored; balance-neutral for now. */
+export type Rarity = "common" | "rare" | "epic" | "legendary";
+
 export interface WeaponStats {
   damage: number;
   cooldown: number; // ticks between shots
@@ -37,8 +40,14 @@ export interface StatDelta {
 
 export interface WeaponDef {
   id: string;
+  /** Display name (placeholder flavor; never used by sim logic). */
+  name?: string;
+  /** Flavor + mechanical blurb surfaced in cards/tooltips. */
+  description?: string;
   /** Namespaced tags used by synergies/modifiers (e.g. "damage:fire"). */
   tags?: string[];
+  /** True for champion signature moves: separate slot pool, never evolved. */
+  isMove?: boolean;
   behavior: string; // registry id: "sweep" | "shoot-nearest" | ...
   params: Record<string, number | string | boolean>;
   maxLevel: number;
@@ -54,6 +63,8 @@ export interface WeaponDef {
 
 export interface EnemyDef {
   id: string;
+  /** Display name for the boss bar / codex. */
+  name?: string;
   tags?: string[];
   category: "minion" | "elite" | "boss" | "final-threat";
   hp: number;
@@ -79,6 +90,9 @@ export interface EnemyDef {
 
 export interface PassiveDef {
   id: string;
+  /** Display name (placeholder flavor; never used by sim logic). */
+  name?: string;
+  description?: string;
   tags?: string[];
   maxLevel: number; // ≈5
   /** Stat key → additive amount per level (applied through the modifier stack). */
@@ -87,18 +101,33 @@ export interface PassiveDef {
 
 export interface CharacterDef {
   id: string;
+  name?: string;
+  description?: string;
+  /** Gacha region theme (e.g. "Demacia"). */
+  region?: string;
+  rarity?: Rarity;
+  /** Broad archetype used by class-specific upgrade trees. */
+  class?: string;
+  /** Free starter champion for a fresh local save. */
+  starter?: boolean;
   tags?: string[];
   /** Content weapon id the character starts with. */
   startingWeapon: string;
+  /** Signature move weapon id (isMove) the character starts with. */
+  startingMove?: string;
   /** Stat key → additive bonus applied as modifiers at run start. */
   baseStats?: Record<string, number>;
   /** Growth: every N levels, add these stat bonuses (cumulative). */
   growth?: { everyLevels: number; mods: Record<string, number> };
+  /** Meta-upgrade ids shown in this champion's tree. */
+  upgradeIds?: string[];
 }
 
 /** Permanent-upgrade shop entry (meta progression). */
 export interface PowerUpDef {
   id: string;
+  name?: string;
+  description?: string;
   /** Stat key the rank adds to (e.g. "might", "maxHp"). */
   stat: string;
   /** Bonus added per rank. */

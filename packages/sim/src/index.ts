@@ -46,6 +46,7 @@ export type {
   EnemyDef,
   PassiveDef,
   PowerUpDef,
+  Rarity,
   StatDelta,
   StatusApply,
   SynergyDef,

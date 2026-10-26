@@ -41,6 +41,8 @@ export interface RunConfig {
   characterIds?: string[];
   /** Permanent meta-shop bonuses (stat key → additive bonus). */
   metaBonuses?: Record<string, number>;
+  /** Per-player meta bonuses (co-op); takes precedence over metaBonuses. */
+  playerMetaBonuses?: Record<string, number>[];
 }
 
 const EMPTY_PACK: ContentPack = {
@@ -117,7 +119,8 @@ const PROJECTILE_SCHEMA: EntitySchema = {
 
 const WEAPON_SCHEMA: EntitySchema = {
   kind: "weapon",
-  capacity: 24,
+  // Up to 10 ability slots per player (6 weapons + 4 moves) in a 4-player room.
+  capacity: 64,
   fields: [
     { name: "owner", type: "u8" },
     { name: "defIndex", type: "u16" },
@@ -274,6 +277,7 @@ export class World {
     characterId?: string,
     metaBonuses?: Record<string, number>,
     characterIds?: string[],
+    playerMetaBonuses?: Record<string, number>[],
   ) {
     this.seed = seed;
     this.ruleset = ruleset;
@@ -330,23 +334,33 @@ export class World {
         }
       }
       if (char) {
-        const weaponIndex = content.weapons.findIndex((w) => w.id === char.startingWeapon);
-        if (weaponIndex >= 0) {
+        const addStarting = (weaponId: string | undefined, cooldownOffset: number): void => {
+          if (!weaponId) return;
+          const weaponIndex = content.weapons.findIndex((w) => w.id === weaponId);
+          if (weaponIndex < 0) return;
           const slot = this.stores.weapons.alloc();
           this.stores.weapons.field("owner")[slot] = p;
           this.stores.weapons.field("defIndex")[slot] = weaponIndex;
-          this.stores.weapons.field("cooldown")[slot] = p * 10;
+          this.stores.weapons.field("cooldown")[slot] = cooldownOffset;
           this.stores.weapons.field("level")[slot] = 1;
+        };
+        addStarting(char.startingWeapon, p * 10);
+        // Signature moves use the same auto-cast ability store but a separate
+        // loadout pool (4 move slots); every champion starts with one.
+        if (char.startingMove && char.startingMove !== char.startingWeapon) {
+          addStarting(char.startingMove, p * 10 + 5);
         }
       }
     }
 
-    // Permanent meta-shop bonuses apply to every player's stack.
-    if (metaBonuses) {
-      for (const mods of this.playerModifiers) {
-        for (const [key, value] of Object.entries(metaBonuses)) {
-          if (value !== 0) mods.add(key, { op: "add", value, source: `meta:${key}` });
-        }
+    // Permanent meta bonuses: per-player when supplied (co-op), otherwise the
+    // legacy global bundle applies to everyone.
+    for (let p = 0; p < playerCount; p++) {
+      const bonuses = playerMetaBonuses?.[p] ?? metaBonuses;
+      if (!bonuses) continue;
+      const mods = this.playerModifiers[p];
+      for (const [key, value] of Object.entries(bonuses)) {
+        if (value !== 0) mods.add(key, { op: "add", value, source: `meta:${key}` });
       }
     }
 
@@ -589,6 +603,7 @@ export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number
     config.characterId,
     config.metaBonuses,
     config.characterIds,
+    config.playerMetaBonuses,
   );
 }
 

@@ -17,8 +17,14 @@ export interface SaveSettings {
 export interface SaveData {
   version: number;
   gold: number;
-  /** PowerUp id → purchased rank. */
-  purchases: Record<string, number>;
+  /** Legacy global power-up ranks; migrated into the selected champion's tree. */
+  purchases?: Record<string, number>;
+  /** Champion chosen in the Champions menu; used by solo and co-op runs. */
+  selectedCharacter: string;
+  /** Per-champion meta upgrades: championId -> powerUpId -> rank. */
+  championUpgrades: Record<string, Record<string, number>>;
+  /** Per-champion shards collected from region chests. */
+  championShards: Record<string, number>;
   unlockedCharacters: string[];
   /** Gacha chests earned but not yet opened. */
   chests: number;
@@ -28,14 +34,16 @@ export interface SaveData {
   settings: SaveSettings;
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const SAVE_KEY = "rift-survivors-save";
 
 export function defaultSave(firstCharacter: string): SaveData {
   return {
     version: SAVE_VERSION,
     gold: 0,
-    purchases: {},
+    selectedCharacter: firstCharacter,
+    championUpgrades: {},
+    championShards: {},
     unlockedCharacters: [firstCharacter],
     chests: 0,
     achievements: [],
@@ -65,12 +73,14 @@ export function persistSave(save: SaveData): void {
   localStorage.setItem(SAVE_KEY, JSON.stringify(save));
 }
 
-/** Upgrade an old save to the current version. Only v1 exists so far. */
+/** Upgrade a v1 save (global purchases) to v2 (per-champion trees + gacha shards). */
 function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
   const base = defaultSave(firstCharacter);
   const merged: SaveData = {
     ...base,
     ...parsed,
+    championUpgrades: { ...(parsed.championUpgrades ?? {}) },
+    championShards: { ...(parsed.championShards ?? {}) },
     settings: {
       ...base.settings,
       ...parsed.settings,
@@ -78,7 +88,27 @@ function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
     },
   };
   if (merged.unlockedCharacters.length === 0) merged.unlockedCharacters = [firstCharacter];
+
+  const selected =
+    typeof parsed.selectedCharacter === "string" && parsed.selectedCharacter
+      ? parsed.selectedCharacter
+      : (parsed.unlockedCharacters?.[0] ?? firstCharacter);
+  merged.selectedCharacter = merged.unlockedCharacters.includes(selected)
+    ? selected
+    : (merged.unlockedCharacters[0] ?? firstCharacter);
+
+  // v1 had one global purchase set. Preserve the player's investment by moving it
+  // onto their selected (or first) champion rather than throwing it away.
+  if (parsed.purchases && Object.keys(parsed.purchases).length > 0) {
+    const target = merged.selectedCharacter;
+    merged.championUpgrades[target] = {
+      ...parsed.purchases,
+      ...(merged.championUpgrades[target] ?? {}),
+    };
+  }
+
   merged.version = SAVE_VERSION;
+  merged.purchases = undefined;
   return merged;
 }
 
@@ -86,4 +116,12 @@ export function resetSave(firstCharacter: string): SaveData {
   const fresh = defaultSave(firstCharacter);
   persistSave(fresh);
   return fresh;
+}
+
+/** Selected champion if it is still unlocked, else the first unlocked champion. */
+export function resolveSelectedCharacter(save: SaveData, fallback: string): string {
+  if (save.unlockedCharacters.includes(save.selectedCharacter)) return save.selectedCharacter;
+  const first = save.unlockedCharacters[0] ?? fallback;
+  save.selectedCharacter = first;
+  return first;
 }

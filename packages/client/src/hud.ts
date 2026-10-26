@@ -1,461 +1,594 @@
-// League-style in-game hotbar drawn inside the pixel canvas (bottom of the screen):
-// champion portrait + level, HP/XP bars, ability icons (weapons) with cooldowns,
-// item icons (passives), and hover tooltips.
-import type { EnemyDef, PassiveDef, WeaponDef, WorldSnapshot } from "@rift/sim";
-import { Container, Graphics } from "pixi.js";
-import { PixelText } from "./assets/pixel-font";
+import type { LobbyPlayer } from "@rift/shared";
+// DOM HUD: crisp, League-inspired overlay above the pixel world. The renderer
+// owns only the world; every HUD element here is plain DOM (top bar, party,
+// boss bar, compact hotbar, tooltips, Tab scoreboard).
+import type {
+  CharacterDef,
+  EnemyDef,
+  PassiveDef,
+  RunStats,
+  WeaponDef,
+  WorldSnapshot,
+} from "@rift/sim";
+import { passiveInfo, weaponInfo } from "./ability-info";
+import { championColor } from "./champion-colors";
 import { pickBossBar } from "./hud-boss";
-import { ownedIndices } from "./loadout";
-import { VIEW_H, VIEW_W } from "./renderer";
+import { type LoadoutEntry, ownedIndices } from "./loadout";
 import { PRIMARY_LABELS, formatStats } from "./stats-format";
 
-const PANEL_TOP = 216;
-const PORTRAIT_X = 6;
-const PORTRAIT_Y = 222;
-const PORTRAIT = 26;
-const BAR_X = 38;
-const BAR_TOP = 222;
-const BAR_W = 130;
-const HP_H = 7;
-const XP_H = 5;
-const ABILITY_X = 176;
-const ABILITY_Y = 226;
-const ABILITY_SIZE = 22;
-const ABILITY_GAP = 4;
-const ABILITY_COUNT = 4;
-const ITEM_X = 290;
-const ITEM_Y = 232;
-const ITEM_SIZE = 15;
-const ITEM_GAP = 3;
-const ITEM_COUNT = 8;
-const STATS_W = 300;
-const STATS_H = 116;
-const STATS_ROW_TOP = 20;
-const STATS_ROW_H = 10;
-const STATS_COL_X = [6, 154];
-const STATS_VALUE_X = [144, 294];
-const STATS_FOOTER_Y = 104;
-
-function weaponColor(def: WeaponDef | undefined): number {
-  const tags = def?.tags ?? [];
-  if (tags.includes("damage:fire")) return 0xff6633;
-  if (tags.includes("damage:arcane")) return 0xaa66ff;
-  if (tags.includes("damage:light")) return 0xffe066;
-  if (tags.includes("damage:physical")) return 0xccd0dc;
-  return 0x4488cc;
-}
-
-interface IconSlot {
-  root: Container;
-  bg: Graphics;
-  cooldown: Graphics;
-  initial: PixelText;
-  level: PixelText;
-  x: number;
-  y: number;
-  size: number;
-  label: string | null;
+interface SlotView {
+  root: HTMLElement;
+  letter: HTMLElement;
+  glyph: HTMLElement;
+  level: HTMLElement;
+  cooldown: HTMLElement;
+  empty: boolean;
+  key: string;
+  kind: "weapon" | "passive" | "move";
+  defIndex: number;
   levelNum: number;
   cooldownFrac: number;
-  color: number;
+  label: string;
+  color: string;
+}
+
+const ABILITY_KEYS = ["Q", "W", "E", "R"];
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className = "",
+  text = "",
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function colorHex(value: number): string {
+  return `#${value.toString(16).padStart(6, "0")}`;
 }
 
 export class Hud {
-  private readonly timer: PixelText;
-  private readonly panel: Graphics;
-  private readonly portrait: Graphics;
-  private readonly portraitText: PixelText;
-  private readonly levelText: PixelText;
-  private readonly hpBar: Graphics;
-  private readonly xpBar: Graphics;
-  private readonly abilitySlots: IconSlot[] = [];
-  private readonly itemSlots: IconSlot[] = [];
-  private readonly tooltip: Container;
-  private readonly tooltipBg: Graphics;
-  private readonly tooltipText: PixelText;
-  private readonly statsPanel: Container;
-  private readonly statsPrimaryValues: PixelText[] = [];
-  private readonly statsFooter: PixelText;
-  private statsVisible = false;
-  private readonly bossPanel: Container;
-  private readonly bossName: PixelText;
-  private readonly bossBar: Graphics;
+  private readonly root: HTMLElement;
+  private readonly timeEl: HTMLElement;
+  private readonly killsLabel: HTMLElement;
+  private readonly killsEl: HTMLElement;
+  private readonly goldEl: HTMLElement;
+  private readonly chestsEl: HTMLElement;
+  private readonly partyEl: HTMLElement;
+  private readonly bossEl: HTMLElement;
+  private readonly bossName: HTMLElement;
+  private readonly bossFill: HTMLElement;
+  private readonly portraitEl: HTMLElement;
+  private readonly portraitGlyph: HTMLElement;
+  private readonly levelEl: HTMLElement;
+  private readonly hpFill: HTMLElement;
+  private readonly hpText: HTMLElement;
+  private readonly xpFill: HTMLElement;
+  private readonly abilitySlots: SlotView[] = [];
+  private readonly moveSlots: SlotView[] = [];
+  private readonly itemSlots: SlotView[] = [];
+  private readonly tooltip: HTMLElement;
+  private readonly tooltipTitle: HTMLElement;
+  private readonly tooltipSub: HTMLElement;
+  private readonly tooltipDesc: HTMLElement;
+  private readonly tooltipLines: HTMLElement;
+  private readonly scoreboard: HTMLElement;
+  private readonly scoreboardBody: HTMLElement;
+  private readonly scoreboardStats: HTMLElement;
 
   private readonly weapons: WeaponDef[];
   private readonly passives: PassiveDef[];
+  private readonly enemies: EnemyDef[];
+  private readonly characters: CharacterDef[];
   private localPlayerId = 0;
-  private championInitial = "?";
-  private championColor = 0x44aaff;
-  private pointerX = -1;
-  private pointerY = -1;
-  private pointerOver = false;
+  private championId = "";
+  private party: LobbyPlayer[] = [];
+  private statsVisible = false;
+  private hoverSlot: SlotView | null = null;
+  private hoverX = 0;
+  private hoverY = 0;
+  private lastStats: RunStats | null = null;
 
   constructor(
-    stage: Container,
     weapons: WeaponDef[],
     passives: PassiveDef[],
-    private readonly enemies: EnemyDef[],
+    enemies: EnemyDef[],
+    characters: CharacterDef[] = [],
   ) {
     this.weapons = weapons;
     this.passives = passives;
+    this.enemies = enemies;
+    this.characters = characters;
 
-    this.panel = new Graphics();
-    stage.addChild(this.panel);
+    this.root = el("div", "hud");
+    document.body.appendChild(this.root);
 
-    this.portrait = new Graphics();
-    stage.addChild(this.portrait);
-    this.portraitText = new PixelText("", 2);
-    this.portraitText.display.anchor.set(0.5, 0.5);
-    stage.addChild(this.portraitText.display);
-    this.levelText = new PixelText("1", 1);
-    this.levelText.display.anchor.set(0.5, 0.5);
-    stage.addChild(this.levelText.display);
+    // Top bar ---------------------------------------------------------------
+    const topbar = el("div", "hud-topbar");
+    this.timeEl = el("div", "hud-time", "0:00");
+    const center = el("div", "hud-center");
+    center.appendChild(this.timeEl);
+    const killWrap = el("div", "hud-kills");
+    this.killsLabel = el("span", "hud-kills-label", "KILLS");
+    this.killsEl = el("span", "hud-kills-value", "0");
+    killWrap.append(this.killsLabel, this.killsEl);
+    center.appendChild(killWrap);
+    topbar.appendChild(center);
 
-    this.hpBar = new Graphics();
-    stage.addChild(this.hpBar);
-    this.xpBar = new Graphics();
-    stage.addChild(this.xpBar);
+    const currency = el("div", "hud-currency");
+    this.goldEl = el("span", "hud-gold", "0 G");
+    this.chestsEl = el("span", "hud-chests", "0 CHESTS");
+    currency.append(this.goldEl, this.chestsEl);
+    topbar.appendChild(currency);
+    this.root.appendChild(topbar);
 
-    for (let i = 0; i < ABILITY_COUNT; i++) {
-      this.abilitySlots.push(
-        this.createSlot(
-          stage,
-          ABILITY_X + i * (ABILITY_SIZE + ABILITY_GAP),
-          ABILITY_Y,
-          ABILITY_SIZE,
-          ["Q", "W", "E", "R"][i],
-        ),
-      );
+    // Party frames ----------------------------------------------------------
+    this.partyEl = el("div", "hud-party");
+    this.root.appendChild(this.partyEl);
+
+    // Boss bar --------------------------------------------------------------
+    this.bossEl = el("div", "hud-boss");
+    this.bossEl.style.display = "none";
+    this.bossName = el("div", "hud-boss-name", "");
+    const bossTrack = el("div", "hud-boss-track");
+    this.bossFill = el("div", "hud-boss-fill");
+    bossTrack.appendChild(this.bossFill);
+    this.bossEl.append(this.bossName, bossTrack);
+    this.root.appendChild(this.bossEl);
+
+    // Hotbar ----------------------------------------------------------------
+    const hotbar = el("div", "hud-hotbar");
+    const identity = el("div", "hud-identity");
+    this.portraitEl = el("div", "hud-portrait");
+    this.portraitGlyph = el("span", "hud-portrait-glyph", "?");
+    const levelBadge = el("div", "hud-level-badge");
+    this.levelEl = el("span", "", "1");
+    levelBadge.appendChild(this.levelEl);
+    this.portraitEl.append(this.portraitGlyph, levelBadge);
+    const bars = el("div", "hud-bars");
+    const hpTrack = el("div", "hud-hp-track");
+    this.hpFill = el("div", "hud-hp-fill");
+    hpTrack.appendChild(this.hpFill);
+    this.hpText = el("div", "hud-hp-text", "100 / 100");
+    hpTrack.appendChild(this.hpText);
+    const xpTrack = el("div", "hud-xp-track");
+    this.xpFill = el("div", "hud-xp-fill");
+    xpTrack.appendChild(this.xpFill);
+    bars.append(hpTrack, xpTrack);
+    identity.append(this.portraitEl, bars);
+
+    const abilities = el("div", "hud-slots hud-abilities");
+    for (let i = 0; i < 4; i++) {
+      this.abilitySlots.push(this.makeSlot(abilities, ABILITY_KEYS[i] ?? "", "weapon"));
     }
-    for (let i = 0; i < ITEM_COUNT; i++) {
-      this.itemSlots.push(
-        this.createSlot(stage, ITEM_X + i * (ITEM_SIZE + ITEM_GAP), ITEM_Y, ITEM_SIZE, null),
-      );
+    const moves = el("div", "hud-slots hud-moves");
+    for (let i = 0; i < 4; i++) {
+      this.moveSlots.push(this.makeSlot(moves, "M", "move"));
     }
+    const items = el("div", "hud-items");
+    for (let i = 0; i < 8; i++) {
+      this.itemSlots.push(this.makeSlot(items, "", "passive", true));
+    }
+    hotbar.append(identity, abilities, moves, items);
+    this.root.appendChild(hotbar);
 
-    this.tooltip = new Container();
-    this.tooltipBg = new Graphics();
-    this.tooltip.addChild(this.tooltipBg);
-    this.tooltipText = new PixelText("", 1);
-    this.tooltip.addChild(this.tooltipText.display);
-    this.tooltip.visible = false;
-    stage.addChild(this.tooltip);
+    // Tooltip ---------------------------------------------------------------
+    this.tooltip = el("div", "hud-tooltip");
+    this.tooltip.style.display = "none";
+    this.tooltipTitle = el("div", "hud-tooltip-title");
+    this.tooltipSub = el("div", "hud-tooltip-sub");
+    this.tooltipDesc = el("div", "hud-tooltip-desc");
+    this.tooltipLines = el("div", "hud-tooltip-lines");
+    this.tooltip.append(this.tooltipTitle, this.tooltipSub, this.tooltipDesc, this.tooltipLines);
+    this.root.appendChild(this.tooltip);
 
-    this.timer = new PixelText("0:00", 1);
-    this.timer.display.anchor.set(0.5, 0);
-    this.timer.display.position.set(VIEW_W / 2, 5);
-    stage.addChild(this.timer.display);
-
-    // Tab stats panel (upper-left; hidden by default).
-    this.statsPanel = new Container();
-    this.statsPanel.position.set(6, 36);
-    this.statsPanel.visible = false;
-    stage.addChild(this.statsPanel);
-
-    const statsBg = new Graphics();
-    statsBg.rect(0, 0, STATS_W, STATS_H).fill({ color: 0x0a0e16, alpha: 0.94 });
-    statsBg.rect(0, 0, STATS_W, STATS_H).stroke({ width: 1, color: 0x3a5a7a });
-    statsBg.rect(0, 0, STATS_W, 2).fill(0x3a5a7a);
-    this.statsPanel.addChild(statsBg);
-
-    const statsTitle = new PixelText("STATS", 1, 0xffcc44);
-    statsTitle.display.position.set(6, 5);
-    this.statsPanel.addChild(statsTitle.display);
-
-    const closeHint = new PixelText("TAB: CLOSE", 1, 0x6a8090);
-    closeHint.display.anchor.set(1, 0);
-    closeHint.display.position.set(STATS_W - 6, 5);
-    this.statsPanel.addChild(closeHint.display);
-
-    PRIMARY_LABELS.forEach((label, i) => {
-      const col = i < 8 ? 0 : 1;
-      const y = STATS_ROW_TOP + (i % 8) * STATS_ROW_H;
-      const text = new PixelText(label, 1, 0x8ab0c0);
-      text.display.position.set(STATS_COL_X[col], y);
-      this.statsPanel.addChild(text.display);
-      const value = new PixelText("", 1);
-      value.display.anchor.set(1, 0);
-      value.display.position.set(STATS_VALUE_X[col], y);
-      this.statsPanel.addChild(value.display);
-      this.statsPrimaryValues.push(value);
-    });
-
-    this.statsFooter = new PixelText("", 1, 0x8ab0c0);
-    this.statsFooter.display.position.set(6, STATS_FOOTER_Y);
-    this.statsPanel.addChild(this.statsFooter.display);
-
-    // Top-center boss/final-threat overlay bar.
-    this.bossPanel = new Container();
-    this.bossPanel.visible = false;
-    stage.addChild(this.bossPanel);
-    this.bossName = new PixelText("", 1, 0xffcc44);
-    this.bossName.display.anchor.set(0.5, 0);
-    this.bossName.display.position.set(VIEW_W / 2, 16);
-    this.bossPanel.addChild(this.bossName.display);
-    this.bossBar = new Graphics();
-    this.bossPanel.addChild(this.bossBar);
+    // Scoreboard ------------------------------------------------------------
+    this.scoreboard = el("div", "hud-scoreboard");
+    this.scoreboard.style.display = "none";
+    const scoreTitle = el("div", "hud-score-title", "PARTY & STATS");
+    const scoreHint = el("div", "hud-score-hint", "TAB TO CLOSE");
+    this.scoreboardBody = el("div", "hud-score-body");
+    this.scoreboardStats = el("div", "hud-score-stats");
+    this.scoreboard.append(scoreTitle, scoreHint, this.scoreboardBody, this.scoreboardStats);
+    this.root.appendChild(this.scoreboard);
   }
 
   setLocalPlayer(playerId: number): void {
     this.localPlayerId = playerId;
   }
 
-  setChampion(id: string, color: number): void {
-    this.championInitial = id ? id.charAt(0).toUpperCase() : "?";
-    this.championColor = color;
+  setChampion(id: string): void {
+    this.championId = id;
+    const def = this.characters.find((c) => c.id === id);
+    this.portraitGlyph.textContent = (def?.name ?? id ?? "?").charAt(0).toUpperCase();
+    this.portraitEl.style.background = colorHex(championColor(id));
   }
 
-  setPointer(x: number, y: number, over: boolean): void {
-    this.pointerX = x;
-    this.pointerY = y;
-    this.pointerOver = over;
+  /** Lobby roster for party frames; names/colors come from the lobby. */
+  setParty(players: LobbyPlayer[]): void {
+    this.party = players;
   }
 
-  /** Toggle the Tab stats panel. */
+  /** Tab scoreboard toggle, also driven by the HUD's own Tab handler. */
   toggleStats(): void {
     this.statsVisible = !this.statsVisible;
-    this.statsPanel.visible = this.statsVisible;
-  }
-
-  private createSlot(
-    stage: Container,
-    x: number,
-    y: number,
-    size: number,
-    label: string | null,
-  ): IconSlot {
-    const root = new Container();
-    root.position.set(x, y);
-    stage.addChild(root);
-    const bg = new Graphics();
-    root.addChild(bg);
-    const cooldown = new Graphics();
-    root.addChild(cooldown);
-    const initial = new PixelText("", 1);
-    initial.display.anchor.set(0.5, 0.5);
-    initial.display.position.set(size / 2, size / 2 - 1);
-    root.addChild(initial.display);
-    const level = new PixelText("", 1);
-    level.display.anchor.set(1, 1);
-    level.display.position.set(size - 1, size);
-    root.addChild(level.display);
-    return {
-      root,
-      bg,
-      cooldown,
-      initial,
-      level,
-      x,
-      y,
-      size,
-      label,
-      levelNum: 0,
-      cooldownFrac: 0,
-      color: 0x223344,
-    };
+    this.scoreboard.style.display = this.statsVisible ? "flex" : "none";
   }
 
   update(s: WorldSnapshot): void {
     const secs = Math.floor(s.tick / 30);
-    this.timer.text = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, "0")}`;
-
-    // Panel + bars.
-    this.panel.clear();
-    this.panel
-      .rect(0, PANEL_TOP, VIEW_W, VIEW_H - PANEL_TOP)
-      .fill({ color: 0x0a0e16, alpha: 0.92 });
-    this.panel.rect(0, PANEL_TOP, VIEW_W, 2).fill(0x3a5a7a);
+    this.timeEl.textContent = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, "0")}`;
 
     const playerStore = s.stores.find((st) => st.kind === "player");
     const pIdx = playerStore ? playerStore.slots.indexOf(this.localPlayerId) : -1;
-    const hp = pIdx >= 0 && playerStore ? playerStore.fields.hp[pIdx] : 100;
-    const maxHp = pIdx >= 0 && playerStore ? playerStore.fields.maxHp[pIdx] : 100;
-    const kills = pIdx >= 0 && playerStore ? playerStore.fields.kills[pIdx] : 0;
-    const gold = pIdx >= 0 && playerStore ? playerStore.fields.gold[pIdx] : 0;
-    const chests = pIdx >= 0 && playerStore ? playerStore.fields.chests[pIdx] : 0;
+    const hp = pIdx >= 0 && playerStore ? (playerStore.fields.hp[pIdx] ?? 0) : 0;
+    const maxHp = pIdx >= 0 && playerStore ? (playerStore.fields.maxHp[pIdx] ?? 100) : 100;
+    const gold = pIdx >= 0 && playerStore ? (playerStore.fields.gold[pIdx] ?? 0) : 0;
+    const chests = pIdx >= 0 && playerStore ? (playerStore.fields.chests[pIdx] ?? 0) : 0;
+    const ownKills = pIdx >= 0 && playerStore ? (playerStore.fields.kills[pIdx] ?? 0) : 0;
 
-    this.hpBar.clear();
-    this.hpBar.rect(BAR_X, BAR_TOP, BAR_W, HP_H).fill(0x000000);
-    this.hpBar
-      .rect(BAR_X + 1, BAR_TOP + 1, (BAR_W - 2) * Math.max(0, Math.min(1, hp / maxHp)), HP_H - 2)
-      .fill(0x33cc55);
+    // Team kills in co-op; individual kills in solo (docs: top bar vs Tab).
+    let teamKills = ownKills;
+    if (playerStore && this.party.length > 1) {
+      teamKills = playerStore.slots.reduce(
+        (sum, slot) => sum + (playerStore.fields.kills[slot] ?? 0),
+        0,
+      );
+    }
+    this.killsLabel.textContent = this.party.length > 1 ? "TEAM KILLS" : "KILLS";
+    this.killsEl.textContent = String(Math.round(teamKills));
+    this.goldEl.textContent = `${Math.round(gold)} G`;
+    this.chestsEl.textContent = `${Math.round(chests)} CHESTS`;
 
-    const xpPct = s.partyXpToNext > 0 ? Math.max(0, Math.min(1, s.partyXp / s.partyXpToNext)) : 0;
-    this.xpBar.clear();
-    this.xpBar.rect(BAR_X, BAR_TOP + HP_H + 2, BAR_W, XP_H).fill(0x000000);
-    this.xpBar.rect(BAR_X + 1, BAR_TOP + HP_H + 3, (BAR_W - 2) * xpPct, XP_H - 2).fill(0x3fa9ff);
+    this.hpFill.style.width = `${Math.max(0, Math.min(1, maxHp > 0 ? hp / maxHp : 0)) * 100}%`;
+    this.hpText.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
+    this.xpFill.style.width = `${
+      s.partyXpToNext > 0 ? Math.max(0, Math.min(1, s.partyXp / s.partyXpToNext)) * 100 : 0
+    }%`;
+    this.levelEl.textContent = String(s.partyLevel);
 
-    // Portrait + level.
-    this.portrait.clear();
-    this.portrait.rect(PORTRAIT_X, PORTRAIT_Y, PORTRAIT, PORTRAIT).fill(this.championColor);
-    this.portrait
-      .rect(PORTRAIT_X, PORTRAIT_Y, PORTRAIT, PORTRAIT)
-      .stroke({ width: 2, color: 0x0a0e16 });
-    this.portraitText.text = this.championInitial;
-    this.portraitText.display.position.set(
-      PORTRAIT_X + PORTRAIT / 2,
-      PORTRAIT_Y + PORTRAIT / 2 - 1,
-    );
-    this.levelText.text = String(s.partyLevel);
-    this.levelText.display.position.set(PORTRAIT_X + PORTRAIT - 6, PORTRAIT_Y + PORTRAIT - 5);
+    this.renderParty(playerStore);
 
-    // Loadout (local player).
+    const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0] ?? null;
+    this.lastStats = stats;
+
     const weaponStore = s.stores.find((st) => st.kind === "weapon");
     const passiveStore = s.stores.find((st) => st.kind === "passive");
     const ownedWeapons = ownedIndices(weaponStore, this.localPlayerId);
+    const normalWeapons: LoadoutEntry[] = [];
+    const moves: LoadoutEntry[] = [];
+    for (const entry of ownedWeapons) {
+      const def = this.weapons[entry.defIndex];
+      if (def?.isMove) moves.push(entry);
+      else normalWeapons.push(entry);
+    }
     const ownedPassives = ownedIndices(passiveStore, this.localPlayerId);
 
-    this.fillWeaponSlot(this.abilitySlots[0], ownedWeapons[0]);
-    this.fillWeaponSlot(this.abilitySlots[1], ownedWeapons[1]);
-    this.fillWeaponSlot(this.abilitySlots[2], ownedWeapons[2]);
-    this.fillWeaponSlot(this.abilitySlots[3], ownedWeapons[3]);
-
-    const itemDefs = [
-      ...ownedWeapons.slice(4, 6).map((w) => ({ kind: "weapon" as const, ...w })),
-      ...ownedPassives.map((p) => ({ kind: "passive" as const, ...p })),
+    this.abilitySlots.forEach((slot, i) => this.fillWeaponSlot(slot, normalWeapons[i], stats));
+    this.moveSlots.forEach((slot, i) => this.fillWeaponSlot(slot, moves[i], stats));
+    const itemEntries: LoadoutEntry[] = [...normalWeapons.slice(4, 6)];
+    const items = [
+      ...itemEntries.map((e) => ({ kind: "weapon" as const, entry: e })),
+      ...ownedPassives.map((e) => ({ kind: "passive" as const, entry: e })),
     ];
     this.itemSlots.forEach((slot, i) => {
-      const entry = itemDefs[i];
-      if (!entry) {
-        this.drawEmpty(slot);
-      } else if (entry.kind === "weapon") {
-        this.fillWeaponSlot(slot, entry);
-      } else {
-        this.fillPassiveSlot(slot, entry);
-      }
+      const item = items[i];
+      if (!item) this.drawEmpty(slot);
+      else if (item.kind === "weapon") this.fillWeaponSlot(slot, item.entry, stats);
+      else this.fillPassiveSlot(slot, item.entry);
     });
 
-    this.updateTooltip();
-
-    if (this.statsVisible) {
-      const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0];
-      if (stats) {
-        const { primary, secondary } = formatStats(stats, {
-          kills,
-          gold,
-          maxHp,
-          chests,
-        });
-        primary.forEach((row, i) => {
-          const value = this.statsPrimaryValues[i];
-          if (value) value.text = row.value;
-        });
-        this.statsFooter.text = secondary.map((r) => `${r.label} ${r.value}`).join("  ");
-      }
-    }
-
-    this.updateBossBar(s);
+    this.updateBoss(s);
+    if (this.statsVisible) this.renderScoreboard(playerStore, stats);
+    if (this.hoverSlot) this.refreshTooltip();
   }
 
-  /** Top-center boss/final-threat HP bar (nearest to the local player). */
-  private updateBossBar(s: WorldSnapshot): void {
-    const target = pickBossBar(s, this.enemies, this.localPlayerId);
-    if (!target) {
-      this.bossPanel.visible = false;
-      return;
-    }
-    this.bossPanel.visible = true;
-    const color = target.final ? 0xcc66ff : 0xff6644;
-    this.bossName.text = target.name;
-    this.bossName.display.tint = color;
-
-    const x = 120;
-    const y = 26;
-    const w = 240;
-    const h = 8;
-    const pct = target.maxHp > 0 ? Math.max(0, Math.min(1, target.hp / target.maxHp)) : 0;
-    this.bossBar.clear();
-    this.bossBar.rect(x - 2, y - 2, w + 4, h + 4).fill({ color: 0x0a0e16, alpha: 0.92 });
-    this.bossBar.rect(x - 2, y - 2, w + 4, h + 4).stroke({ width: 1, color: 0x3a5a7a });
-    this.bossBar.rect(x, y, w, h).fill(0x222c38);
-    if (pct > 0) this.bossBar.rect(x, y, w * pct, h).fill(color);
+  private makeSlot(
+    parent: HTMLElement,
+    letter: string,
+    kind: "weapon" | "move" | "passive",
+    small = false,
+  ): SlotView {
+    const root = el(
+      "div",
+      `hud-slot hud-slot-${kind} hud-slot-empty${small ? " hud-slot-small" : ""}`,
+    );
+    const letterEl = el("span", "hud-slot-letter", letter);
+    const glyph = el("span", "hud-slot-glyph", "");
+    const level = el("span", "hud-slot-level", "");
+    const cooldown = el("div", "hud-slot-cooldown");
+    root.append(letterEl, glyph, level, cooldown);
+    parent.appendChild(root);
+    const view: SlotView = {
+      root,
+      letter: letterEl,
+      glyph,
+      level,
+      cooldown,
+      empty: true,
+      key: "",
+      kind,
+      defIndex: -1,
+      levelNum: 0,
+      cooldownFrac: 0,
+      label: "",
+      color: "",
+    };
+    root.addEventListener("mouseenter", () => {
+      this.hoverSlot = view;
+      this.showTooltip(view);
+    });
+    root.addEventListener("mouseleave", () => {
+      this.hoverSlot = null;
+      this.tooltip.style.display = "none";
+    });
+    root.addEventListener("mousemove", (e) => {
+      this.hoverX = e.clientX;
+      this.hoverY = e.clientY;
+      if (this.hoverSlot === view) this.positionTooltip();
+    });
+    return view;
   }
 
   private fillWeaponSlot(
-    slot: IconSlot,
-    entry: { defIndex: number; level: number; cooldown: number } | undefined,
+    slot: SlotView,
+    entry: LoadoutEntry | undefined,
+    stats: RunStats | null,
   ): void {
     if (!entry) {
       this.drawEmpty(slot);
       return;
     }
     const def = this.weapons[entry.defIndex];
-    const color = weaponColor(def);
-    const base = def?.base.cooldown ?? 1;
-    const frac = base > 0 ? Math.max(0, Math.min(1, entry.cooldown / base)) : 0;
-    this.drawSlot(slot, def?.id ?? "?", entry.level, color, frac);
-    slot.cooldownFrac = frac;
-    slot.label = def?.id ?? null;
+    if (!def) {
+      this.drawEmpty(slot);
+      return;
+    }
+    const base = def.base.cooldown / (stats?.cooldown ?? 1);
+    slot.cooldownFrac = base > 0 ? Math.max(0, Math.min(1, entry.cooldown / base)) : 0;
+    const key = `w:${entry.defIndex}:${entry.level}`;
+    if (slot.key !== key) {
+      slot.key = key;
+      slot.empty = false;
+      slot.kind = def.isMove ? "move" : "weapon";
+      slot.defIndex = entry.defIndex;
+      slot.levelNum = entry.level;
+      slot.label = def.name ?? def.id;
+      slot.color = def.tags?.includes("damage:fire")
+        ? "#ff7744"
+        : def.tags?.includes("damage:light")
+          ? "#ffe066"
+          : def.isMove
+            ? "#ffcc44"
+            : "#6fb8ff";
+      slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
+      slot.level.textContent = String(entry.level);
+      slot.root.classList.remove("hud-slot-empty");
+      slot.root.style.borderColor = def.isMove ? "#c8a44a" : slot.color;
+      slot.root.style.background = `linear-gradient(160deg, ${slot.color}33, #0b1019 70%)`;
+      slot.root.title = "";
+    }
+    slot.cooldown.style.height = `${slot.cooldownFrac * 100}%`;
   }
 
-  private fillPassiveSlot(slot: IconSlot, entry: { defIndex: number; level: number }): void {
+  private fillPassiveSlot(slot: SlotView, entry: LoadoutEntry): void {
     const def = this.passives[entry.defIndex];
-    this.drawSlot(slot, def?.id ?? "?", entry.level, 0x66aaff, 0);
-    slot.cooldownFrac = 0;
-    slot.label = def?.id ?? null;
-  }
-
-  private drawSlot(
-    slot: IconSlot,
-    id: string,
-    level: number,
-    color: number,
-    cooldownFrac: number,
-  ): void {
-    const size = slot.size;
-    slot.bg.clear();
-    slot.bg.rect(0, 0, size, size).fill(color);
-    slot.bg.rect(0, 0, size, size).stroke({ width: 1, color: 0x0a0e16 });
-    slot.initial.text = id.charAt(0).toUpperCase();
-    slot.level.text = String(level);
-    slot.levelNum = level;
-    slot.color = color;
-    slot.cooldown.clear();
-    if (cooldownFrac > 0.01) {
-      slot.cooldown.rect(0, 0, size, size * cooldownFrac).fill({ color: 0x000000, alpha: 0.6 });
+    if (!def) {
+      this.drawEmpty(slot);
+      return;
     }
+    const key = `p:${entry.defIndex}:${entry.level}`;
+    if (slot.key !== key) {
+      slot.key = key;
+      slot.empty = false;
+      slot.kind = "passive";
+      slot.defIndex = entry.defIndex;
+      slot.levelNum = entry.level;
+      slot.label = def.name ?? def.id;
+      slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
+      slot.level.textContent = String(entry.level);
+      slot.root.classList.remove("hud-slot-empty");
+      slot.root.style.borderColor = "#3c5870";
+      slot.root.style.background = "linear-gradient(160deg, #1b3348, #0b1019 75%)";
+    }
+    slot.cooldown.style.height = "0%";
   }
 
-  private drawEmpty(slot: IconSlot): void {
-    const size = slot.size;
-    slot.bg.clear();
-    slot.bg.rect(0, 0, size, size).fill(0x111a26);
-    slot.bg.rect(0, 0, size, size).stroke({ width: 1, color: 0x2a3a4a });
-    slot.initial.text = "";
-    slot.level.text = "";
+  private drawEmpty(slot: SlotView): void {
+    if (slot.empty && slot.key === "") return;
+    slot.empty = true;
+    slot.key = "";
+    slot.defIndex = -1;
     slot.levelNum = 0;
-    slot.cooldown.clear();
-    slot.label = null;
+    slot.cooldownFrac = 0;
+    slot.label = "";
+    slot.glyph.textContent = "";
+    slot.level.textContent = "";
+    slot.cooldown.style.height = "0%";
+    slot.root.classList.add("hud-slot-empty");
+    slot.root.style.borderColor = "";
+    slot.root.style.background = "";
   }
 
-  private updateTooltip(): void {
-    if (!this.pointerOver) {
-      this.tooltip.visible = false;
+  private showTooltip(slot: SlotView): void {
+    if (slot.empty) {
+      this.tooltip.style.display = "none";
       return;
     }
-    const slot = this.slotAt(this.pointerX, this.pointerY);
-    if (!slot || !slot.label) {
-      this.tooltip.visible = false;
-      return;
-    }
-    const label = `${slot.label.toUpperCase()}  LV ${slot.levelNum}`;
-    this.tooltipText.text = label;
-    this.tooltipBg.clear();
-    this.tooltipBg.rect(0, 0, label.length * 6 + 6, 12).fill({ color: 0x0a0e16, alpha: 0.95 });
-    this.tooltipBg.rect(0, 0, label.length * 6 + 6, 12).stroke({ width: 1, color: 0x3a5a7a });
-    this.tooltipText.display.position.set(3, 2);
-    const tx = Math.min(VIEW_W - (label.length * 6 + 8), this.pointerX + 6);
-    const ty = Math.max(2, this.pointerY - 18);
-    this.tooltip.position.set(tx, ty);
-    this.tooltip.visible = true;
+    this.refreshTooltip();
+    this.tooltip.style.display = "block";
+    this.positionTooltip();
   }
 
-  private slotAt(x: number, y: number): IconSlot | null {
-    for (const slot of [...this.abilitySlots, ...this.itemSlots]) {
-      if (x >= slot.x && x <= slot.x + slot.size && y >= slot.y && y <= slot.y + slot.size) {
-        return slot;
-      }
+  private refreshTooltip(): void {
+    const slot = this.hoverSlot;
+    if (!slot || slot.empty) return;
+    const info =
+      slot.kind === "passive"
+        ? (() => {
+            const def = this.passives[slot.defIndex];
+            return def ? passiveInfo(def, slot.levelNum) : null;
+          })()
+        : (() => {
+            const def = this.weapons[slot.defIndex];
+            return def ? weaponInfo(def, slot.levelNum, this.lastStats ?? undefined) : null;
+          })();
+    if (!info) return;
+    this.tooltipTitle.textContent = info.title;
+    this.tooltipTitle.style.color = info.color;
+    this.tooltipSub.textContent = info.subtitle;
+    this.tooltipDesc.textContent = info.description;
+    this.tooltipLines.replaceChildren();
+    for (const line of info.lines) {
+      const row = el("div", "hud-tooltip-row");
+      row.append(el("span", "hud-tooltip-label", line.label), el("span", "", line.value));
+      this.tooltipLines.appendChild(row);
     }
-    return null;
+  }
+
+  private positionTooltip(): void {
+    const pad = 14;
+    this.tooltip.style.left = `${Math.min(window.innerWidth - 280, this.hoverX + pad)}px`;
+    this.tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - 260, this.hoverY - 120))}px`;
+  }
+
+  private updateBoss(s: WorldSnapshot): void {
+    const target = pickBossBar(s, this.enemies, this.localPlayerId);
+    if (!target) {
+      this.bossEl.style.display = "none";
+      return;
+    }
+    this.bossEl.style.display = "block";
+    this.bossName.textContent = target.name;
+    this.bossName.classList.toggle("final", target.final);
+    this.bossFill.style.width = `${
+      target.maxHp > 0 ? Math.max(0, Math.min(1, target.hp / target.maxHp)) * 100 : 0
+    }%`;
+    this.bossFill.classList.toggle("final", target.final);
+  }
+
+  private renderParty(playerStore: WorldSnapshot["stores"][number] | undefined): void {
+    const party =
+      this.party.length > 0
+        ? this.party
+        : [
+            {
+              id: this.localPlayerId,
+              name: "YOU",
+              characterId: this.championId,
+              ready: true,
+            },
+          ];
+    if (party.length <= 1 && this.party.length <= 1) {
+      this.partyEl.style.display = "none";
+      return;
+    }
+    this.partyEl.style.display = "flex";
+    this.partyEl.replaceChildren();
+    for (const member of party) {
+      const frame = el("div", "hud-party-frame");
+      const color = colorHex(championColor(member.characterId));
+      const dot = el("div", "hud-party-dot", (member.name || "?").charAt(0).toUpperCase());
+      dot.style.borderColor = color;
+      dot.style.color = color;
+      const info = el("div", "hud-party-info");
+      const name = el("div", "hud-party-name", member.name || "PLAYER");
+      const sub = el("div", "hud-party-sub");
+      const idx = playerStore ? playerStore.slots.indexOf(member.id) : -1;
+      const level = idx >= 0 && playerStore ? (playerStore.fields.level[idx] ?? 1) : 1;
+      const hp = idx >= 0 && playerStore ? (playerStore.fields.hp[idx] ?? 0) : 0;
+      const max = idx >= 0 && playerStore ? (playerStore.fields.maxHp[idx] ?? 100) : 100;
+      const downed = idx >= 0 && playerStore ? playerStore.fields.downed[idx] === 1 : false;
+      const kills = idx >= 0 && playerStore ? Math.round(playerStore.fields.kills[idx] ?? 0) : 0;
+      sub.textContent = downed ? "DOWNED" : `LV ${level}  ·  ${Math.ceil(hp)} HP  ·  ${kills} K`;
+      if (downed) sub.classList.add("down");
+      const hpTrack = el("div", "hud-party-hp-track");
+      const hpFill = el("div", "hud-party-hp-fill");
+      hpFill.style.width = `${Math.max(0, Math.min(1, max > 0 ? hp / max : 0)) * 100}%`;
+      hpFill.style.background = color;
+      hpTrack.appendChild(hpFill);
+      info.append(name, sub, hpTrack);
+      frame.append(dot, info);
+      this.partyEl.appendChild(frame);
+    }
+  }
+
+  private renderScoreboard(
+    playerStore: WorldSnapshot["stores"][number] | undefined,
+    stats: RunStats | null,
+  ): void {
+    this.scoreboardBody.replaceChildren();
+    const header = el("div", "hud-score-row hud-score-head");
+    header.append(
+      el("span", "", "PLAYER"),
+      el("span", "", "CHAMPION"),
+      el("span", "", "LV"),
+      el("span", "", "HP"),
+      el("span", "", "KILLS"),
+      el("span", "", "GOLD"),
+    );
+    this.scoreboardBody.appendChild(header);
+
+    const party =
+      this.party.length > 0
+        ? this.party
+        : [{ id: this.localPlayerId, name: "YOU", characterId: this.championId, ready: true }];
+    for (const member of party) {
+      const idx = playerStore ? playerStore.slots.indexOf(member.id) : -1;
+      const row = el("div", "hud-score-row");
+      if (member.id === this.localPlayerId) row.classList.add("you");
+      const champion = this.characters.find((c) => c.id === member.characterId);
+      row.append(
+        el("span", "", member.name || "PLAYER"),
+        el("span", "", champion?.name ?? member.characterId),
+        el("span", "", String(idx >= 0 && playerStore ? (playerStore.fields.level[idx] ?? 1) : 1)),
+        el(
+          "span",
+          "",
+          `${Math.ceil(idx >= 0 && playerStore ? (playerStore.fields.hp[idx] ?? 0) : 0)}/${Math.ceil(
+            idx >= 0 && playerStore ? (playerStore.fields.maxHp[idx] ?? 100) : 100,
+          )}`,
+        ),
+        el(
+          "span",
+          "",
+          String(Math.round(idx >= 0 && playerStore ? (playerStore.fields.kills[idx] ?? 0) : 0)),
+        ),
+        el(
+          "span",
+          "",
+          String(Math.round(idx >= 0 && playerStore ? (playerStore.fields.gold[idx] ?? 0) : 0)),
+        ),
+      );
+      this.scoreboardBody.appendChild(row);
+    }
+
+    this.scoreboardStats.replaceChildren();
+    if (!stats) return;
+    const pIdx = playerStore ? playerStore.slots.indexOf(this.localPlayerId) : -1;
+    const totals = {
+      kills: pIdx >= 0 && playerStore ? (playerStore.fields.kills[pIdx] ?? 0) : 0,
+      gold: pIdx >= 0 && playerStore ? (playerStore.fields.gold[pIdx] ?? 0) : 0,
+      maxHp: pIdx >= 0 && playerStore ? (playerStore.fields.maxHp[pIdx] ?? 0) : 0,
+      chests: pIdx >= 0 && playerStore ? (playerStore.fields.chests[pIdx] ?? 0) : 0,
+    };
+    const formatted = formatStats(stats, totals);
+    const grid = el("div", "hud-stat-grid");
+    formatted.primary.forEach((row, i) => {
+      const cell = el("div", "hud-stat-cell");
+      cell.append(
+        el("span", "hud-stat-label", PRIMARY_LABELS[i] ?? row.label),
+        el("span", "hud-stat-value", row.value),
+      );
+      grid.appendChild(cell);
+    });
+    this.scoreboardStats.appendChild(grid);
+    const footer = el("div", "hud-score-footer");
+    footer.textContent = formatted.secondary
+      .map((row) => `${row.label} ${row.value}`)
+      .join("   ·   ");
+    this.scoreboardStats.appendChild(footer);
   }
 }

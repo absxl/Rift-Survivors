@@ -39,7 +39,7 @@ export function pickBossBar(
     if (d2 < bestD2) {
       bestD2 = d2;
       best = {
-        name: def.id.toUpperCase(),
+        name: (def.name ?? def.id).toUpperCase(),
         hp: enemyStore.fields.hp[i] ?? 0,
         maxHp: enemyStore.fields.maxHp[i] ?? 1,
         final: def.category === "final-threat",

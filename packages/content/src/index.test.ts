@@ -66,6 +66,59 @@ describe("content packs", () => {
     }
   });
 
+  it("gives every character a gacha identity, signature move, and valid tree", () => {
+    const game = loadGamePack();
+    const weaponIds = new Map(game.weapons.map((w) => [w.id, w]));
+    const powerUpIds = new Set(game.powerUps.map((p) => p.id));
+    const regions = new Set<string>();
+    expect(game.characters.filter((c) => c.starter)).toHaveLength(1);
+    for (const c of game.characters) {
+      expect(c.name, c.id).toBeTruthy();
+      expect(c.description, c.id).toBeTruthy();
+      expect(c.region, c.id).toBeTruthy();
+      expect(c.class, c.id).toBeTruthy();
+      expect(c.rarity, c.id).toBeTruthy();
+      expect(c.upgradeIds?.length ?? 0, c.id).toBeGreaterThanOrEqual(6);
+      regions.add(c.region ?? "");
+      const move = c.startingMove ? weaponIds.get(c.startingMove) : undefined;
+      expect(move, c.id).toBeTruthy();
+      expect(move?.isMove, c.id).toBe(true);
+      for (const upgradeId of c.upgradeIds ?? []) expect(powerUpIds.has(upgradeId)).toBe(true);
+    }
+    expect(weaponIds.size).toBeGreaterThan(20);
+    const moves = [...weaponIds.values()].filter((w) => w.isMove);
+    expect(moves.length).toBeGreaterThanOrEqual(8);
+    // Every region must offer an Epic+ so the 10-pull guarantee is meaningful.
+    for (const region of regions) {
+      const pool = game.characters.filter((c) => (c.region ?? "Runeterra") === region);
+      expect(
+        pool.some((c) => c.rarity === "epic" || c.rarity === "legendary"),
+        region,
+      ).toBe(true);
+    }
+  });
+
+  it("writes display names and flavor for every weapon/passive/champion/boss", () => {
+    const game = loadGamePack();
+    for (const w of game.weapons) {
+      expect(w.name, w.id).toBeTruthy();
+      expect(w.description, w.id).toBeTruthy();
+    }
+    for (const p of game.passives) {
+      expect(p.name, p.id).toBeTruthy();
+      expect(p.description, p.id).toBeTruthy();
+    }
+    for (const c of game.characters) {
+      expect(c.name, c.id).toBeTruthy();
+      expect(c.description, c.id).toBeTruthy();
+    }
+    for (const e of game.enemies.filter(
+      (x) => x.category === "boss" || x.category === "final-threat",
+    )) {
+      expect(e.name, e.id).toBeTruthy();
+    }
+  });
+
   it("has the expanded stat passive roster", () => {
     const game = loadGamePack();
     expect(game.passives.length).toBeGreaterThanOrEqual(18);

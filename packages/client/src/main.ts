@@ -2,10 +2,10 @@
 import { loadGamePack } from "@rift/content";
 import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
+import { AdminPanel } from "./admin";
 import { Sfx } from "./audio";
 import { Banner } from "./banner";
 import { championColor } from "./champion-colors";
-import { CharacterSelect } from "./charselect";
 import { ConnectionLost } from "./connection-lost";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
@@ -19,7 +19,7 @@ import type { NetHost } from "./net-host";
 import { PauseMenu } from "./pause-menu";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 import { RunEndUI } from "./run-end";
-import { loadSave, persistSave } from "./save/save";
+import { loadSave, persistSave, resolveSelectedCharacter } from "./save/save";
 
 function formatTime(secs: number): string {
   const mm = Math.floor(secs / 60);
@@ -51,28 +51,22 @@ async function main(): Promise<void> {
   fitCanvas();
 
   const pack = loadGamePack();
-  const firstCharacter = pack.characters[0]?.id ?? "lux";
+  // Content-driven free starter. Ahri is Common, so every region still has at
+  // least one gacha target (Demacia/Lux included).
+  const firstCharacter =
+    pack.characters.find((c) => c.starter)?.id ?? pack.characters[0]?.id ?? "ahri";
   const save = loadSave(firstCharacter);
 
-  // Dev convenience: unlock every champion for playtesting (production keeps the gacha).
-  if (import.meta.env.DEV) {
-    let changed = false;
-    for (const c of pack.characters) {
-      if (!save.unlockedCharacters.includes(c.id)) {
-        save.unlockedCharacters.push(c.id);
-        changed = true;
-      }
-    }
-    if (changed) persistSave(save);
-  }
+  // Gacha-only unlock policy: no dev unlock-all. Existing saves can be reset
+  // from Settings or the H admin panel to begin the collection fresh.
+  resolveSelectedCharacter(save, firstCharacter);
+  persistSave(save);
 
   const worldLayer = new Container();
-  const hudLayer = new Container();
   app.stage.addChild(worldLayer);
-  app.stage.addChild(hudLayer);
 
   const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies);
-  const hud = new Hud(hudLayer, pack.weapons, pack.passives, pack.enemies);
+  const hud = new Hud(pack.weapons, pack.passives, pack.enemies, pack.characters);
   const input = new Input();
   input.attach();
   input.setKeybinds(save.settings.keybinds);
@@ -84,12 +78,12 @@ async function main(): Promise<void> {
   let activeSkip: (() => void) | null = null;
   let activeBanish: ((index: number) => void) | null = null;
   let inputSender: ((moveX: number, moveY: number) => void) | null = null;
-  let coopCharacterId = firstCharacter;
+  let coopCharacterId = save.selectedCharacter;
   let currentMode: "solo" | "coop" = "solo";
-  let currentCharacterId = firstCharacter;
+  let currentCharacterId = save.selectedCharacter;
   let localPlayerId = 0;
 
-  const levelUp = new LevelUpUI();
+  const levelUp = new LevelUpUI(pack.weapons, pack.passives);
   levelUp.onChoose((index) => activeChoice?.(index));
   levelUp.onReroll(() => activeReroll?.());
   levelUp.onSkip(() => activeSkip?.());
@@ -131,6 +125,7 @@ async function main(): Promise<void> {
   const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
     renderer.receive(snap, events);
     lastSnap = snap;
+    levelUp.setStats(snap.playerStats[localPlayerId] ?? snap.playerStats[0] ?? null);
     for (const e of events) {
       if (e.type === "hit") sfx.play("hit");
       else if (e.type === "enemy-died") sfx.play("kill");
@@ -166,14 +161,20 @@ async function main(): Promise<void> {
       runEnd.show({ time: formatTime(timeSec), kills, gold, chests, newAchievements });
     }
   };
-  const onOffer = (offer: Parameters<typeof levelUp.show>[0]): void => levelUp.show(offer);
+  const onOffer = (offer: Parameters<typeof levelUp.show>[0]): void => {
+    // Use the latest authoritative stats for card stat previews, even if the
+    // offer arrives in the same network envelope as the preceding snapshot.
+    levelUp.setStats(lastSnap?.playerStats[localPlayerId] ?? lastSnap?.playerStats[0] ?? null);
+    levelUp.show(offer);
+  };
 
   // Solo host (Web Worker).
   const host = new WorkerHost();
   host.onSnapshot(handleSnapshot);
   host.onOffer(onOffer);
 
-  const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters);
+  const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters, pack.weapons);
+  new AdminPanel(save, pack.characters, pack.powerUps, () => metaScreen.refresh());
   sfx.setVolume(save.settings.volume);
   renderer.setShake(save.settings.shake);
   renderer.setDamageNumbers(save.settings.damageNumbers);
@@ -194,21 +195,35 @@ async function main(): Promise<void> {
     renderer.resetPrediction();
     renderer.setChampionColor(championColor(characterId));
     hud.setLocalPlayer(localPlayerId);
-    hud.setChampion(characterId, championColor(characterId));
+    hud.setChampion(characterId);
+    hud.setParty([
+      {
+        id: 0,
+        name: "YOU",
+        characterId,
+        ready: true,
+      },
+    ]);
     activeChoice = (i) => host.sendChoice(i);
     activeReroll = () => host.reroll();
     activeSkip = () => host.skip();
     activeBanish = (i) => host.banishOption(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
-    host.start(characterId, computeMetaBonuses(save, pack.powerUps));
+    host.start(
+      characterId,
+      computeMetaBonuses(
+        save,
+        pack.powerUps,
+        characterId,
+        pack.characters.find((c) => c.id === characterId),
+      ),
+    );
   };
 
   metaScreen.onPlay(() => {
     metaScreen.hide();
     sfx.unlock();
-    const unlocked = pack.characters.filter((c) => save.unlockedCharacters.includes(c.id));
-    const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
-    charSelect.onChoose((id) => startSolo(id));
+    startSolo(save.selectedCharacter);
   });
 
   // Co-op host (WebSocket server).
@@ -222,7 +237,7 @@ async function main(): Promise<void> {
     renderer.resetPrediction();
     renderer.setChampionColor(championColor(coopCharacterId));
     hud.setLocalPlayer(localPlayerId);
-    hud.setChampion(coopCharacterId, championColor(coopCharacterId));
+    hud.setChampion(coopCharacterId);
     netHost.onSnapshot(handleSnapshot);
     netHost.onOffer(onOffer);
     netHost.onReconnect((status) => {
@@ -246,17 +261,26 @@ async function main(): Promise<void> {
   metaScreen.onCoop(() => {
     metaScreen.hide();
     sfx.unlock();
-    const unlocked = pack.characters.filter((c) => save.unlockedCharacters.includes(c.id));
-    const charSelect = new CharacterSelect(unlocked.length > 0 ? unlocked : pack.characters);
-    charSelect.onChoose((id) => {
-      coopCharacterId = id;
-      nameScreen.show();
-    });
+    coopCharacterId = save.selectedCharacter;
+    nameScreen.show();
   });
+  nameScreen.onBack(() => metaScreen.show());
+  lobby.onBack(() => metaScreen.show());
   nameScreen.onConfirm((name) => {
     lobby.setCharacter(coopCharacterId);
     lobby.setName(name);
+    lobby.setMetaBonuses(
+      computeMetaBonuses(
+        save,
+        pack.powerUps,
+        coopCharacterId,
+        pack.characters.find((c) => c.id === coopCharacterId),
+      ),
+    );
     lobby.show();
+  });
+  lobby.onPlayers((players) => {
+    hud.setParty(players);
   });
 
   runEnd.onContinue(() => {
@@ -284,7 +308,7 @@ async function main(): Promise<void> {
   });
 
   window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !inputSender) return;
+    if (e.key !== "Escape" || !inputSender || levelUp.visible) return;
     e.preventDefault();
     if (pauseMenu.visible) {
       pauseMenu.hide();
@@ -307,14 +331,6 @@ async function main(): Promise<void> {
     renderer.setLocalInput(i.moveX, i.moveY);
     inputSender(i.moveX, i.moveY);
   }, 1000 / 30);
-
-  app.canvas.addEventListener("pointermove", (e) => {
-    const rect = app.canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * VIEW_W;
-    const y = ((e.clientY - rect.top) / rect.height) * VIEW_H;
-    hud.setPointer(x, y, true);
-  });
-  app.canvas.addEventListener("pointerleave", () => hud.setPointer(0, 0, false));
 
   app.ticker.add(() => {
     try {

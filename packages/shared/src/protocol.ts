@@ -3,7 +3,7 @@
 // @rift/sim. Bump PROTOCOL_VERSION on any breaking change.
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export interface LobbyPlayer {
   id: number;
@@ -20,6 +20,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     name: z.string(),
     protocolVersion: z.number(),
     characterId: z.string(),
+    metaBonuses: z.record(z.number()).optional(),
   }),
   z.object({
     type: z.literal("join"),
@@ -27,8 +28,14 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     name: z.string(),
     protocolVersion: z.number(),
     characterId: z.string(),
+    metaBonuses: z.record(z.number()).optional(),
   }),
-  z.object({ type: z.literal("ready"), characterId: z.string(), ready: z.boolean() }),
+  z.object({
+    type: z.literal("ready"),
+    characterId: z.string(),
+    ready: z.boolean(),
+    metaBonuses: z.record(z.number()).optional(),
+  }),
   z.object({ type: z.literal("input"), moveX: z.number(), moveY: z.number() }),
   z.object({ type: z.literal("choice"), choiceIndex: z.number() }),
   z.object({ type: z.literal("reroll") }),

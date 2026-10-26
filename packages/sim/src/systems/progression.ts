@@ -68,9 +68,14 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   const ownedWeapons = new Map<number, number>(); // defIndex -> level
   const ownedPassives = new Map<number, number>();
   const ownedPassiveIds = new Set<string>();
+  let normalWeaponCount = 0;
+  let moveCount = 0;
   weapons.forEachAlive((slot) => {
     if (weapons.field("owner")[slot] === playerId) {
-      ownedWeapons.set(weapons.field("defIndex")[slot], weapons.field("level")[slot]);
+      const defIndex = weapons.field("defIndex")[slot];
+      ownedWeapons.set(defIndex, weapons.field("level")[slot]);
+      if (world.content.weapons[defIndex]?.isMove) moveCount++;
+      else normalWeaponCount++;
     }
   });
   passives.forEachAlive((slot) => {
@@ -88,13 +93,25 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     if (!banished.has(option.optionId)) options.push(option);
   };
 
-  if (ownedWeapons.size < world.num("loadout.weaponSlots")) {
+  if (normalWeaponCount < world.num("loadout.weaponSlots")) {
     for (let i = 0; i < world.content.weapons.length; i++) {
+      const def = world.content.weapons[i];
       if (ownedWeapons.has(i)) continue;
-      if (world.content.weapons[i].isEvolved) continue;
+      if (def.isEvolved || def.isMove) continue;
       consider({
         optionId: `new-w:${i}`,
-        ref: { type: "weapon", id: world.content.weapons[i].id },
+        ref: { type: "weapon", id: def.id },
+      });
+    }
+  }
+  if (moveCount < world.num("loadout.moveSlots")) {
+    for (let i = 0; i < world.content.weapons.length; i++) {
+      const def = world.content.weapons[i];
+      if (ownedWeapons.has(i) || !def.isMove) continue;
+      consider({
+        optionId: `new-m:${i}`,
+        ref: { type: "weapon", id: def.id },
+        isMove: true,
       });
     }
   }
@@ -114,6 +131,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
         optionId: `up-w:${defIndex}`,
         ref: { type: "weapon", id: def.id },
         level: level + 1,
+        isMove: def.isMove === true,
       });
     }
   }
@@ -222,6 +240,7 @@ export function buildChestOffer(world: World, playerId: number): Offer {
         optionId: `up-w:${defIndex}`,
         ref: { type: "weapon", id: def.id },
         level: level + 1,
+        isMove: def.isMove === true,
       });
     }
   }

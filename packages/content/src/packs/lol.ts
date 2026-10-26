@@ -1,5 +1,6 @@
 // The `lol` pack: League-of-Legends-inspired mage champions and their abilities
-// mapped onto generic weapon behaviors (docs/13 §17). Names are content only.
+// mapped onto generic weapon behaviors. Names and flavor are placeholder data and
+// never copied from game text/art; the sim only sees ids and numbers.
 import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
 
@@ -18,6 +19,8 @@ const lolPack: ContentPack = {
   weapons: [
     {
       id: "light-binding",
+      name: "Light Binding",
+      description: "Launches a snare of hard light that slows the first foes it touches.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -40,6 +43,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "lucent-singularity",
+      name: "Lucent Singularity",
+      description: "Drops a humming orb of bound light that lingers and scorches clusters.",
       behavior: "ground-pool",
       params: { scatter: 70 },
       maxLevel: 5,
@@ -61,6 +66,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "orb-of-deception",
+      name: "Orb of Deception",
+      description: "A returning spirit-orb that cuts a bright line through the horde.",
       behavior: "boomerang",
       params: {},
       maxLevel: 5,
@@ -82,6 +89,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "fox-fire",
+      name: "Fox-Fire",
+      description: "Three spectral flames orbit you, punishing anything that comes close.",
       behavior: "orbit",
       params: {},
       maxLevel: 5,
@@ -102,6 +111,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "overload",
+      name: "Overload",
+      description: "Rapid arcane bolts leap toward the nearest threat.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -123,6 +134,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "rune-prison",
+      name: "Rune Prison",
+      description: "Binds nearby enemies inside a slowing ring of old runes.",
       behavior: "strike-random",
       params: {},
       maxLevel: 5,
@@ -144,6 +157,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "conflagration",
+      name: "Conflagration",
+      description: "A burning aura that sets the approaching swarm alight.",
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -166,6 +181,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "sear",
+      name: "Sear",
+      description: "Hurls a searing bolt that leaves a lingering burn.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -187,6 +204,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "scatter-the-weak",
+      name: "Scatter the Weak",
+      description: "A ricocheting blast that breaks up clustered enemies.",
       behavior: "bounce",
       params: {},
       maxLevel: 5,
@@ -207,6 +226,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "final-spark",
+      name: "Final Spark",
+      description: "A focused beam of light that pierces everything in its path.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -228,6 +249,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "pyroclasm",
+      name: "Pyroclasm",
+      description: "A wider, hotter conflagration that leaves nothing unburned.",
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -250,6 +273,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "spirit-rush",
+      name: "Spirit Rush",
+      description: "A rushing spirit-orb that tears through the field and returns.",
       behavior: "boomerang",
       params: {},
       maxLevel: 5,
@@ -271,6 +296,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "desperate-power",
+      name: "Desperate Power",
+      description: "Overcharged bolts fire in a relentless stream.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -292,6 +319,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "primordial-burst",
+      name: "Primordial Burst",
+      description: "Calls down a primordial detonation on the nearest swarm.",
       behavior: "strike-random",
       params: {},
       maxLevel: 5,
@@ -312,6 +341,8 @@ const lolPack: ContentPack = {
     },
     {
       id: "arcane-barrage",
+      name: "Arcane Barrage",
+      description: "Fires a heavy arcane bolt that punches through ranks.",
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -330,56 +361,392 @@ const lolPack: ContentPack = {
       levels: lv4([2, 2, 3, 5]),
       damageType: "magic",
     },
+
+    // ---------------------------------------------------------------------
+    // Signature moves: separate 4-slot pool; every champion starts with one,
+    // and any champion can learn the others from level-up cards.
+    // ---------------------------------------------------------------------
+    {
+      id: "prismatic-nova",
+      name: "Prismatic Nova",
+      description:
+        "Lux signature. A ring of light detonates around you, slowing everything caught in it.",
+      isMove: true,
+      behavior: "aura",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 12,
+        cooldown: 240,
+        area: 55,
+        speed: 0,
+        duration: 0,
+        amount: 1,
+        pierce: 99,
+        hitCooldown: 12,
+        knockback: 2,
+        lifetime: 0,
+      },
+      levels: lv4([4, 5, 6, 8]),
+      damageType: "magic",
+      status: { id: "slow", ticks: 45 },
+    },
+    {
+      id: "pyre-pillar",
+      name: "Pyre Pillar",
+      description:
+        "Brand signature. Raises a burning pillar beneath a nearby cluster. Leaves fire behind.",
+      isMove: true,
+      behavior: "ground-pool",
+      params: { scatter: 90 },
+      maxLevel: 5,
+      base: {
+        damage: 8,
+        cooldown: 260,
+        area: 24,
+        speed: 0,
+        duration: 100,
+        amount: 1,
+        pierce: 99,
+        hitCooldown: 8,
+        knockback: 0,
+        lifetime: 0,
+      },
+      levels: lv4([3, 3, 4, 6]),
+      damageType: "magic",
+      status: { id: "burn", ticks: 90 },
+    },
+    {
+      id: "charm",
+      name: "Charm",
+      description: "Ahri signature. Sends a heart-lure that slows the first enemy it touches.",
+      isMove: true,
+      behavior: "shoot-nearest",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 6,
+        cooldown: 220,
+        area: 5,
+        speed: 5,
+        duration: 0,
+        amount: 1,
+        pierce: 0,
+        hitCooldown: 10,
+        knockback: 2,
+        lifetime: 100,
+      },
+      levels: lv4([2, 2, 3, 4]),
+      damageType: "magic",
+      status: { id: "slow", ticks: 120 },
+    },
+    {
+      id: "realm-warp",
+      name: "Realm Warp",
+      description: "Ryze signature. Tears three rune seams beneath distant enemies.",
+      isMove: true,
+      behavior: "strike-random",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 14,
+        cooldown: 280,
+        area: 130,
+        speed: 0,
+        duration: 0,
+        amount: 3,
+        pierce: 99,
+        hitCooldown: 12,
+        knockback: 2,
+        lifetime: 0,
+      },
+      levels: lv4([5, 5, 7, 9]),
+      damageType: "magic",
+    },
+    {
+      id: "force-of-will",
+      name: "Force of Will",
+      description:
+        "Syndra signature. Hurls a sphere of gathered force that ricochets through a crowd.",
+      isMove: true,
+      behavior: "bounce",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 10,
+        cooldown: 240,
+        area: 5,
+        speed: 5,
+        duration: 0,
+        amount: 1,
+        pierce: 2,
+        hitCooldown: 10,
+        knockback: 3,
+        lifetime: 150,
+      },
+      levels: lv4([4, 4, 5, 7]),
+      damageType: "magic",
+    },
+    {
+      id: "dark-matter",
+      name: "Dark Matter",
+      description:
+        "Veigar signature. Calls a dark star down on a distant cluster and burns the ground.",
+      isMove: true,
+      behavior: "ground-pool",
+      params: { scatter: 110 },
+      maxLevel: 5,
+      base: {
+        damage: 14,
+        cooldown: 300,
+        area: 28,
+        speed: 0,
+        duration: 60,
+        amount: 1,
+        pierce: 99,
+        hitCooldown: 6,
+        knockback: 0,
+        lifetime: 0,
+      },
+      levels: lv4([5, 6, 7, 9]),
+      damageType: "magic",
+    },
+    {
+      id: "infernal-guardian",
+      name: "Infernal Guardian",
+      description:
+        "Annie signature. A burning guardian scorches the air around you while it lingers.",
+      isMove: true,
+      behavior: "aura",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 8,
+        cooldown: 260,
+        area: 60,
+        speed: 0,
+        duration: 0,
+        amount: 1,
+        pierce: 99,
+        hitCooldown: 8,
+        knockback: 1,
+        lifetime: 0,
+      },
+      levels: lv4([3, 4, 5, 6]),
+      damageType: "magic",
+      status: { id: "burn", ticks: 90 },
+    },
+    {
+      id: "arcanopulse",
+      name: "Arcanopulse",
+      description:
+        "Xerath signature. Channels a long, piercing arcane beam across the battlefield.",
+      isMove: true,
+      behavior: "shoot-nearest",
+      params: {},
+      maxLevel: 5,
+      base: {
+        damage: 18,
+        cooldown: 300,
+        area: 6,
+        speed: 7,
+        duration: 0,
+        amount: 1,
+        pierce: 99,
+        hitCooldown: 15,
+        knockback: 3,
+        lifetime: 70,
+      },
+      levels: lv4([6, 6, 8, 10]),
+      damageType: "magic",
+    },
   ],
   passives: [],
   characters: [
     {
       id: "lux",
+      name: "Lux",
+      description:
+        "A radiant prodigy from Demacia who turns disciplined light into zone control. Signature: Prismatic Nova.",
+      region: "Demacia",
+      rarity: "epic",
+      class: "mage",
       startingWeapon: "lucent-singularity",
+      startingMove: "prismatic-nova",
       baseStats: { might: 0.1, cooldown: 0.1 },
       growth: { everyLevels: 3, mods: { might: 0.05 } },
+      upgradeIds: [
+        "power",
+        "vitality",
+        "focus",
+        "reach",
+        "velocity",
+        "radiance",
+        "fortune",
+        "attraction",
+      ],
     },
     {
       id: "brand",
+      name: "Brand",
+      description:
+        "An ashen prophet of Noxus who paints the ground in hungry fire. Signature: Pyre Pillar.",
+      region: "Noxus",
+      rarity: "epic",
+      class: "mage",
       startingWeapon: "conflagration",
+      startingMove: "pyre-pillar",
       baseStats: { might: 0.15 },
       growth: { everyLevels: 4, mods: { area: 0.1 } },
+      upgradeIds: [
+        "power",
+        "vitality",
+        "focus",
+        "arcane-flow",
+        "reach",
+        "pyre",
+        "persistence",
+        "fortune",
+      ],
     },
     {
       id: "ahri",
+      name: "Ahri",
+      description:
+        "A nine-tailed wanderer of Ionia who dances just out of reach. Signature: Charm.",
+      region: "Ionia",
+      rarity: "common",
+      class: "mage",
+      starter: true,
       startingWeapon: "orb-of-deception",
+      startingMove: "charm",
       baseStats: { moveSpeed: 0.1, cooldown: 0.05 },
       growth: { everyLevels: 3, mods: { moveSpeed: 0.05 } },
+      upgradeIds: [
+        "power",
+        "swiftness",
+        "focus",
+        "arcane-flow",
+        "velocity",
+        "foxfire",
+        "attraction",
+        "fortune",
+      ],
     },
     {
       id: "ryze",
+      name: "Ryze",
+      description:
+        "A world-worn rune mage who carries the weight of Runeterra's oldest spells. Signature: Realm Warp.",
+      region: "Runeterra",
+      rarity: "legendary",
+      class: "mage",
       startingWeapon: "overload",
+      startingMove: "realm-warp",
       baseStats: { cooldown: 0.15 },
       growth: { everyLevels: 3, mods: { cooldown: 0.05 } },
+      upgradeIds: [
+        "power",
+        "vitality",
+        "focus",
+        "arcane-flow",
+        "reach",
+        "runeweave",
+        "persistence",
+        "fortune",
+      ],
     },
     {
       id: "syndra",
+      name: "Syndra",
+      description:
+        "An Ionian force-mage who refuses every cage the world builds for her. Signature: Force of Will.",
+      region: "Ionia",
+      rarity: "epic",
+      class: "mage",
       startingWeapon: "scatter-the-weak",
+      startingMove: "force-of-will",
       baseStats: { might: 0.1 },
       growth: { everyLevels: 4, mods: { might: 0.08 } },
+      upgradeIds: [
+        "power",
+        "vitality",
+        "focus",
+        "reach",
+        "arcane-flow",
+        "transcendence",
+        "velocity",
+        "fortune",
+      ],
     },
     {
       id: "veigar",
+      name: "Veigar",
+      description:
+        "A yordle tyrant from Bandle City with a very small body and an enormous grudge. Signature: Dark Matter.",
+      region: "Bandle City",
+      rarity: "epic",
+      class: "mage",
       startingWeapon: "primordial-burst",
+      startingMove: "dark-matter",
       baseStats: { cooldown: 0.1 },
       growth: { everyLevels: 2, mods: { might: 0.1 } },
+      upgradeIds: [
+        "power",
+        "vitality",
+        "focus",
+        "arcane-flow",
+        "reach",
+        "tyranny",
+        "persistence",
+        "fortune",
+      ],
     },
     {
       id: "annie",
+      name: "Annie",
+      description:
+        "A Noxian child prodigy whose little flame is never as small as it looks. Signature: Infernal Guardian.",
+      region: "Noxus",
+      rarity: "rare",
+      class: "mage",
       startingWeapon: "fox-fire",
+      startingMove: "infernal-guardian",
       baseStats: { might: 0.05, maxHp: 0.1 },
       growth: { everyLevels: 4, mods: { maxHp: 0.15 } },
+      upgradeIds: [
+        "vitality",
+        "focus",
+        "reach",
+        "arcane-flow",
+        "kindling",
+        "velocity",
+        "persistence",
+        "fortune",
+      ],
     },
     {
       id: "xerath",
+      name: "Xerath",
+      description:
+        "An ascended being of Shurima whose body is now raw, ancient arcana. Signature: Arcanopulse.",
+      region: "Shurima",
+      rarity: "epic",
+      class: "mage",
       startingWeapon: "arcane-barrage",
+      startingMove: "arcanopulse",
       baseStats: { area: 0.1 },
       growth: { everyLevels: 3, mods: { area: 0.08 } },
+      upgradeIds: [
+        "power",
+        "focus",
+        "arcane-flow",
+        "reach",
+        "velocity",
+        "ascension",
+        "persistence",
+        "fortune",
+      ],
     },
   ],
   powerUps: [],
@@ -425,8 +792,16 @@ const lolPack: ContentPack = {
   ],
 };
 
-// Weapons grouped by damage tag (drives synergy counting).
-const FIRE = new Set(["conflagration", "sear", "pyroclasm", "fox-fire"]);
+// Weapons grouped by damage tag (drives synergy counting). Moves carry the same
+// tags so champion kits feel coherent with the elemental synergies.
+const FIRE = new Set([
+  "conflagration",
+  "sear",
+  "pyroclasm",
+  "fox-fire",
+  "pyre-pillar",
+  "infernal-guardian",
+]);
 const ARCANE = new Set([
   "overload",
   "rune-prison",
@@ -434,8 +809,19 @@ const ARCANE = new Set([
   "primordial-burst",
   "desperate-power",
   "scatter-the-weak",
+  "realm-warp",
+  "force-of-will",
+  "dark-matter",
+  "arcanopulse",
 ]);
-const LIGHT = new Set(["light-binding", "lucent-singularity", "final-spark"]);
+const LIGHT = new Set([
+  "light-binding",
+  "lucent-singularity",
+  "final-spark",
+  "orb-of-deception",
+  "prismatic-nova",
+  "charm",
+]);
 
 function tagWeapons(weapons: WeaponDef[]): WeaponDef[] {
   return weapons.map((w) => {
@@ -447,7 +833,7 @@ function tagWeapons(weapons: WeaponDef[]): WeaponDef[] {
   });
 }
 
-/** Load and validate the lol pack (champions + abilities + synergies). */
+/** Load and validate the lol pack (champions + abilities + moves + synergies). */
 export function loadLolPack(): ContentPack {
   const pack: ContentPack = {
     ...lolPack,

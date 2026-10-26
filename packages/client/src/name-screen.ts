@@ -3,6 +3,7 @@ export class NameScreen {
   private readonly root: HTMLElement;
   private readonly input: HTMLInputElement;
   private confirmCb: ((name: string) => void) | null = null;
+  private backCb: (() => void) | null = null;
 
   constructor() {
     this.root = document.createElement("div");
@@ -30,6 +31,15 @@ export class NameScreen {
     btn.addEventListener("click", () => this.confirm());
     this.root.appendChild(btn);
 
+    const back = document.createElement("button");
+    back.className = "meta-btn";
+    back.textContent = "BACK TO MENU";
+    back.addEventListener("click", () => {
+      this.hide();
+      this.backCb?.();
+    });
+    this.root.appendChild(back);
+
     document.body.appendChild(this.root);
   }
 
@@ -45,6 +55,10 @@ export class NameScreen {
 
   onConfirm(cb: (name: string) => void): void {
     this.confirmCb = cb;
+  }
+
+  onBack(cb: () => void): void {
+    this.backCb = cb;
   }
 
   private confirm(): void {

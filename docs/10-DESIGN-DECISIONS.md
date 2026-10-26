@@ -155,8 +155,49 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
 - Consequences: in-run power comes from levels/training; chests fund the meta gacha; evolutions are no
   longer chest-gated; the gold/chest economy is much richer and needs a playtest/balance pass (D-029 tuning).
 
+### D-030 � DOM HUD, region gacha shards, per-champion trees, signature moves
+- Date: 2026-10-26 � Status: decided (user: "build and implement all the changes")
+- Decision:
+  - **DOM HUD** replaces the Pixi HUD: top bar (time, team kills, gold), party frames top-left
+    (lobby name + champion color + HP), boss bar, compact hotbar, hover tooltips, Tab scoreboard
+    (individual kills/stats), and a redesigned level-up overlay with flavor + derived stat deltas.
+  - **Level-up hotkeys:** 1-4 pick, R reroll, X skip, B banish. `S` is movement only and never
+    dismisses the offer; Esc does not open pause over an active offer.
+  - **Enemy bodies:** a deterministic separation system after enemy AI pushes overlapping enemies
+    apart. Mass is radius squared, so bosses barely move and minions no longer stack.
+  - **Minion bodies** are soft-capped per tick, so large swarms can still surround and pressure the
+    player.
+  - **Content flavor:** `WeaponDef`, `PassiveDef`, `CharacterDef` and boss `EnemyDef` carry display
+    names/descriptions (original placeholder flavor). Mechanical values stay derived from the same
+    base/level data as the sim, so descriptions cannot drift.
+  - **Signature moves:** each champion has a unique `startingMove`. Moves are content weapons with
+    `isMove: true` and use the existing auto-cast behavior pipeline. Any champion can learn other
+    champions' moves from level-up cards. Separate pools: **6 weapons + 4 moves + 6 passives**.
+  - **Per-champion upgrades:** the old global shop becomes a per-champion tree. Common upgrades plus
+    class-flavored ones (mages get Focus + Arcane Flow haste, tanks get health/armor/regen/resist
+    entries) and a signature upgrade per champion. `selectedCharacter` chooses whose tree is shown.
+    Co-op sends each player's tree bonuses separately; the sim applies them per player.
+  - **Main menu hub:** League-client-like shell with openable **PLAY / CHAMPIONS / UPGRADES / CHESTS /
+    ACHIEVEMENTS / SETTINGS** sections. Play and co-op use the currently selected champion; the old
+    separate character-select popup is gone.
+  - **Gacha only:** champions unlock only through gacha (the starter is free; Ahri is the content-
+    flagged starter so every region still has a gacha target); no dev unlock-all. Existing dev saves
+    can be reset from Settings or the H admin panel.
+  - **Regions/rarities:** Demacia (Lux, Epic), Noxus (Brand Epic, Annie Rare), Ionia (Ahri Common,
+    Syndra Epic), Shurima (Xerath Epic), Bandle City (Veigar Epic), Runeterra (Ryze Legendary).
+  - **Chests:** 1 chest = 1 pull; 10 chests = 10 pulls with a guaranteed Epic+ champion. Per-pull odds:
+    8% full champion, 72% champion shards, 20% gold. Shard requirements: Common 6, Rare 8, Epic 12,
+    Legendary 20. The player spends champion-specific shards manually on the champion they want first.
+    Full/duplicate-fallback gold is 75. All state is local (`localStorage`) for now; accounts later.
+  - **Admin panel:** H toggles a local dev panel (grant gold/chests/shards, unlock selected/all, max
+    selected/all trees, reset save). The panel is saved-locally and off the normal UI path.
+- Consequences: save schema v2 (`selectedCharacter`, `championUpgrades`, `championShards`) with v1
+  global purchases migrated to the selected/first champion; protocol v3 carries per-player meta
+  bonuses. The bot baseline changed to include moves (see BALANCE). Gacha economy is intentionally
+  fast with the current chest drops and will be tuned after human playtests.
+
 ## Active ruleset(s)
-`classic` — configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
+`classic` - configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 
 ## Idea parking lot
 - Drop-in/out co-op, reconnect (deferred to M12).

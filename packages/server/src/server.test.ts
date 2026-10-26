@@ -385,6 +385,33 @@ describe("room server", () => {
     }
   }, 20_000);
 
+  it("applies each player's per-champion meta bonuses to their own sim stack", async () => {
+    const ws = await connect();
+    try {
+      const next = inbox(ws);
+      ws.send(
+        JSON.stringify({
+          type: "create",
+          name: "meta-host",
+          protocolVersion: PROTOCOL_VERSION,
+          characterId: "lux",
+          metaBonuses: { might: 0.5 },
+        }),
+      );
+      const created = await nextOfType(next, "lobby");
+      const code = created.code as string;
+      ws.send(JSON.stringify({ type: "start" }));
+      await nextOfType(next, "start");
+      await nextSnapshot(next);
+      const room = [...server.rooms.values()].find((r) => r.code === code);
+      expect(room?.world).toBeTruthy();
+      // Lux base 0.1 + the player's 0.5 tree bonus + light-weaver synergy 0.12.
+      expect(room?.world?.playerStat(0, "might", 1)).toBeCloseTo(1.72);
+    } finally {
+      ws.close();
+    }
+  }, 20_000);
+
   it("streams a delta after the first full snapshot and supports resync", async () => {
     const ws = await connect();
     try {

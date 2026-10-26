@@ -19,6 +19,8 @@ export interface OfferOption {
   ref: { type: string; id: string };
   level?: number;
   isEvolution?: boolean;
+  /** True for a champion signature move card (separate loadout pool). */
+  isMove?: boolean;
   cost?: { currency: string; amount: number };
   /** Direct training cards (repeatable stat gain, no item slot). */
   statKey?: string;

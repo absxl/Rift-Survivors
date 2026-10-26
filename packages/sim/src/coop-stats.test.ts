@@ -65,6 +65,23 @@ const COOP_STATS_PACK: ContentPack = {
 };
 
 describe("per-player co-op stats", () => {
+  it("applies per-player meta bonuses (per-champion trees) independently", () => {
+    const world = createWorld(
+      DEFAULT_RULESET,
+      {
+        playerCount: 2,
+        content: COOP_STATS_PACK,
+        characterIds: ["mage-a", "mage-b"],
+        playerMetaBonuses: [{ might: 0.5 }, { maxHp: 0.2 }],
+      },
+      3,
+    );
+    expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.85);
+    expect(world.playerStat(1, "might", 1)).toBeCloseTo(1);
+    expect(world.playerStat(1, "maxHp", 1)).toBeCloseTo(1.2);
+    expect(world.stores.players.field("maxHp")[1]).toBeCloseTo(120);
+  });
+
   it("keeps base stats, growth, and synergies independent per player", () => {
     const world = createWorld(
       DEFAULT_RULESET,

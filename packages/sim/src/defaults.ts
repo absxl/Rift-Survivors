@@ -9,6 +9,7 @@ import { registerPickupSystem } from "./systems/pickups";
 import { registerProgression } from "./systems/progression";
 import { registerRegenSystem } from "./systems/regen";
 import { registerReviveSystem } from "./systems/revive";
+import { registerSeparationSystem } from "./systems/separation";
 import { registerSpatialHash } from "./systems/spatial-hash";
 import { registerSpawn } from "./systems/spawn";
 import { registerZoneSystem } from "./systems/zones";
@@ -28,6 +29,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerProgression(reg);
   registerReviveSystem(reg);
   registerRegenSystem(reg);
+  registerSeparationSystem(reg);
 }
 
 /** Move each player by its input for this tick (move-only; no aiming/dash). */
@@ -69,6 +71,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "core-movement",
     "spawn-director",
     "enemy-ai",
+    "separation",
     "spatial-hash",
     "weapons",
     "projectiles",
@@ -116,6 +119,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "pickup.freezeTicks": 120,
     "pickup.goldAmount": 5,
     "loadout.weaponSlots": 6,
+    "loadout.moveSlots": 4,
     "loadout.passiveSlots": 6,
     "levelUp.choices": 3,
     "levelUp.rerolls": 3,

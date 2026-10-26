@@ -2,7 +2,7 @@
 
 A starter kit for building your own League-themed survivor game (online co-op, browser-based) with an AI
 coding agent such as OpenCode. It targets the **look and feel of the original Vampire Survivors** — move-only
-play, auto-firing weapons, 6 weapon + 6 passive slots, chest evolutions, a ≈30-minute timeline, a pixel-perfect
+play, auto-firing weapons, 6 weapons + 4 signature moves + 6 passive slots, level-up evolutions, a ≈30-minute timeline, a pixel-perfect
 low-res look — with League of Legends as the skin. Nothing is copied from Vampire Survivors or from the Pokémon
 survivor project you found; the kit defines a fresh architecture (TypeScript + PixiJS, deterministic sim,
 optional co-op server) built so **the design can change radically later without rewrites**.

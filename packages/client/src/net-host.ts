@@ -60,12 +60,30 @@ export class NetHost {
     this.ws = null;
   }
 
-  createRoom(name: string, characterId: string): void {
-    this.send({ type: "create", name, characterId, protocolVersion: PROTOCOL_VERSION });
+  createRoom(name: string, characterId: string, metaBonuses: Record<string, number> = {}): void {
+    this.send({
+      type: "create",
+      name,
+      characterId,
+      metaBonuses,
+      protocolVersion: PROTOCOL_VERSION,
+    });
   }
 
-  joinRoom(code: string, name: string, characterId: string): void {
-    this.send({ type: "join", code, name, characterId, protocolVersion: PROTOCOL_VERSION });
+  joinRoom(
+    code: string,
+    name: string,
+    characterId: string,
+    metaBonuses: Record<string, number> = {},
+  ): void {
+    this.send({
+      type: "join",
+      code,
+      name,
+      characterId,
+      metaBonuses,
+      protocolVersion: PROTOCOL_VERSION,
+    });
   }
 
   sendStart(): void {
