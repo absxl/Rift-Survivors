@@ -84,12 +84,15 @@ The batch is committed as `feat: D-030 DOM HUD, champion moves, region gacha, pe
   - client 21
   - server 9
 - Browser screenshots verified: main PLAY, CHAMPIONS, CHESTS, a 10-pull results panel, UPGRADES,
-  SETTINGS, in-game HUD, level-up overlay, Tab scoreboard, and that pressing `S` does **not** close
-  the level-up overlay.
+  SETTINGS, in-game HUD, level-up overlay, Tab scoreboard, hover tooltip (flavor + scaled stats), the
+  H admin panel, and that pressing `S` does **not** close the level-up overlay.
+- Co-op browser test (two Edge pages, one room): party frames showed both lobby names + champion
+  colors + level/HP, and the top bar switched to **TEAM KILLS**. The per-player meta path is covered by
+  the server test as well.
 - Balance bot (D-030, 32:00, seeds 101/202/303): all survive; level 45-47; 5,535-5,539 kills;
   gold 1,585-1,897; chests 45-72; max alive 61-85; ~0.041-0.045 ms/tick.
-- The last client/server production builds predate the final starter/tag/10-pull-label edits; run them
-  once next session:
+- Production builds were rerun after the final gacha/starter/tag changes. Rebuild once more after any
+  further edits with:
 ```
 corepack pnpm --filter @rift/client build
 corepack pnpm --filter @rift/server build
@@ -114,12 +117,10 @@ corepack pnpm --filter @rift/server build
   chest drops/shard amounts after a human run.
 - The 10-pull guarantee is per region; if a region's Epic+ champions are all owned it falls back to
   epic shards/gold rather than an out-of-region champion.
-- Ahri's starter light synergy was just fixed; visually re-check the Tab stats (MIGHT should be +12%
-  for Orb + Charm before any upgrades) and level-up card damage should now be scaled by that.
-- Party frames/HUD co-op layout were code-reviewed and server-tested but not visually tested with two
-  browser clients in this session.
-- Tooltip hover was patched but the last automated hover attempt failed because Vite had dropped; verify
-  in browser next session.
+- Ahri's light synergy verified in the HUD: MIGHT +12% with Orb + Charm, and the hotbar tooltip shows
+  the scaled damage (11.2) for Orb of Deception.
+- Party frames/team kills verified with two browser clients.
+- Tooltip hover verified both content and positioning.
 - All content display text is English and hardcoded (existing project convention), not locale files.
 - `docs/10` D-016 still says "MoveDef"; D-030 records the actual `isMove`-on-weapon implementation.
 - `CharacterSelect` (`charselect.ts`) is now unused; can be deleted after confirming no references.

@@ -316,8 +316,10 @@ export class Hud {
       label: "",
       color: "",
     };
-    root.addEventListener("mouseenter", () => {
+    root.addEventListener("mouseenter", (e) => {
       this.hoverSlot = view;
+      this.hoverX = e.clientX;
+      this.hoverY = e.clientY;
       this.showTooltip(view);
     });
     root.addEventListener("mouseleave", () => {
