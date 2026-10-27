@@ -4,7 +4,38 @@ This file records the current work. The full reference is
 [`docs/14-IMPLEMENTATION-STATUS.md`](docs/14-IMPLEMENTATION-STATUS.md); hosting/account details are in
 [`docs/15-HOSTING-AND-ACCOUNTS.md`](docs/15-HOSTING-AND-ACCOUNTS.md).
 
-## D-031 update (current commit; see `git log -1`)
+## D-032 update (current commit; see `git log -1`)
+
+- **Scrapped the visual reskin.** The League-client UI is retained; only the small `LEVITATE` chip was
+  added to the collection and PLAY screens. No fonts/joystick/restyle files remain.
+- **Deterministic terrain:** `packages/sim/src/terrain.ts` generates 32 px chunked walls, water/lava, and
+  a safe spawn island from `StageDef.terrain` + seed. Riftfield water slows 30%; Noxus lava slows 25%
+  and deals 5 dps. Stage content carries thresholds, liquid type, effects, and palette.
+- **Client terrain:** `renderer.ts` builds the same `TerrainField` from the snapshot's `terrainSeed`,
+  draws a seamless stage floor, rocky wall tops/faces with shadows, animated liquid, and a terrain
+  status layer. Walls/projectiles/enemy movement are simulated by the authoritative sim.
+- **Collision and pathing:** player/enemy wall collision, projectile wall stops, free-floor spawn search,
+  and BFS flow fields (`packages/sim/src/pathfinding.ts`) updated every 12 ticks. Bosses/final threats
+  and `levitate` units ignore terrain.
+- **Minion personalities:** runner (predictive), tank, fan (spread volley), healer, shielder (absorb
+  shield), summoner, bomber (fuse explosion), plus existing chase/weaver/charge/ranged. Shield/fuse fields
+  are snapshotted and rendered; heal/shield events make client rings. Cinder Cultist is the new Noxian
+  fan minion; Blood Acolyte heals; Verdant Warden shields; Void Baron summons.
+- **Levitate:** 11 floating champions (Syndra, Anivia, Aurelion Sol, Bard, Kayle, Morgana, Soraka, Vex,
+  Yuumi, Zoe, Kindred) ignore terrain collision/slow/damage. Weft Wisp/Ash Mote/The Hollow Star scale as
+  levitating enemies; bosses bypass terrain.
+- **Tests:** 99 sim, 16 content (+2 balance skipped), 23 client, 14 server; typecheck and Biome pass.
+  Added terrain determinism/collision/water/levitate tests and healer/shielder/summoner/fan behaviour
+  tests. Balance bot is wall-aware.
+- **Balance:** seeds 101/202 reach the 32:00 cutoff; seed 303 dies at 16:35 after terrain/contact/
+  projectile pressure. See `docs/BALANCE.md`; a human Riftfield/Noxus run is still needed.
+- **Browser verified:** League UI restored, terrain floor/walls visible and collidable, enemy pathing
+  around walls, and the Syndra `LEVITATE` chip.
+- **Handoff state:** client/server production bundles rebuilt and the authoritative server restarted
+  with terrain-carrying snapshots; this batch is committed. Props/destructible cover and terrain-aware
+  player steering are deferred; a human Riftfield/Noxus terrain run is the next feel check.
+
+## D-031 baseline (last commit `f5e4a31`)
 
 - Full **173-champion roster** generated from Data Dragon 16.21.1 with six classes, curated primary regions,
   provisional rarities, class weapons, class placeholder moves, class trees and generated descriptions.

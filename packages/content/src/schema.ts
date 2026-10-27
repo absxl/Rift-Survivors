@@ -5,6 +5,7 @@ import type {
   PassiveDef,
   PowerUpDef,
   StageDef,
+  StageTerrain,
   StatDelta,
   SynergyDef,
   TagQuery,
@@ -115,6 +116,26 @@ const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({
   costs: z.array(z.number()),
 });
 
+const stageTerrainSchema: z.ZodType<StageTerrain> = z.object({
+  wallThreshold: z.number().min(0).max(1),
+  liquidThreshold: z.number().min(0).max(1),
+  liquid: z.enum(["water", "lava", "void"]),
+  liquidSlow: z.number().min(0).max(1),
+  liquidDamage: z.number().min(0),
+  colors: z.object({
+    floor: z.string(),
+    floorAlt: z.string(),
+    floorSpeck: z.string(),
+    wallTop: z.string(),
+    wallTopAlt: z.string(),
+    wallFace: z.string(),
+    wallEdge: z.string(),
+    liquid: z.string(),
+    liquidDeep: z.string(),
+    liquidAccent: z.string(),
+  }),
+});
+
 const stageDefSchema: z.ZodType<StageDef> = z.object({
   id: z.string(),
   name: z.string(),
@@ -128,6 +149,7 @@ const stageDefSchema: z.ZodType<StageDef> = z.object({
   enemyIds: z.array(z.string()).optional(),
   finalThreatId: z.string().optional(),
   rules: z.record(z.union([z.number(), z.string(), z.boolean()])).optional(),
+  terrain: stageTerrainSchema.optional(),
 });
 
 const tagQuerySchema: z.ZodType<TagQuery> = z.object({

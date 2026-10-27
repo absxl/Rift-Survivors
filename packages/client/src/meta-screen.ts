@@ -527,6 +527,7 @@ export class MetaScreen {
       this.chip(RARITY_LABELS[selected.rarity ?? "rare"], "rarity"),
       this.chip(this.classLabel(selected.class), "class"),
       this.chip(currentStage?.name ?? "The Riftfield", "stage"),
+      ...(selected.tags?.includes("levitate") ? [this.chip("LEVITATE", "class")] : []),
       this.chip(isUnlocked(this.save, selected.id) ? "UNLOCKED" : "LOCKED", "state"),
     );
     copy.append(chips);
@@ -817,6 +818,7 @@ export class MetaScreen {
     kit.append(
       this.chip(`W: ${weaponName(weapon, champion.startingWeapon)}`, "kit"),
       this.chip(`M: ${weaponName(move, champion.startingMove ?? "")}`, "kit move"),
+      ...(champion.tags?.includes("levitate") ? [this.chip("LEVITATE", "kit")] : []),
     );
     card.appendChild(kit);
 

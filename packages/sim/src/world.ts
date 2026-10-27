@@ -6,15 +6,26 @@ import type { CharacterDef, ContentPack, StageDef, StatusApply, WeaponDef } from
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
+import { Pathfinder } from "./pathfinding";
 import { type Registries, createRegistries } from "./registry";
 import { Rng, type RngState } from "./rng";
 import { type EntitySchema, EntityStore, type StoreSnapshot } from "./schema";
 import { SpatialHash } from "./spatial-hash";
 import { applyOfferOption } from "./systems/progression";
 import { refreshSynergies } from "./systems/synergies";
+import { SPAWN_CLEARING_RADIUS, TerrainField, type TerrainSafeZone } from "./terrain";
 import type { Offer, PlayerInput } from "./types";
 
 export const TICK_MS = 1000 / 30; // 30 Hz fixed timestep
+
+function stringHash(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 
 export interface RulesetDef {
   id: string;
@@ -78,6 +89,9 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "chests", type: "u16" },
     { name: "downed", type: "u8" },
     { name: "reviveProgress", type: "f32" },
+    { name: "envTick", type: "u8", network: false },
+    { name: "velocityX", type: "f32", network: false },
+    { name: "velocityY", type: "f32", network: false },
   ],
 };
 
@@ -97,6 +111,9 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "burnTicks", type: "u8" },
     { name: "freezeTicks", type: "u8" },
     { name: "lastHitBy", type: "u8" },
+    { name: "shield", type: "f32" },
+    { name: "fuseTicks", type: "u8" },
+    { name: "envTick", type: "u8", network: false },
   ],
 };
 
@@ -235,6 +252,7 @@ export interface WorldSnapshot {
   worldHeight: number;
   stageId: string;
   stageName: string;
+  terrainSeed: number;
   stores: StoreSnapshot[];
 }
 
@@ -253,6 +271,9 @@ export class World {
   readonly content: ContentPack;
   readonly character: CharacterDef | null;
   readonly stage: StageDef | null;
+  readonly terrain: TerrainField;
+  readonly terrainSeed: number;
+  readonly pathfinder = new Pathfinder();
 
   tick = 0;
   inputs: PlayerInput[] = [];
@@ -295,6 +316,14 @@ export class World {
       (stageId ? content.stages?.find((candidate) => candidate.id === stageId) : undefined) ??
       content.stages?.[0] ??
       null;
+    const fieldWidth = Number(this.ruleset.rules["core.fieldWidth"] ?? 1280);
+    const fieldHeight = Number(this.ruleset.rules["core.fieldHeight"] ?? 720);
+    const stageHash = stringHash(this.stage?.id ?? "rift-field");
+    this.terrainSeed = (seed ^ stageHash) >>> 0;
+    const safe: TerrainSafeZone[] = [
+      { x: fieldWidth / 2, y: fieldHeight / 2, radius: SPAWN_CLEARING_RADIUS },
+    ];
+    this.terrain = new TerrainField(this.stage?.terrain ?? null, this.terrainSeed, safe);
     this.stores = {
       players: new EntityStore(PLAYER_SCHEMA),
       enemies: new EntityStore(ENEMY_SCHEMA),
@@ -404,6 +433,32 @@ export class World {
   /** True if this stage's enemy allow-list is intentionally restricting spawns. */
   get hasStageEnemyFilter(): boolean {
     return Boolean(this.stage?.enemyIds && this.stage.enemyIds.length > 0);
+  }
+
+  /** Levitating champions float over terrain and ignore its slows/damage. */
+  playerLevitates(playerId: number): boolean {
+    return Boolean(this.playerCharacters[playerId]?.tags?.includes("levitate"));
+  }
+
+  /** Flying/levitating enemies (and bosses) ignore terrain collision/effects. */
+  enemyLevitates(def: { tags?: string[]; category: string }): boolean {
+    return (
+      def.tags?.includes("levitate") === true ||
+      def.category === "boss" ||
+      def.category === "final-threat"
+    );
+  }
+
+  terrainStep(playerId: number): number {
+    return this.terrain.movementMultiplier(
+      this.stores.players.field("x")[playerId],
+      this.stores.players.field("y")[playerId],
+      this.playerLevitates(playerId),
+    );
+  }
+
+  pathDirection(playerSlot: number, x: number, y: number): { x: number; y: number } | null {
+    return this.pathfinder.direction(playerSlot, x, y);
   }
 
   /** Numeric rule accessor (asserts the rule is a number). */
@@ -578,7 +633,14 @@ export class World {
   ): void {
     const enemies = this.stores.enemies;
     const knock = knockback * this.playerStat(owner, "knockback", 1);
-    enemies.field("hp")[slot] -= amount;
+    let remaining = amount;
+    const shield = enemies.field("shield")[slot] ?? 0;
+    if (shield > 0) {
+      const absorbed = Math.min(shield, remaining);
+      enemies.field("shield")[slot] = shield - absorbed;
+      remaining -= absorbed;
+    }
+    if (remaining > 0) enemies.field("hp")[slot] -= remaining;
     enemies.field("vx")[slot] += dirX * knock;
     enemies.field("vy")[slot] += dirY * knock;
     enemies.field("hitCooldown")[slot] = hitCooldown;
@@ -659,6 +721,7 @@ export function snapshot(world: World): WorldSnapshot {
     worldHeight: Number(world.ruleset.rules["core.fieldHeight"] ?? 0),
     stageId: world.stage?.id ?? "",
     stageName: world.stage?.name ?? "The Rift",
+    terrainSeed: world.terrainSeed,
     stores: [
       world.stores.players.snapshot(),
       world.stores.enemies.snapshot(),

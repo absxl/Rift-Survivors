@@ -45,8 +45,17 @@ function spawnDirector(world: World): void {
     for (let i = 0; i < batch && alive < maxEnemies; i++) {
       const defIndex = pickMinion(world);
       if (defIndex < 0) break;
+      const def = world.content.enemies[defIndex];
       const point = patternPoint(world, pattern, center, i, batch, baseAngle);
-      if (spawnEnemyAt(world, defIndex, point.x, point.y) >= 0) alive++;
+      let x = point.x;
+      let y = point.y;
+      if (def && !world.enemyLevitates(def)) {
+        const free = world.terrain.findFreeNear(x, y, Math.max(5, def.radius));
+        if (!free) continue;
+        x = free.x;
+        y = free.y;
+      }
+      if (spawnEnemyAt(world, defIndex, x, y) >= 0) alive++;
     }
   }
 
@@ -219,21 +228,31 @@ export function spawnEnemyAt(world: World, defIndex: number, x: number, y: numbe
   enemies.field("vy")[slot] = 0;
   enemies.field("hitCooldown")[slot] = 0;
   enemies.field("lastHitBy")[slot] = 0;
+  enemies.field("shield")[slot] = 0;
+  enemies.field("fuseTicks")[slot] = 0;
+  enemies.field("envTick")[slot] = 0;
   return slot;
 }
 
 /** Spawn one enemy at a random ring position around a random alive player. */
 function spawnEnemy(world: World, defIndex: number): number {
+  const def = world.content.enemies[defIndex];
   const center = pickSpawnCenter(world);
-  if (!center) return -1;
-  const angle = world.rng.range(0, Math.PI * 2);
-  const dist = world.rng.range(160, 300);
-  return spawnEnemyAt(
-    world,
-    defIndex,
-    center.x + Math.cos(angle) * dist,
-    center.y + Math.sin(angle) * dist,
-  );
+  if (!center || !def) return -1;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const angle = world.rng.range(0, Math.PI * 2);
+    const dist = world.rng.range(160, 300);
+    let x = center.x + Math.cos(angle) * dist;
+    let y = center.y + Math.sin(angle) * dist;
+    if (!world.enemyLevitates(def)) {
+      const free = world.terrain.findFreeNear(x, y, Math.max(5, def.radius));
+      if (!free) continue;
+      x = free.x;
+      y = free.y;
+    }
+    return spawnEnemyAt(world, defIndex, x, y);
+  }
+  return -1;
 }
 
 /** Boss schedule, final threat, and the post-threat boss rush. */

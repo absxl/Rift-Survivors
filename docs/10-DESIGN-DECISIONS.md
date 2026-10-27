@@ -227,6 +227,33 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
   `.env` configuration. The full roster uses class/placeholder kits until the moves pass. Cloudflare
   hosting is not done; see `docs/15-HOSTING-AND-ACCOUNTS.md` for the Pages/Workers/Tunnel options.
 
+### D-032 - Procedural terrain, minion personalities, Levitate
+- Date: 2026-10-27 - Status: decided (user); the visual reskin from the prior attempt was scrapped, so
+  the League-client presentation stays.
+- Decision:
+  - **Terrain:** both stages generate deterministic 32 px tile chunks (16x16 tiles) with walls, water
+    or lava, and a safe spawn clearing. The generator is shared by sim and client; snapshots carry only
+    the terrain seed. Riftfield uses water (slow); Noxus uses lava (slow + damage). The client draws
+    walls, liquids, and a seamless stage-tinted floor from the same terrain field.
+  - **Collision:** players and ground enemies resolve against solid walls; player and enemy projectiles
+    stop on walls. Ground enemies route around obstacles with deterministic per-player BFS flow fields
+    rebuilt every 12 ticks. Bosses, final threats, and units tagged `levitate` ignore terrain.
+  - **Minion personalities:** `chase`, `runner` (predictive lead), `tank`, `weaver`, `charge`, `ranged`,
+    `fan` (spread volley), `healer` (heals nearby wounded minions), `shielder` (grants absorb shields),
+    `summoner` (calls minions), and `bomber` (arms a fuse and explodes). Shields absorb weapon/projectile
+    damage; heal/shield pulses emit client effects. Cinder Cultist is the Noxian `fan` minion.
+  - **Levitate tag:** characters with this content tag ignore terrain collision, liquid slows, and
+    liquid damage, and can cross water/lava/walls. Eleven floating champions currently carry it (for
+    example Syndra, Anivia, Kayle, Morgana, Aurelion Sol, and Yuumi); the collection and PLAY screens
+    show a `LEVITATE` chip.
+  - **Spawning:** ground spawns search for a nearby free floor tile; lava is avoided by pathfinding and
+    safe-spawn placement. Terrain settings, thresholds, palettes, and liquid behaviour are content data.
+- Consequences: `StageDef` gained optional `terrain`, `WorldSnapshot` gained `terrainSeed`,
+  and the snapshot delta carries it. Tests cover determinism, wall collision, water slow, levitate,
+  support behaviours, and the fan volley. The balance bot is now wall-aware; because terrain can trap a
+  non-human bot, the benchmark baseline has a wider spread than the flat-field D-031 numbers. Props,
+  destructible cover, and terrain-aware player auto-steering are not included yet.
+
 ## Active ruleset(s)
 `classic` - configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 

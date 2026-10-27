@@ -30,6 +30,7 @@ export interface SnapshotDelta {
   worldHeight: number;
   stageId: string;
   stageName: string;
+  terrainSeed: number;
   stores: StoreDelta[];
 }
 
@@ -90,6 +91,7 @@ export function buildSnapshotDelta(prev: WorldSnapshot, next: WorldSnapshot): Sn
     worldHeight: next.worldHeight,
     stageId: next.stageId,
     stageName: next.stageName,
+    terrainSeed: next.terrainSeed,
     stores,
   };
 }
@@ -147,6 +149,7 @@ export function applySnapshotDelta(prev: WorldSnapshot, delta: SnapshotDelta): W
     worldHeight: delta.worldHeight,
     stageId: delta.stageId,
     stageName: delta.stageName,
+    terrainSeed: delta.terrainSeed,
     stores,
   };
 }

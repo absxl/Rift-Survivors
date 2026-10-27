@@ -7,7 +7,9 @@ tests. IDs are `kebab-case` strings, unique within their type.
 > `packages/sim/src/content-types.ts`. The schemas below are the original design sketch; the code now also
 > has `WeaponDef.isMove`, `CharacterDef.startingMove/region/rarity/class/starter/upgradeIds`, display
 > names/descriptions, per-champion meta-upgrade trees, optional `ContentPack.stages` (`StageDef` with
-> palette/enemyIds/finalThreatId/rules), and the generated 173-champion roster.
+> palette/enemyIds/finalThreatId/rules/optional `terrain`), and the generated 173-champion roster. The
+> live terrain contract is `StageTerrain` in `packages/sim/src/content-types.ts`: 32 px tile thresholds,
+> water/lava/void effects, and client palette colours.
 
 > **These schemas are a starting point and WILL change** after the design interview (`09`/`10`).
 > Change them only via the process in `12-CHANGE-PLAYBOOK.md` (ADR, `schemaVersion` bump, migration).

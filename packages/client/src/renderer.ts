@@ -6,13 +6,24 @@ import type {
   WeaponDef,
   WorldSnapshot,
 } from "@rift/sim";
+import {
+  SPAWN_CLEARING_RADIUS,
+  TERRAIN_TILE,
+  TILE_LIQUID,
+  TILE_WALL,
+  TerrainField,
+} from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
 // the local player, interpolating between the two most recent snapshots. Also
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
 import { Container, Graphics, Sprite, TilingSprite } from "pixi.js";
 import type { Texture } from "pixi.js";
 import { renderPixelTextSprite } from "./assets/pixel-font";
-import { type PlaceholderTextures, createPlaceholderTextures } from "./assets/placeholder";
+import {
+  type PlaceholderTextures,
+  createPlaceholderTextures,
+  createTerrainGroundTexture,
+} from "./assets/placeholder";
 
 export const VIEW_W = 480;
 export const VIEW_H = 270;
@@ -28,6 +39,10 @@ function getStore(s: WorldSnapshot, kind: string): StoreSnapshot | undefined {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
+}
+
+function colorValue(hex: string): number {
+  return Number.parseInt(hex.replace("#", ""), 16) || 0;
 }
 
 interface PlayerView {
@@ -66,6 +81,11 @@ export class GameRenderer {
   private events: SimEvent[] = [];
 
   private readonly ground: TilingSprite;
+  private readonly terrainGraphics: Graphics;
+  private terrain: TerrainField | null = null;
+  private terrainStageId = "";
+  private terrainSeed = -1;
+  private readonly groundTextures = new Map<string, Texture>();
   private readonly playerLayer: Container;
   private readonly playerHpBar: Graphics;
   private readonly playerSprites = new Map<number, Sprite>();
@@ -114,6 +134,8 @@ export class GameRenderer {
       height: VIEW_H,
     });
     this.stage.addChild(this.ground);
+    this.terrainGraphics = new Graphics();
+    this.stage.addChild(this.terrainGraphics);
 
     this.gemLayer = new Container();
     this.pickupLayer = new Container();
@@ -149,11 +171,35 @@ export class GameRenderer {
     if (next === this.stageId) return;
     this.stageId = next;
     const stage = this.stageDefs.find((candidate) => candidate.id === next);
-    this.ground.tint = stage?.palette.background ?? 0xffffff;
+    if (stage?.terrain) {
+      let texture = this.groundTextures.get(stage.id);
+      if (!texture) {
+        texture = createTerrainGroundTexture(stage.terrain.colors);
+        this.groundTextures.set(stage.id, texture);
+      }
+      this.ground.texture = texture;
+      this.ground.tint = 0xffffff;
+    } else {
+      this.ground.texture = this.textures.ground;
+      this.ground.tint = stage?.palette.background ?? 0xffffff;
+    }
+  }
+
+  private syncTerrain(s: WorldSnapshot): void {
+    if (this.terrainStageId === s.stageId && this.terrainSeed === s.terrainSeed) return;
+    this.terrainStageId = s.stageId;
+    this.terrainSeed = s.terrainSeed;
+    const stage = this.stageDefs.find((candidate) => candidate.id === s.stageId);
+    this.terrain = stage?.terrain
+      ? new TerrainField(stage.terrain, s.terrainSeed ?? 0, [
+          { x: s.worldWidth / 2, y: s.worldHeight / 2, radius: SPAWN_CLEARING_RADIUS },
+        ])
+      : null;
   }
 
   receive(s: WorldSnapshot, events: SimEvent[]): void {
     this.setStage(s.stageId);
+    this.syncTerrain(s);
     this.prev = this.curr;
     this.curr = s;
     this.prevTime = this.currTime;
@@ -278,10 +324,35 @@ export class GameRenderer {
           color: 0xff8844,
         });
         this.shake = Math.min(4, this.shake + 0.8);
+      } else if (e.type === "enemy-heal") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: e.radius,
+          life: 18,
+          maxLife: 18,
+          color: 0x6fe39a,
+        });
+      } else if (e.type === "enemy-shield") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: e.radius,
+          life: 18,
+          maxLife: 18,
+          color: 0x7fc8ff,
+        });
       }
     }
 
     this.ground.tilePosition.set(-ox, -oy);
+    this.drawTerrain(ox, oy);
     this.gemLayer.position.set(-ox, -oy);
     this.pickupLayer.position.set(-ox, -oy);
     this.projectileLayer.position.set(-ox, -oy);
@@ -334,6 +405,83 @@ export class GameRenderer {
     this.syncPlayers(getStore(this.curr, "player"));
 
     this.updateDamageNumbers(ox, oy);
+  }
+
+  private drawTerrain(ox: number, oy: number): void {
+    this.terrainGraphics.clear();
+    const terrain = this.terrain;
+    const settings = terrain?.settings;
+    if (!terrain || !settings) return;
+    const colors = settings.colors;
+    const floorAlt = colorValue(colors.floorAlt);
+    const speck = colorValue(colors.floorSpeck);
+    const wallTop = colorValue(colors.wallTop);
+    const wallTopAlt = colorValue(colors.wallTopAlt);
+    const wallFace = colorValue(colors.wallFace);
+    const wallEdge = colorValue(colors.wallEdge);
+    const liquid = colorValue(colors.liquid);
+    const liquidDeep = colorValue(colors.liquidDeep);
+    const liquidAccent = colorValue(colors.liquidAccent);
+    const t = performance.now() / 1000;
+    const minTx = Math.floor(ox / TERRAIN_TILE) - 1;
+    const maxTx = Math.ceil((ox + VIEW_W) / TERRAIN_TILE) + 1;
+    const minTy = Math.floor(oy / TERRAIN_TILE) - 1;
+    const maxTy = Math.ceil((oy + VIEW_H) / TERRAIN_TILE) + 1;
+    for (let ty = minTy; ty <= maxTy; ty++) {
+      for (let tx = minTx; tx <= maxTx; tx++) {
+        const px = tx * TERRAIN_TILE - ox;
+        const py = ty * TERRAIN_TILE - oy;
+        const type = terrain.tileAt(tx, ty);
+        if (type === TILE_WALL) {
+          this.terrainGraphics
+            .rect(px, py + 25, TERRAIN_TILE, 7)
+            .fill({ color: 0x000000, alpha: 0.24 });
+          this.terrainGraphics.rect(px, py, TERRAIN_TILE, 23).fill(wallTop);
+          this.terrainGraphics.rect(px, py, TERRAIN_TILE, 2).fill(wallTopAlt);
+          this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 9).fill(wallFace);
+          this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 1).fill(wallEdge);
+          if ((tx * 7 + ty * 13) % 5 === 0) {
+            this.terrainGraphics
+              .rect(px + 4, py + 5, 8, 2)
+              .fill({ color: wallTopAlt, alpha: 0.65 });
+            this.terrainGraphics
+              .rect(px + 17, py + 12, 10, 1)
+              .fill({ color: wallEdge, alpha: 0.6 });
+          }
+        } else if (type === TILE_LIQUID) {
+          this.terrainGraphics.rect(px, py, TERRAIN_TILE, TERRAIN_TILE).fill(liquidDeep);
+          this.terrainGraphics.rect(px, py, TERRAIN_TILE, TERRAIN_TILE).fill({
+            color: liquid,
+            alpha: 0.52,
+          });
+          const wave = Math.sin(t * 2.2 + tx * 0.8 + ty * 1.7);
+          const wave2 = Math.sin(t * 1.6 - tx * 0.5 + ty * 0.9);
+          this.terrainGraphics
+            .rect(px + 3 + (wave > 0 ? 3 : 0), py + 7, 12, 1)
+            .fill({ color: liquidAccent, alpha: 0.55 });
+          this.terrainGraphics
+            .rect(px + 16, py + 20 + (wave2 > 0 ? 2 : 0), 8, 1)
+            .fill({ color: liquidAccent, alpha: 0.38 });
+          if (terrain.tileAt(tx, ty - 1) !== TILE_LIQUID) {
+            this.terrainGraphics
+              .rect(px, py, TERRAIN_TILE, 2)
+              .fill({ color: liquidAccent, alpha: 0.72 });
+          }
+          if (terrain.tileAt(tx, ty + 1) !== TILE_LIQUID) {
+            this.terrainGraphics
+              .rect(px, py + TERRAIN_TILE - 2, TERRAIN_TILE, 2)
+              .fill({ color: liquidDeep, alpha: 0.9 });
+          }
+        } else {
+          // The seamless ground texture already paints the floor. Keep only a
+          // sparse detail pass so large open areas do not look tiled.
+          if ((tx * 31 + ty * 11) % 37 === 0) {
+            this.terrainGraphics.rect(px + 6, py + 18, 5, 1).fill({ color: speck, alpha: 0.6 });
+            this.terrainGraphics.rect(px + 12, py + 19, 2, 1).fill({ color: floorAlt, alpha: 0.4 });
+          }
+        }
+      }
+    }
   }
 
   private spawnDamage(x: number, y: number, amount: number): void {
@@ -443,7 +591,9 @@ export class GameRenderer {
     for (let i = 0; i < store.slots.length; i++) {
       const hp = store.fields.hp[i];
       const maxHp = store.fields.maxHp[i];
-      if (hp >= maxHp) continue;
+      const shield = store.fields.shield?.[i] ?? 0;
+      const fuse = store.fields.fuseTicks?.[i] ?? 0;
+      if (hp >= maxHp && shield <= 0 && fuse <= 0) continue;
       const def = this.enemies[store.fields.kind[i]];
       // Bosses/final threats use the HUD overlay bar instead.
       if (def?.category === "boss" || def?.category === "final-threat") continue;
@@ -458,6 +608,14 @@ export class GameRenderer {
       const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
       this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(0x000000);
       this.enemyHpBar.rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1).fill(0xff4444);
+      if (shield > 0) {
+        this.enemyHpBar.circle(x, y - 4, Math.max(8, w * 0.35));
+        this.enemyHpBar.stroke({ color: 0x7fc8ff, width: 1, alpha: 0.55 });
+      }
+      if (fuse > 0 && Math.floor(fuse / 4) % 2 === 0) {
+        this.enemyHpBar.circle(x, y - 4, Math.max(7, w * 0.3));
+        this.enemyHpBar.stroke({ color: 0xff7b3d, width: 1, alpha: 0.8 });
+      }
     }
   }
 

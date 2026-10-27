@@ -5,6 +5,22 @@ import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
 import { ROSTER_CHAMPIONS } from "./roster";
 
+// Canonical floaters/flyers. These champions ignore arena liquid effects and
+// ground collision; the client surfaces the tag as LEVITATE in the collection.
+const LEVITATE_CHAMPIONS = new Set([
+  "anivia",
+  "aurelion-sol",
+  "bard",
+  "kayle",
+  "morgana",
+  "soraka",
+  "syndra",
+  "vex",
+  "yuumi",
+  "zoe",
+  "kindred",
+]);
+
 function levels(deltas: StatDelta[]): { delta: StatDelta }[] {
   return deltas.map((delta) => ({ delta }));
 }
@@ -1239,7 +1255,11 @@ export function loadLolPack(): ContentPack {
     weapons: tagWeapons(lolPack.weapons),
     characters: [...lolPack.characters, ...ROSTER_CHAMPIONS].map((c) => ({
       ...c,
-      tags: [...(c.tags ?? []), `role:${c.class ?? "mage"}`],
+      tags: [
+        ...(c.tags ?? []),
+        `role:${c.class ?? "mage"}`,
+        ...(LEVITATE_CHAMPIONS.has(c.id) ? ["levitate"] : []),
+      ],
     })),
   };
   return contentPackSchema.parse(pack);

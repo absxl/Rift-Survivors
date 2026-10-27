@@ -100,6 +100,33 @@ function botMove(world: World): { playerId: number; moveX: number; moveY: number
   return { playerId: 0, moveX: wx / wlen, moveY: wy / wlen };
 }
 
+/** The benchmark bot now respects walls, like a human kiting around terrain. */
+function avoidWalls(
+  world: World,
+  move: { playerId: number; moveX: number; moveY: number },
+): { playerId: number; moveX: number; moveY: number } {
+  const px = world.stores.players.field("x")[0];
+  const py = world.stores.players.field("y")[0];
+  const length = Math.hypot(move.moveX, move.moveY);
+  if (length < 0.01) return move;
+  const base = Math.atan2(move.moveY, move.moveX);
+  const offsets = [0, 0.55, -0.55, 1.1, -1.1, 1.65, -1.65, 2.3, -2.3];
+  for (const offset of offsets) {
+    const angle = base + offset;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    let clear = true;
+    for (const distance of [10, 20, 30]) {
+      if (!world.terrain.isFree(px + dx * distance, py + dy * distance, 6)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return { playerId: 0, moveX: dx, moveY: dy };
+  }
+  return move;
+}
+
 function optionScore(world: World, playerId: number, option: OfferOption): number {
   const weapons = world.stores.weapons;
   const passives = world.stores.passives;
@@ -189,7 +216,7 @@ function runSeed(
 
   const maxTicks = MAX_MINUTES * 60 * 30;
   for (let t = 0; t < maxTicks && !world.over; t++) {
-    const events = step(world, [botMove(world)]);
+    const events = step(world, [avoidWalls(world, botMove(world))]);
     ticks++;
     maxEnemies = Math.max(maxEnemies, world.stores.enemies.liveSlots().length);
     for (const e of events) {

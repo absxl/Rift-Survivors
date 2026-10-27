@@ -76,6 +76,10 @@ function projectiles(world: World): void {
 
     const px = projs.field("x")[slot];
     const py = projs.field("y")[slot];
+    if (world.terrain.isWallAt(px, py)) {
+      projs.free(slot);
+      return;
+    }
     const hitRadius = 8;
 
     // Hostile enemy projectile: damage the nearest player on contact.

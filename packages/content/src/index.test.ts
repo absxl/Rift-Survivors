@@ -169,6 +169,23 @@ describe("content packs", () => {
       }
     }
     expect(game.stages?.some((stage) => stage.id === "noxus-warfront")).toBe(true);
+    for (const stage of game.stages ?? []) {
+      expect(stage.terrain, stage.id).toBeTruthy();
+      expect(stage.terrain?.colors.floor, stage.id).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it("marks floating champions with the levitate tag", () => {
+    const game = loadGamePack();
+    const levitating = new Set(
+      game.characters
+        .filter((champion) => champion.tags?.includes("levitate"))
+        .map((champion) => champion.id),
+    );
+    expect(levitating.has("syndra")).toBe(true);
+    expect(levitating.has("anivia")).toBe(true);
+    expect(levitating.has("ahri")).toBe(false);
+    expect(levitating.size).toBe(11);
   });
 
   it("synergies resolve (tag tiers non-empty)", () => {

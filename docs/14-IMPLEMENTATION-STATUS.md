@@ -1,8 +1,8 @@
 # 14 - Implementation status
 
-Last updated: **2026-10-27**  
-Current batch: **D-029 + D-030 + D-031**  
-Commits: `299a11b` (D-030 batch), `48e6389` (HUD tooltip fix), and the D-031 work below
+Last updated: **2026-10-27**.
+Current batch: **D-032** (terrain, minion personalities, Levitate) on top of D-029/30/31.
+Commits: `f5e4a31` is the last D-031 baseline; the D-032 batch is committed at `git log -1`.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
 [`10-DESIGN-DECISIONS.md`](10-DESIGN-DECISIONS.md); the classic baseline is in
@@ -78,6 +78,15 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
 - Elite/boss chest pickups are saved for the meta gacha, not opened during the run.
 - A run ends on death; the final threat appears at 30:00 and the run switches to a boss rush when it dies
   (or after a 45 s fallback).
+- **Terrain:** the arena is now a deterministic tile field with walls, water/lava, and a clear spawn
+  island. Water slows ground units; lava/void adds damage. Projectiles stop on walls, ground enemies
+  route around them, and ground spawns avoid solid tiles.
+- **Levitate:** champion tags can include `levitate`; those champions cross terrain, ignore liquid slows
+  and damage, and show a `LEVITATE` chip in collection/PLAY. Syndra, Anivia, Kayle, Morgana, Aurelion
+  Sol, Yuumi, and five other floating champions currently have it.
+- **Minion personalities:** beyond chase/ranged, enemies now include runners, tanks, fans, healers,
+  shielders, summoners, bombers, weavers, and chargers. Support pulses and shields are visible in the
+  renderer.
 
 ### Online co-op
 
@@ -112,17 +121,21 @@ Dependency direction: `content -> sim`, `shared -> client/server`, `client/serve
 - The current pipeline (`DEFAULT_RULESET.pipeline`):
 
 ```
-core-movement -> spawn-director -> enemy-ai -> separation -> spatial-hash -> weapons ->
+core-movement -> pathing -> spawn-director -> enemy-ai -> separation -> spatial-hash -> weapons ->
 projectiles -> zones -> contact-damage -> revive -> regen -> deaths -> gems -> pickups ->
 progression
 ```
+
+`pathing` rebuilds a coarse BFS flow field around each player every 12 ticks; ground enemy behaviours
+sample it when steering around walls. The terrain field itself is deterministic and generated on demand
+from the run seed.
 
 ### Stores
 
 | Store | Purpose |
 |---|---|
-| players | position, HP, level, XP, gold, kills, chests, downed/revive |
-| enemies | position, HP, kind, velocity, hit/status timers, last hit owner |
+| players | position, HP, level, XP, gold, kills, chests, downed/revive, velocity |
+| enemies | position, HP, kind, velocity, hit/status timers, shield/fuse, last hit owner |
 | projectiles | straight/orbit/boomerang/bounce/hostile projectiles |
 | weapons | owner, content weapon index, cooldown, level |
 | passives | owner, content passive index, level |
@@ -132,10 +145,16 @@ progression
 
 ### Systems
 
-- **Movement:** normalized move input, per-player speed, facing.
+- **Movement:** normalized move input, per-player speed, facing, terrain collision (except `levitate`),
+  and liquid speed multipliers/damage.
+- **Terrain:** shared deterministic 32 px tile chunks; safe spawn clearing; wall/liquid collision for
+  players/enemies/projectiles; stage-specific water/lava colours and effects.
+- **Pathing:** BFS flow fields around each player, sampled by ground enemies; levitating/flying units and
+  bosses bypass walls and terrain effects.
 - **Spawn director:** weighted, minute-gated enemy selection; ring/stream/swarm/wall patterns; elite/boss
-  cadence; enemy-count scaling per player.
-- **Enemy AI:** chase, weaver, charge, ranged; burning/slow status; exploder deaths; recycling.
+  cadence; enemy-count scaling per player; free-floor spawn search for ground units.
+- **Enemy AI:** chase, runner (predictive lead), tank, weaver, charge, ranged, fan, healer, shielder,
+  summoner, bomber; burning/slow status; exploder deaths; recycling.
 - **Separation (D-030):** soft body push between overlapping enemies. Mass is radius squared, so a boss
   barely moves while minions are displaced; a per-pair push cap prevents explosive corrections.
 - **Spatial hash:** 64 px cell grid rebuilt each tick; all nearby queries use it.
@@ -178,8 +197,8 @@ Counts generated from `loadGamePack()`:
 | Evolved weapons | 4 |
 | Signature/class moves | 14 (8 unique + 6 class placeholders) |
 | Passives | 18 |
-| Enemies | 19 |
-| Minions / elites / bosses / final threats | 10 / 3 / 4 / 2 |
+| Enemies | 20 |
+| Minions / elites / bosses / final threats | 11 / 3 / 4 / 2 |
 | Meta power-ups | 35 |
 | Synergies | 5 |
 | Regions | 14 |
@@ -200,6 +219,10 @@ class upgrade tree. Current class counts:
 | Assassin | 17 |
 | Marksman | 29 |
 | Support | 18 |
+
+Eleven floating/flying champions carry the **`levitate`** tag (Syndra, Anivia, Aurelion Sol, Bard,
+Kayle, Morgana, Soraka, Vex, Yuumi, Zoe, Kindred). The tag is content-driven and is displayed in the
+collection/PLAY chips.
 
 The existing eight champions keep their unique starting weapons/moves and curated trees:
 
@@ -243,23 +266,27 @@ Piercing Bolt, Kinetic Seal, Crimson Pact, Titan's Grip.
 ### Enemies (19)
 
 - Minions: Rift Crawler, Dartling, Weft Wisp, Ash Mote, Ironhide, Hex Weaver, Bloatspore, Spark Charger,
-  Noxian Warhound, Blood Acolyte.
+  Cinder Cultist, Noxian Warhound, Blood Acolyte.
 - Elites: Rift Brute, Verdant Warden, Siege Ogre.
 - Bosses: Herald of Ash, Cinder Wyrm, Void Baron, Crimson Herald.
 - Final threats: The Hollow Star, The Dread Conqueror.
 
-Enemy behaviors: chase, weaver, charge, ranged; bloater explosion on death; slow/burn statuses; weighted
-minute-gated spawns; placeholder tint/radius. Noxus adds the Warhound, Blood Acolyte, Siege Ogre,
-Crimson Herald, and Dread Conqueror.
+Enemy behaviors: chase, runner, tank, weaver, charge, ranged, fan, healer, shielder, summoner, bomber;
+bloater fuse explosion on death; shields absorb hits; heal/shield pulses; slow/burn statuses;
+weighted minute-gated spawns; placeholder tint/radius. Weft Wisp, Ash Mote, and The Hollow Star carry
+`levitate`, and bosses/final threats ignore terrain. Noxus adds the Cinder Cultist, Warhound, Blood
+Acolyte, Siege Ogre, Crimson Herald, and Dread Conqueror.
 
 ### Stages (2)
 
 - **The Riftfield** - original arena, Runeterra, default palette, original 14 enemies and Hollow Star.
-- **Noxian Warfront** - Noxus, red/iron palette, Warhound/Blood Acolyte/Siege Ogre/Crimson Herald pool,
-  Dread Conqueror final threat, faster spawn/boss cadence, +HP scaling, and a wider pattern rotation.
+  Procedural dark-green stone floor with rocky walls and **water** pools (slows ground movement).
+- **Noxian Warfront** - Noxus, red/iron palette, Cinder Cultist/Warhound/Blood Acolyte/Siege Ogre/
+  Crimson Herald pool, Dread Conqueror final threat, faster spawn/boss cadence, +HP scaling, and a wider
+  pattern rotation. Ash-stone floor with **lava** (slows and damages ground units).
 - Both stages are selectable now; stage gating/progression is deferred.
-- Stage selection is saved and sent by the co-op host; snapshots carry the stage id/name so every client
-  renders the correct palette and HUD label.
+- Stage selection is saved and sent by the co-op host; snapshots carry the stage id/name and terrain seed
+  so every client renders the same palette, HUD label, and terrain.
 
 ### Meta power-ups (35)
 
@@ -471,19 +498,22 @@ Last full run (all green):
 - `biome check`: pass
 - `tsc --noEmit` for all packages: pass
 - tests:
-  - **90 sim** tests
-  - **15 content** tests (+2 balance tests skipped by default)
+  - **99 sim** tests
+  - **16 content** tests (+2 balance tests skipped by default)
   - **23 client** tests
   - **14 server** tests
-  - total **142 passing, 2 skipped**
+  - total **152 passing, 2 skipped**
 - Client and server production builds: pass.
 
 Coverage highlights:
 
 - Sim: RNG, stores, modifiers, spatial hash, stats, co-op, per-player meta, separation, moves, evolutions,
-  stages, drops, endgame, progression stress, determinism, bot/fitness, perf.
+  stages, drops, endgame, progression stress, determinism, bot/fitness, perf, deterministic terrain,
+  wall collision, water slow, damaging liquid, levitate traversal, healer/shielder/summoner/fan
+  behaviours.
 - Content: schema/load, full 173 roster, class/starting weapon/move resolution, upgrade IDs, region/rarity
-  identity, stage enemy/final pools, flavor completeness, evolution recipes, enemy behaviors, passives.
+  identity, stage enemy/final pools, terrain palettes/effects, Levitate assignments, flavor completeness,
+  evolution recipes, enemy behaviors, passives.
 - Client: gacha/shards/focus/guarantee, v1->v5 save migration, per-champion upgrades, best-run/profile,
   ability/offer card math, boss bar, loadout, stats formatting.
 - Server: lobby/start/snapshot, protocol mismatch, 4-player jitter, room capacity, reconnect, deltas/resync,
@@ -502,17 +532,21 @@ Coverage highlights:
 - H admin panel.
 - Fresh save starts with Ahri; Demacia/Lux remains locked and available.
 - Profile page + dev cloud login + server save account.
+- D-032 terrain: seamless floor, rocky wall collision, safe spawn island, and the `LEVITATE` chip on
+  Syndra's card. Water/lava behaviour and levitate traversal are covered by automated tests; Noxus
+  still needs a full human visual run.
 
-### Balance baseline (D-031, 32:00)
+### Balance baseline (D-032, wall-aware bot)
 
-| Seed | Level | Kills | Gold | Chests | Max alive | ms/tick |
-|---|---:|---:|---:|---:|---:|---:|
-| 101 | 47 | 5,539 | 1,845 | 66 | 87 | 0.0448 |
-| 202 | 43 | 5,538 | 1,922 | 76 | 66 | 0.0439 |
-| 303 | 43 | 5,536 | 1,988 | 58 | 72 | 0.0418 |
+| Seed | Survived | Level | Kills | Gold | Chests | Max alive | ms/tick |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 101 | 32:00 | 45 | 5,726 | 1,630 | 65 | 87 | 0.0992 |
+| 202 | 32:00 | 45 | 5,818 | 1,576 | 54 | 91 | 0.1130 |
+| 303 | 16:35 | 30 | 3,004 | 690 | 32 | 73 | 0.0881 |
 
-All seeds survive to the 32:00 cutoff. The bot uses Riftfield; Noxus remains a human/balance follow-up.
-Details and follow-ups are in `docs/BALANCE.md`.
+Terrain makes the no-dodge bot much more variable; seed 303 gets trapped/contact/projectile-pressured
+at 16:35 while 101 and 202 reach the cutoff. The bot avoids walls locally, but this remains a regression
+signal rather than a substitute for a human terrain run. Details are in `docs/BALANCE.md`.
 
 ## 9. Milestone status
 
@@ -528,7 +562,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | M4 level-up/items | Done | 3+training cards, offers, stat pipeline, loadout limits; human 5-minute checkpoint not recorded |
 | M5 weapon library/champions | Done | 39 weapons/moves, 6 classes, 173 champions, statuses; unique moves deferred |
 | M6 chests/evolutions/pickups | Done (modified) | D-029 changed chests to saved meta currency; evolutions on level-up |
-| M7 full stage run | Done | 30-minute timeline, bosses, final threat, boss rush, results, bot; Noxus added |
+| M7 full stage run | Done | 30-minute timeline, bosses, final threat, boss rush, results, bot; Noxus + procedural terrain/minion personalities added |
 | M8 meta/unlocks | Mostly done | Gold, per-champion upgrades, region gacha/focus, achievements, stage select; account/cloud save added |
 | M9 content/balance/juice | Done (bot pass) | 173 champions, class kits/placeholder moves, flavor, feedback/settings, bot balance; human feel pass still open |
 | M10 opt-in extras | Partial | Synergy engine + burn/slow reaction done; arcana/curses/shrines/keystones/mutators/dailies not |
@@ -548,13 +582,19 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 - **No friends list or Discord invite embeds.** Co-op still joins by room code; account identity is used
   for the lobby name.
 - **Save conflicts are simple.** If a server save exists it wins on login; there is no merge UI.
-- **Gacha economy is fast.** 58-76 chests per bot run at 1 chest/pull; tune chest drops/shard amounts or
-  use the larger roster/focus system after a human playtest.
+- **Gacha economy is fast.** 54-65 chests per surviving bot run at 1 chest/pull; tune chest drops/shard
+  amounts or use the larger roster/focus system after a human playtest.
 - **Rarities/regions are provisional.** They are generated/curated data intended for a review pass.
 - **Unique champion moves are deferred.** New champions use class weapons and placeholder class moves.
 - **All stages are available.** No formal stage unlock/progression.
 - **Final threats are still mostly chase/charge patterns.** Noxus adds a new final threat, but boss
-  mechanics remain simple.
+  mechanics remain simple; fan/summoner behaviours are available for a later boss-pattern pass.
+- **Terrain has no props or cover props.** Walls and liquids are implemented, but no trees, rocks, brush,
+  destructibles, or line-of-sight blockers. The player has no terrain auto-steering; the controller must
+  steer around walls.
+- **Terrain balance is bot-sensitive.** The wall-aware benchmark bot reaches 32:00 on seeds 101/202 but
+  dies at 16:35 on seed 303 after getting trapped/contact/projectile-pressured. A human terrain pass is
+  pending.
 - **No real assets/audio.** Placeholder procedural art/SFX only.
 - **UI strings are hardcoded English.** The minimal `t()` helper exists but the UI is not wired to locale
   files.
@@ -606,7 +646,10 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | Network protocol | `packages/shared/src/protocol.ts` |
 | Accounts/auth | `packages/server/src/accounts.ts`, `auth.ts` |
 | Co-op server | `packages/server/src/server.ts` |
-| Design log | `docs/10-DESIGN-DECISIONS.md` (D-031) |
+| Terrain generator | `packages/sim/src/terrain.ts` |
+| Flow-field pathing | `packages/sim/src/pathfinding.ts` |
+| Terrain client rendering | `packages/client/src/renderer.ts` |
+| Design log | `docs/10-DESIGN-DECISIONS.md` (D-032) |
 | Hosting/accounts guide | `docs/15-HOSTING-AND-ACCOUNTS.md` |
 | Balance baseline | `docs/BALANCE.md` |
 | Session handoff / next steps | `HANDOFF.md` |
@@ -624,3 +667,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
   focus, Noxian Warfront second stage + stage select, save v5 profile/best-run data, server-side accounts
   with Discord OAuth/dev login/cloud save, profile UI. Unique moves and friends/invite integration remain
   future work.
+- **D-032:** deterministic stage terrain (walls, water/lava, safe spawn island), shared client rendering,
+  player/enemy/projectile collision, BFS flow-field pathing, ground-spawn floor search, minion
+  personalities (runner/tank/fan/healer/shielder/summoner/bomber) and `levitate` champion/enemy tags.
+  The earlier visual reskin was scrapped; the League-client UI remains. No destructible props yet.

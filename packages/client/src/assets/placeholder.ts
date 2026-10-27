@@ -26,6 +26,42 @@ export interface PlaceholderTextures {
   ground: Texture;
 }
 
+/** Seamless, non-grid floor fill used beneath the terrain walls/liquids. */
+export function createTerrainGroundTexture(colors: {
+  floor: string;
+  floorAlt: string;
+  floorSpeck: string;
+}): Texture {
+  const size = 192;
+  return makeTexture(size, (ctx) => {
+    ctx.fillStyle = colors.floor;
+    ctx.fillRect(0, 0, size, size);
+    let seed = 0x6d2b79f5;
+    const rand = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    for (let i = 0; i < 760; i++) {
+      const x = Math.floor(rand() * size);
+      const y = Math.floor(rand() * size);
+      const r = rand();
+      ctx.fillStyle = r > 0.72 ? colors.floorAlt : colors.floorSpeck;
+      ctx.globalAlpha = r > 0.72 ? 0.24 + rand() * 0.2 : 0.18 + rand() * 0.25;
+      ctx.fillRect(x, y, 1 + Math.floor(rand() * 3), 1);
+      if (rand() > 0.86) ctx.fillRect(x, y - 1, 1, 2);
+    }
+    ctx.globalAlpha = 0.32;
+    for (let i = 0; i < 22; i++) {
+      const x = Math.floor(rand() * size);
+      const y = Math.floor(rand() * size);
+      ctx.fillStyle = colors.floorSpeck;
+      ctx.fillRect(x, y, 2 + Math.floor(rand() * 5), 1);
+      if (rand() > 0.5) ctx.fillRect(x + 2, y + 1, 1, 2);
+    }
+    ctx.globalAlpha = 1;
+  });
+}
+
 export function createPlaceholderTextures(): PlaceholderTextures {
   const player = makeTexture(PX, (ctx) => {
     // Light base so the champion color tint reads clearly.

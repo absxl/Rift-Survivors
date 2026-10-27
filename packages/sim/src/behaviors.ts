@@ -1,13 +1,21 @@
 // Generic enemy + weapon behaviors, matched by id from content data.
 import type { EnemyDef, WeaponDef } from "./content-types";
 import type { Registries } from "./registry";
+import { spawnEnemyAt } from "./systems/spawn";
 import type { World } from "./world";
 
 export function registerEnemyBehaviors(reg: Registries): void {
   reg.enemyBehaviors.register("chase", chase);
+  reg.enemyBehaviors.register("runner", runner);
+  reg.enemyBehaviors.register("tank", chase);
   reg.enemyBehaviors.register("weaver", weaver);
   reg.enemyBehaviors.register("charge", charge);
   reg.enemyBehaviors.register("ranged", ranged);
+  reg.enemyBehaviors.register("fan", fan);
+  reg.enemyBehaviors.register("healer", healer);
+  reg.enemyBehaviors.register("shielder", shielder);
+  reg.enemyBehaviors.register("summoner", summoner);
+  reg.enemyBehaviors.register("bomber", bomber);
 }
 
 function numParam(def: EnemyDef, key: string, fallback: number): number {
@@ -49,11 +57,46 @@ function nearestPlayer(world: World, x: number, y: number): PlayerTarget | null 
   return best;
 }
 
-function moveToward(world: World, slot: number, target: PlayerTarget, speed: number): void {
+function terrainSpeed(
+  world: World,
+  slot: number,
+  def: EnemyDef | undefined,
+  speed: number,
+): number {
+  if (!def || world.enemyLevitates(def)) return speed;
+  const enemies = world.stores.enemies;
+  return (
+    speed *
+    world.terrain.movementMultiplier(enemies.field("x")[slot], enemies.field("y")[slot], false)
+  );
+}
+
+function moveToward(
+  world: World,
+  slot: number,
+  target: PlayerTarget,
+  speed: number,
+  path = true,
+): void {
   if (target.dist < 0.001) return;
   const enemies = world.stores.enemies;
-  enemies.field("x")[slot] += (target.dx / target.dist) * speed;
-  enemies.field("y")[slot] += (target.dy / target.dist) * speed;
+  const def = world.content.enemies[enemies.field("kind")[slot]];
+  const movement = terrainSpeed(world, slot, def, speed);
+  let dx = target.dx / target.dist;
+  let dy = target.dy / target.dist;
+  if (path && def && !world.enemyLevitates(def)) {
+    const routed = world.pathDirection(
+      target.slot,
+      enemies.field("x")[slot],
+      enemies.field("y")[slot],
+    );
+    if (routed) {
+      dx = routed.x;
+      dy = routed.y;
+    }
+  }
+  enemies.field("x")[slot] += dx * movement;
+  enemies.field("y")[slot] += dy * movement;
 }
 
 /** Straight chase, slowed by the slow status. */
@@ -79,12 +122,13 @@ function weaver(world: World, slot: number, def: EnemyDef): void {
   const frequency = numParam(def, "frequency", 0.07);
   const amplitude = numParam(def, "amplitude", 0.8);
   const wave = Math.sin((world.tick + slot * 23) * frequency) * amplitude;
-  const nx = target.dx / target.dist;
-  const ny = target.dy / target.dist;
+  const routed = world.enemyLevitates(def) ? null : world.pathDirection(target.slot, ex, ey);
+  const nx = routed?.x ?? target.dx / target.dist;
+  const ny = routed?.y ?? target.dy / target.dist;
   const dx = nx - ny * wave;
   const dy = ny + nx * wave;
   const len = Math.hypot(dx, dy) || 1;
-  const speed = def.moveSpeed * slow;
+  const speed = terrainSpeed(world, slot, def, def.moveSpeed * slow);
   enemies.field("x")[slot] += (dx / len) * speed;
   enemies.field("y")[slot] += (dy / len) * speed;
 }
@@ -102,7 +146,7 @@ function charge(world: World, slot: number, def: EnemyDef): void {
   const phase = (((world.tick + slot * 31) % period) + period) % period;
   const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
   const speed = (phase < dashTicks ? dashSpeed : def.moveSpeed) * slow;
-  moveToward(world, slot, target, speed);
+  moveToward(world, slot, target, speed, phase >= dashTicks);
 }
 
 /** Keep distance and fire hostile projectiles on a fixed cadence. */
@@ -119,7 +163,7 @@ function ranged(world: World, slot: number, def: EnemyDef): void {
   if (target.dist > preferred + 20) {
     moveToward(world, slot, target, def.moveSpeed * slow);
   } else if (target.dist < preferred - 30 && target.dist > 0.001) {
-    const speed = def.moveSpeed * slow * 0.7;
+    const speed = terrainSpeed(world, slot, def, def.moveSpeed * slow * 0.7);
     enemies.field("x")[slot] -= (target.dx / target.dist) * speed;
     enemies.field("y")[slot] -= (target.dy / target.dist) * speed;
   }
@@ -140,6 +184,176 @@ function ranged(world: World, slot: number, def: EnemyDef): void {
     numParam(def, "speed", 3.4),
     Math.max(1, Math.floor(numParam(def, "lifetime", 120))),
   );
+}
+
+/** A fast runner predicts where the player is going instead of following them. */
+function runner(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  const players = world.stores.players;
+  const lead = 6;
+  const lx = players.field("x")[target.slot] + players.field("velocityX")[target.slot] * lead;
+  const ly = players.field("y")[target.slot] + players.field("velocityY")[target.slot] * lead;
+  const dx = lx - enemies.field("x")[slot];
+  const dy = ly - enemies.field("y")[slot];
+  const dist = Math.hypot(dx, dy) || 1;
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  moveToward(world, slot, { ...target, dx, dy, dist }, def.moveSpeed * 1.05 * slow);
+}
+
+/** Ranged fan: holds distance and fires a short spread of projectiles. */
+function fan(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  const preferred = numParam(def, "preferredRange", 170);
+  if (target.dist > preferred + 20) {
+    moveToward(world, slot, target, def.moveSpeed * slow);
+  } else if (target.dist < preferred - 25 && target.dist > 0.001) {
+    const speed = terrainSpeed(world, slot, def, def.moveSpeed * slow * 0.7);
+    enemies.field("x")[slot] -= (target.dx / target.dist) * speed;
+    enemies.field("y")[slot] -= (target.dy / target.dist) * speed;
+  }
+  const range = numParam(def, "range", 280);
+  const period = Math.max(1, Math.floor(numParam(def, "period", 100)));
+  if (target.dist > range) return;
+  if ((((world.tick + slot * 11) % period) + period) % period !== 0) return;
+  const count = Math.max(3, Math.floor(numParam(def, "amount", 5)));
+  const spread = numParam(def, "spread", 0.8);
+  const base = Math.atan2(target.dy, target.dx);
+  for (let i = 0; i < count; i++) {
+    const angle = base + (i / (count - 1) - 0.5) * spread;
+    spawnHostileProjectile(
+      world,
+      enemies.field("x")[slot],
+      enemies.field("y")[slot],
+      Math.cos(angle),
+      Math.sin(angle),
+      numParam(def, "damage", def.damage),
+      numParam(def, "speed", 3.2),
+      Math.max(1, Math.floor(numParam(def, "lifetime", 110))),
+    );
+  }
+}
+
+/** Support healer: hangs back and periodically heals nearby wounded minions. */
+function healer(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  const preferred = numParam(def, "preferredRange", 145);
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  if (target.dist > preferred + 25) moveToward(world, slot, target, def.moveSpeed * slow);
+  else if (target.dist < preferred - 20 && target.dist > 0.001) {
+    const speed = terrainSpeed(world, slot, def, def.moveSpeed * slow * 0.7);
+    enemies.field("x")[slot] -= (target.dx / target.dist) * speed;
+    enemies.field("y")[slot] -= (target.dy / target.dist) * speed;
+  }
+  const period = Math.max(20, Math.floor(numParam(def, "period", 150)));
+  if ((((world.tick + slot * 17) % period) + period) % period !== 0) return;
+  const radius = numParam(def, "healRadius", 120);
+  const amount = numParam(def, "healAmount", 8);
+  const x = enemies.field("x")[slot];
+  const y = enemies.field("y")[slot];
+  let healed = 0;
+  enemies.forEachAlive((other) => {
+    if (other === slot) return;
+    const ox = enemies.field("x")[other] - x;
+    const oy = enemies.field("y")[other] - y;
+    if (ox * ox + oy * oy > radius * radius) return;
+    const hp = enemies.field("hp")[other];
+    const max = enemies.field("maxHp")[other];
+    if (hp <= 0 || hp >= max) return;
+    enemies.field("hp")[other] = Math.min(max, hp + amount);
+    healed++;
+  });
+  if (healed > 0) world.emit({ type: "enemy-heal", x, y, radius, amount: healed });
+}
+
+/** Support shielder: gives nearby minions a temporary absorb shield. */
+function shielder(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  if (target.dist > numParam(def, "preferredRange", 160) + 20) {
+    moveToward(world, slot, target, def.moveSpeed * slow);
+  }
+  const period = Math.max(30, Math.floor(numParam(def, "period", 180)));
+  if ((((world.tick + slot * 19) % period) + period) % period !== 0) return;
+  const radius = numParam(def, "shieldRadius", 125);
+  const amount = numParam(def, "shieldAmount", 12);
+  const x = enemies.field("x")[slot];
+  const y = enemies.field("y")[slot];
+  let shielded = 0;
+  enemies.forEachAlive((other) => {
+    if (other === slot) return;
+    const ox = enemies.field("x")[other] - x;
+    const oy = enemies.field("y")[other] - y;
+    if (ox * ox + oy * oy > radius * radius) return;
+    const current = enemies.field("shield")[other] ?? 0;
+    enemies.field("shield")[other] = Math.max(current, amount);
+    shielded++;
+  });
+  if (shielded > 0) world.emit({ type: "enemy-shield", x, y, radius, amount: shielded });
+}
+
+/** Summoner: calls two weaker minions to its side. */
+function summoner(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (target) {
+    const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+    if (target.dist > 190) moveToward(world, slot, target, def.moveSpeed * slow);
+  }
+  const period = Math.max(60, Math.floor(numParam(def, "period", 240)));
+  if ((((world.tick + slot * 13) % period) + period) % period !== 0) return;
+  if (enemies.count > world.num("director.maxEnemies") - 2) return;
+  const minionId = typeof def.params.minion === "string" ? def.params.minion : "";
+  const index = world.content.enemies.findIndex(
+    (candidate) =>
+      candidate.id === minionId &&
+      candidate.category === "minion" &&
+      world.stageAllowsEnemy(candidate.id),
+  );
+  if (index < 0) return;
+  const minion = world.content.enemies[index];
+  for (let i = 0; i < 2; i++) {
+    const angle = world.rng.range(0, Math.PI * 2);
+    const px = enemies.field("x")[slot] + Math.cos(angle) * 30;
+    const py = enemies.field("y")[slot] + Math.sin(angle) * 24;
+    const free = world.enemyLevitates(minion)
+      ? { x: px, y: py }
+      : world.terrain.findFreeNear(px, py, Math.max(5, minion.radius), 56);
+    if (free) spawnEnemyAt(world, index, free.x, free.y);
+  }
+}
+
+/** Bomber: closes in, then arms a short fuse and explodes on death. */
+function bomber(world: World, slot: number, def: EnemyDef): void {
+  const enemies = world.stores.enemies;
+  if (enemies.field("freezeTicks")[slot] > 0) return;
+  const fuse = enemies.field("fuseTicks")[slot];
+  if (fuse > 0) {
+    enemies.field("fuseTicks")[slot] = fuse - 1;
+    if (fuse - 1 <= 0) enemies.field("hp")[slot] = 0;
+    return;
+  }
+  const target = nearestPlayer(world, enemies.field("x")[slot], enemies.field("y")[slot]);
+  if (!target) return;
+  if (target.dist < 38) {
+    enemies.field("fuseTicks")[slot] = 30;
+    return;
+  }
+  const slow = enemies.field("slowTicks")[slot] > 0 ? 0.5 : 1;
+  moveToward(world, slot, target, def.moveSpeed * 1.1 * slow);
 }
 
 /** Allocate a straight hostile projectile (mode 5, owner 255). */

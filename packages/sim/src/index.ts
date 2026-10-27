@@ -39,6 +39,14 @@ export {
   type StoreDelta,
 } from "./snapshot-delta";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
+export {
+  TerrainField,
+  TERRAIN_TILE,
+  TILE_FLOOR,
+  TILE_LIQUID,
+  TILE_WALL,
+  SPAWN_CLEARING_RADIUS,
+} from "./terrain";
 export type {
   CharacterDef,
   ContentPack,
@@ -49,6 +57,7 @@ export type {
   Rarity,
   StageDef,
   StagePalette,
+  StageTerrain,
   StatDelta,
   StatusApply,
   SynergyDef,

@@ -164,6 +164,33 @@ export interface StagePalette {
   accent: number;
 }
 
+/**
+ * Procedural terrain settings. The sim only reads thresholds/effects; the
+ * colours are consumed by the client terrain renderer.
+ */
+export interface StageTerrain {
+  /** 32px world tiles; chunks are 16x16 tiles. */
+  wallThreshold: number;
+  liquidThreshold: number;
+  liquid: "water" | "lava" | "void";
+  /** Fraction of movement removed while standing in liquid (0..1). */
+  liquidSlow: number;
+  /** Damage per second while standing in a damaging liquid. */
+  liquidDamage: number;
+  colors: {
+    floor: string;
+    floorAlt: string;
+    floorSpeck: string;
+    wallTop: string;
+    wallTopAlt: string;
+    wallFace: string;
+    wallEdge: string;
+    liquid: string;
+    liquidDeep: string;
+    liquidAccent: string;
+  };
+}
+
 export interface StageDef {
   id: string;
   name: string;
@@ -176,6 +203,8 @@ export interface StageDef {
   finalThreatId?: string;
   /** Stage-specific overrides for spawned rules. */
   rules?: Record<string, number | string | boolean>;
+  /** Optional procedural arena terrain; without it the stage is a flat field. */
+  terrain?: StageTerrain;
 }
 
 export interface ContentPack {

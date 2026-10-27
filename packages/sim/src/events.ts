@@ -23,6 +23,8 @@ export type SimEvent =
   | { type: "explosion"; x: number; y: number; radius: number }
   | { type: "chest-found"; playerId: number; chests: number }
   | { type: "nuke"; playerId: number }
+  | { type: "enemy-heal"; x: number; y: number; radius: number; amount: number }
+  | { type: "enemy-shield"; x: number; y: number; radius: number; amount: number }
   | { type: "run-end"; victory: boolean };
 
 export type SimEventType = SimEvent["type"];

@@ -2,7 +2,7 @@
 // wires them into a pipeline; the real gameplay is driven by content data.
 import { registerEnemyBehaviors, registerWeaponBehaviors } from "./behaviors";
 import type { Registries } from "./registry";
-import { registerCombatSystems } from "./systems/combat";
+import { damagePlayer, registerCombatSystems } from "./systems/combat";
 import { registerEnemySystems } from "./systems/enemy";
 import { registerGemSystem } from "./systems/gems";
 import { registerPickupSystem } from "./systems/pickups";
@@ -17,6 +17,7 @@ import type { RulesetDef, World } from "./world";
 
 export function registerCoreSystems(reg: Registries): void {
   reg.systems.register("core-movement", coreMovement);
+  reg.systems.register("pathing", (world) => world.pathfinder.update(world));
   registerEnemyBehaviors(reg);
   registerWeaponBehaviors(reg);
   registerSpatialHash(reg);
@@ -54,12 +55,42 @@ function coreMovement(world: World): void {
       }
     }
 
-    players.field("x")[slot] += mx * speed;
-    players.field("y")[slot] += my * speed;
+    const terrainMul = world.terrainStep(slot);
+    const moveX = mx * speed * terrainMul;
+    const moveY = my * speed * terrainMul;
+    const oldX = players.field("x")[slot];
+    const oldY = players.field("y")[slot];
+    players.field("x")[slot] = oldX + moveX;
+    players.field("y")[slot] = oldY + moveY;
+    if (!world.playerLevitates(slot)) {
+      const resolved = world.terrain.collide(players.field("x")[slot], players.field("y")[slot], 6);
+      players.field("x")[slot] = resolved.x;
+      players.field("y")[slot] = resolved.y;
+    }
+    players.field("velocityX")[slot] = players.field("x")[slot] - oldX;
+    players.field("velocityY")[slot] = players.field("y")[slot] - oldY;
 
     if (mx !== 0 || my !== 0) {
       players.field("facingX")[slot] = mx;
       players.field("facingY")[slot] = my;
+    }
+
+    // Terrain damage (lava/void) is a once-per-second environmental tick, not
+    // a contact hit. Levitating characters ignore it entirely.
+    const danger = world.terrain.liquidDamageAt(
+      players.field("x")[slot],
+      players.field("y")[slot],
+      world.playerLevitates(slot),
+    );
+    if (danger > 0 && world.tick > 0 && world.tick % 30 === 0) {
+      damagePlayer(
+        world,
+        slot,
+        danger,
+        players.field("x")[slot],
+        players.field("y")[slot],
+        "terrain",
+      );
     }
   });
 }
@@ -69,6 +100,7 @@ export const DEFAULT_RULESET: RulesetDef = {
   schemaVersion: 1,
   pipeline: [
     "core-movement",
+    "pathing",
     "spawn-director",
     "enemy-ai",
     "separation",

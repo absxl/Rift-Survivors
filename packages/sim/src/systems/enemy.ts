@@ -49,6 +49,24 @@ function enemyAi(world: World): void {
     // Apply (already-decayed) knockback impulse on top of steering.
     enemies.field("x")[slot] += enemies.field("vx")[slot];
     enemies.field("y")[slot] += enemies.field("vy")[slot];
+
+    if (!world.enemyLevitates(def)) {
+      const resolved = world.terrain.collide(
+        enemies.field("x")[slot],
+        enemies.field("y")[slot],
+        Math.max(5, def.radius * 0.9),
+      );
+      enemies.field("x")[slot] = resolved.x;
+      enemies.field("y")[slot] = resolved.y;
+      const danger = world.terrain.liquidDamageAt(
+        enemies.field("x")[slot],
+        enemies.field("y")[slot],
+        false,
+      );
+      if (danger > 0 && world.tick > 0 && world.tick % 30 === 0) {
+        world.applyHit(slot, danger, 0, 0, 0, 0, -1);
+      }
+    }
   });
 }
 
