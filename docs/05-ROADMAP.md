@@ -8,6 +8,10 @@ missing, stop and ask (`docs/09`).
 
 The order is chosen to reach a **fun, playable classic-style vertical slice by M4**, then widen it.
 
+> **Current implementation snapshot:** see [`14-IMPLEMENTATION-STATUS.md`](14-IMPLEMENTATION-STATUS.md).
+> The checkboxes and notes below are the historical milestone plan; the current code includes the
+> D-029/D-030 batches (moves, per-champion trees, DOM HUD, region gacha shards, admin panel).
+
 ## D0 — Design interview (NO CODE)
 - [x] Read `09`, `10`, `13`, `03`, `11`, `12`
 - [x] Run the baseline-first interview (classic defaults from `13`; user confirms/changes each; max 4 questions per message)
@@ -122,8 +126,9 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - **M11 co-op limitations:** per-player characters and stats are done. Snapshots are JSON deltas (changed
   rows) with a full frame every 150 ticks; there is no binary codec, interest filtering, input ack/rewind,
   or rate limiting yet.
-- **Implemented since:** shared party XP + level-up-together (D-023) and a League-style Pixi hotbar
-  (portrait/level, HP/XP bars, weapon ability icons with cooldowns, passive item row, hover tooltips).
+- **Implemented since:** shared party XP + level-up-together (D-023); the HUD is now DOM (D-030) with
+  party frames, team kills, boss bar, weapon/move/item slots, hover tooltips and a Tab scoreboard.
+  See `docs/14-IMPLEMENTATION-STATUS.md`.
 - **Freeze fix:** level-up/chest offers now always include a fallback card, always clear on apply, dot-stats
   are clamped finite, and worker/server ticks are wrapped so one bad tick ends the run instead of freezing it.
 - **QoL:** separate name screen before the co-op lobby; Esc pause menu (solo freezes the sim, co-op does not;

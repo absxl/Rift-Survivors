@@ -3,6 +3,8 @@
 > **Status: confirmed by the user (D0 sign-off 2026-10-22).** Source of truth is
 > `docs/10-DESIGN-DECISIONS.md`, which overrides this file on any conflict. The game keeps the classic
 > Vampire-Survivors feel (`docs/13`) but reworks the build system around **Moves** and **cross-synergies**.
+> For what is currently coded (D-029/D-030 features, limits, and tests), see
+> [`14-IMPLEMENTATION-STATUS.md`](14-IMPLEMENTATION-STATUS.md).
 
 ## Pillars
 1. **Classic survivor feel** — move-only play, auto-firing weapons, huge swarms, build-defining level-ups.

@@ -2,7 +2,9 @@
 
 This file records the D-030 batch so the next session can resume without re-deriving it.
 The batch is committed as `feat: D-030 DOM HUD, champion moves, region gacha, per-champion trees`
-(amend/rewrite this file once signed off).
+plus a HUD tooltip follow-up. For the full feature/status reference, see
+[`docs/14-IMPLEMENTATION-STATUS.md`](docs/14-IMPLEMENTATION-STATUS.md). Amend/rewrite this file once
+signed off.
 
 ## Implemented (committed)
 

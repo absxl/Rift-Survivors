@@ -3,6 +3,11 @@
 All content lives in `packages/content/src/**` as TypeScript objects validated by Zod at startup and in
 tests. IDs are `kebab-case` strings, unique within their type.
 
+> **Current implemented contract:** see [`14-IMPLEMENTATION-STATUS.md`](14-IMPLEMENTATION-STATUS.md) and
+> `packages/sim/src/content-types.ts`. The schemas below are the original design sketch; the code now also
+> has `WeaponDef.isMove`, `CharacterDef.startingMove/region/rarity/class/starter/upgradeIds`, display
+> names/descriptions, and per-champion meta-upgrade trees.
+
 > **These schemas are a starting point and WILL change** after the design interview (`09`/`10`).
 > Change them only via the process in `12-CHANGE-PLAYBOOK.md` (ADR, `schemaVersion` bump, migration).
 > The model follows the classic survivor structure in `13-CLASSIC-FEEL-SPEC.md`.

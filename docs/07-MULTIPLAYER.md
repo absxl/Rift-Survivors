@@ -4,6 +4,8 @@ Model: **server-authoritative, input-based**. The server runs `packages/sim` at 
 inputs, receive full snapshots/deltas, interpolate between frames, and visually lead their own movement.
 Friends-only: no auth, no anti-cheat, rooms by short code.
 
+**Current protocol version: 3** (D-030 added optional per-player meta bonuses).
+
 ## Transport (implemented)
 
 - WebSocket (`ws`), **JSON** frames for every message (lobby, snapshots, offers, errors).
@@ -19,8 +21,8 @@ per-client interest filtering, input `seq`/`ackSeq`, 15 Hz snapshots, rate limit
 Client → Server
 | Type | Payload | Rate |
 |---|---|---|
-| `create` / `join` | `{ name, protocolVersion, characterId[, code] }` | once |
-| `ready` | `{ characterId, ready }` | on change |
+| `create` / `join` | `{ name, protocolVersion, characterId, metaBonuses?[, code] }` | once |
+| `ready` | `{ characterId, ready, metaBonuses? }` | on change |
 | `start` | — (host) | once |
 | `input` | `{ moveX, moveY }` | every tick (30 Hz) |
 | `choice` | `{ choiceIndex }` | on pick |
@@ -40,6 +42,14 @@ Server → Client
 | `offer` | `Offer` to a single player | level-up / chest |
 | `end` | result stats | once |
 | `error` / `pong` | message / echo | as needed |
+
+## Per-player meta bonuses
+
+The lobby carries each player's selected champion meta tree. `create`, `join`, and `ready` accept an
+optional `metaBonuses: Record<string, number>`; the server stores it on the client. `startRoom` passes
+`playerMetaBonuses: clients.map(c => c.metaBonuses)` into `createWorld`, and the sim applies each bundle
+to that player's own modifier stack. This is what makes per-champion upgrades work independently in
+co-op; no global server-side account data is involved.
 
 ## Snapshots & deltas
 

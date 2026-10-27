@@ -42,6 +42,7 @@ optional co-op server) built so **the design can change radically later without 
 | `docs/11-SYNERGIES-AND-QUIRKS.md` | Opt-in extras engine: tags, effects, modifiers, synergies, idea bank |
 | `docs/12-CHANGE-PLAYBOOK.md` | How to make radical changes safely (seams, ADRs, migrations, recipes) |
 | `docs/13-CLASSIC-FEEL-SPEC.md` | The classic survivor structure and feel to reproduce, plus the League skin mapping |
+| `docs/14-IMPLEMENTATION-STATUS.md` | **Current implemented feature/status reference** (D-030): systems, content, gacha, save, co-op, tests, limitations |
 
 ## Tips
 - Keep the repo **private**; put any real art only in `assets/local/` (gitignored). The placeholder art is
