@@ -1,4 +1,11 @@
-import type { EnemyDef, SimEvent, StoreSnapshot, WeaponDef, WorldSnapshot } from "@rift/sim";
+import type {
+  EnemyDef,
+  SimEvent,
+  StageDef,
+  StoreSnapshot,
+  WeaponDef,
+  WorldSnapshot,
+} from "@rift/sim";
 // Pixel-perfect renderer: draws the world from snapshots with a camera locked to
 // the local player, interpolating between the two most recent snapshots. Also
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
@@ -89,11 +96,16 @@ export class GameRenderer {
   private predictionY = 0;
   private predictionSpeed = 2.5;
 
+  private stageId = "";
+  private readonly stageDefs: StageDef[];
+
   constructor(
     private readonly stage: Container,
     private readonly weapons: WeaponDef[],
     private readonly enemies: EnemyDef[],
+    stageDefs: StageDef[] = [],
   ) {
+    this.stageDefs = stageDefs;
     this.textures = createPlaceholderTextures();
 
     this.ground = new TilingSprite({
@@ -131,7 +143,17 @@ export class GameRenderer {
     return this.curr;
   }
 
+  /** Apply a stage's presentation palette without restarting the renderer. */
+  setStage(stageId: string | undefined): void {
+    const next = stageId ?? "";
+    if (next === this.stageId) return;
+    this.stageId = next;
+    const stage = this.stageDefs.find((candidate) => candidate.id === next);
+    this.ground.tint = stage?.palette.background ?? 0xffffff;
+  }
+
   receive(s: WorldSnapshot, events: SimEvent[]): void {
+    this.setStage(s.stageId);
     this.prev = this.curr;
     this.curr = s;
     this.prevTime = this.currTime;

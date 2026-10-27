@@ -2,7 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
-import type { CharacterDef, ContentPack, StatusApply, WeaponDef } from "./content-types";
+import type { CharacterDef, ContentPack, StageDef, StatusApply, WeaponDef } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -43,6 +43,8 @@ export interface RunConfig {
   metaBonuses?: Record<string, number>;
   /** Per-player meta bonuses (co-op); takes precedence over metaBonuses. */
   playerMetaBonuses?: Record<string, number>[];
+  /** Stage id; falls back to the first content stage. */
+  stageId?: string;
 }
 
 const EMPTY_PACK: ContentPack = {
@@ -54,6 +56,7 @@ const EMPTY_PACK: ContentPack = {
   characters: [],
   powerUps: [],
   synergies: [],
+  stages: [],
 };
 
 const PLAYER_SCHEMA: EntitySchema = {
@@ -230,6 +233,8 @@ export interface WorldSnapshot {
   partyXpToNext: number;
   worldWidth: number;
   worldHeight: number;
+  stageId: string;
+  stageName: string;
   stores: StoreSnapshot[];
 }
 
@@ -247,6 +252,7 @@ export class World {
   readonly spatialHash: SpatialHash;
   readonly content: ContentPack;
   readonly character: CharacterDef | null;
+  readonly stage: StageDef | null;
 
   tick = 0;
   inputs: PlayerInput[] = [];
@@ -278,12 +284,17 @@ export class World {
     metaBonuses?: Record<string, number>,
     characterIds?: string[],
     playerMetaBonuses?: Record<string, number>[],
+    stageId?: string,
   ) {
     this.seed = seed;
     this.ruleset = ruleset;
     this.registries = createRegistries();
     this.rng = new Rng(seed);
     this.content = content;
+    this.stage =
+      (stageId ? content.stages?.find((candidate) => candidate.id === stageId) : undefined) ??
+      content.stages?.[0] ??
+      null;
     this.stores = {
       players: new EntityStore(PLAYER_SCHEMA),
       enemies: new EntityStore(ENEMY_SCHEMA),
@@ -375,11 +386,24 @@ export class World {
 
   /** Named tunable from the ruleset (no magic numbers in systems). */
   rule(key: string): number | boolean | string {
+    const stageValue = this.stage?.rules?.[key];
+    if (stageValue !== undefined) return stageValue;
     const value = this.ruleset.rules[key];
     if (value === undefined) {
       throw new Error(`rule "${key}" not defined in ruleset "${this.ruleset.id}"`);
     }
     return value;
+  }
+
+  /** Stage-specific enemy allow-list; an empty list means the whole pack. */
+  stageAllowsEnemy(enemyId: string): boolean {
+    const ids = this.stage?.enemyIds;
+    return !ids || ids.length === 0 || ids.includes(enemyId);
+  }
+
+  /** True if this stage's enemy allow-list is intentionally restricting spawns. */
+  get hasStageEnemyFilter(): boolean {
+    return Boolean(this.stage?.enemyIds && this.stage.enemyIds.length > 0);
   }
 
   /** Numeric rule accessor (asserts the rule is a number). */
@@ -604,6 +628,7 @@ export function createWorld(ruleset: RulesetDef, config: RunConfig, seed: number
     config.metaBonuses,
     config.characterIds,
     config.playerMetaBonuses,
+    config.stageId,
   );
 }
 
@@ -632,6 +657,8 @@ export function snapshot(world: World): WorldSnapshot {
     partyXpToNext: world.partyXpToNext,
     worldWidth: Number(world.ruleset.rules["core.fieldWidth"] ?? 0),
     worldHeight: Number(world.ruleset.rules["core.fieldHeight"] ?? 0),
+    stageId: world.stage?.id ?? "",
+    stageName: world.stage?.name ?? "The Rift",
     stores: [
       world.stores.players.snapshot(),
       world.stores.enemies.snapshot(),

@@ -1,8 +1,8 @@
 # 14 - Implementation status
 
 Last updated: **2026-10-27**  
-Current batch: **D-029 + D-030**  
-Commits: `299a11b` (D-030 batch) and `48e6389` (HUD tooltip positioning fix)
+Current batch: **D-029 + D-030 + D-031**  
+Commits: `299a11b` (D-030 batch), `48e6389` (HUD tooltip fix), and the D-031 work below
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
 [`10-DESIGN-DECISIONS.md`](10-DESIGN-DECISIONS.md); the classic baseline is in
@@ -53,15 +53,16 @@ A League-client-inspired DOM hub with an always-visible brand/currency header an
 
 | Section | What it does |
 |---|---|
-| PLAY | Selected-champion hero panel, starting kit, PLAY / CO-OP, lifetime stats |
-| CHAMPIONS | Region-filtered collection: descriptions, rarities, starting kits, shard progress, unlock/select |
+| PROFILE | Showdown-style name, account/cloud status, lifetime stats, best run |
+| PLAY | Selected-champion hero, stage select, PLAY / CO-OP, lifetime strip |
+| CHAMPIONS | Searchable/filterable 173-champion collection with pagination, rarity/class/region filters, focus, shard progress, unlock/select |
 | UPGRADES | The selected champion's own permanent upgrade tree, bought with gold |
-| CHESTS | Six region-themed gacha cards with odds, 1-pull and 10-pull buttons, results panel |
+| CHESTS | Fourteen region-themed gacha cards with odds, focus, 1-pull/10-pull, results |
 | ACHIEVEMENTS | Four run milestones |
 | SETTINGS | Sound, screen shake, damage numbers, movement rebinds, Reset Save |
 
 The old separate character-select popup is no longer used. PLAY and CO-OP use the champion selected on
-the CHAMPIONS page.
+the CHAMPIONS page; co-op uses the profile name rather than a per-session name prompt.
 
 ### Run
 
@@ -70,7 +71,8 @@ the CHAMPIONS page.
 - Level-up: **1-4** pick, **R** reroll, **X** skip, **B** banish. **S is movement and never closes the
   offer.** Esc does not open pause over an open offer.
 - Champion inventory is **6 weapons + 4 moves + 6 passives**.
-- Every champion starts with one unique signature move and one starting weapon.
+- Every champion starts with a class weapon and a class placeholder move; the original eight have their
+  unique signature moves. Unique champion moves are the deferred moves pass.
 - A level-up has 3 cards plus 1 guaranteed repeatable Training card.
 - Evolutions are level-up cards (maxed weapon + required passive).
 - Elite/boss chest pickups are saved for the meta gacha, not opened during the run.
@@ -85,7 +87,7 @@ the CHAMPIONS page.
 - Party frames show lobby names, champion colors, level, HP, kills and downed state.
 - Top bar uses **team kills** in co-op; the Tab scoreboard keeps each player's individual kills and gold.
 - Downed players can be revived by an ally walking over them.
-- Mid-run reconnect is supported for 60 s; lobby/name screens have BACK TO MENU.
+- Mid-run reconnect is supported for 60 s; the lobby has BACK TO MENU and uses the profile name.
 
 ## 3. Architecture
 
@@ -170,20 +172,36 @@ Counts generated from `loadGamePack()`:
 
 | Type | Count |
 |---|---:|
-| Champions | 8 |
-| Weapons (total) | 23 |
-| Standard weapons (non-move) | 15 |
+| Champions | 173 |
+| Weapons (total) | 39 |
+| Standard weapons (non-move) | 25 |
 | Evolved weapons | 4 |
-| Signature moves | 8 |
+| Signature/class moves | 14 (8 unique + 6 class placeholders) |
 | Passives | 18 |
-| Enemies | 14 |
-| Minions / elites / bosses / final threats | 8 / 2 / 3 / 1 |
-| Meta power-ups | 23 |
-| Synergies | 4 |
-| Regions | 6 |
+| Enemies | 19 |
+| Minions / elites / bosses / final threats | 10 / 3 / 4 / 2 |
+| Meta power-ups | 35 |
+| Synergies | 5 |
+| Regions | 14 |
+| Stages | 2 |
 | Achievements | 4 |
 
 ### Champions
+
+The roster is generated from the **Riot Data Dragon 16.21.1** roster and enriched with curated primary
+regions, provisional rarities, class, starting weapon, placeholder class move, base stats/growth, and a
+class upgrade tree. Current class counts:
+
+| Class | Count |
+|---|---:|
+| Mage | 35 |
+| Tank | 24 |
+| Fighter | 50 |
+| Assassin | 17 |
+| Marksman | 29 |
+| Support | 18 |
+
+The existing eight champions keep their unique starting weapons/moves and curated trees:
 
 | Champion | Region | Rarity | Class | Starting weapon | Starting move |
 |---|---|---|---|---|---|
@@ -196,21 +214,25 @@ Counts generated from `loadGamePack()`:
 | Xerath | Shurima | Epic | Mage | Arcane Barrage | Arcanopulse |
 | Ryze | Runeterra | Legendary | Mage | Overload | Realm Warp |
 
-All eight champions are mages in this pass. The upgrade framework has tank-flavoured entries
-(Fortitude/Bulwark/Regeneration/Aegis) ready for future tank champions, but no tank champion exists yet.
+New champions use a **class weapon** and a **class placeholder move** until the champion-specific moves
+pass. Rarities are provisional by design; review them before a public launch. Region pools:
+Demacia 15, Noxus 20, Ionia 23, Runeterra 10, Bandle City 6, Shurima 14, Freljord 15, Mount Targon 8,
+Void 9, Zaun 14, Piltover 10, Bilgewater 11, Shadow Isles 11, Ixtal 7.
 
 ### Weapons and evolutions
 
-- 11 standard source weapons + 4 evolved forms + 8 signature moves = 23 weapon definitions.
-- All are content-driven, max level 5.
+- 25 standard weapons (21 source + 4 evolved) + 14 moves = 39 weapon definitions.
+- New class weapon pools: Bulwark Sweep/Iron Aura (Tank), Cleaver/War Boomerang (Fighter),
+  Shadow Daggers/Venom Dart (Assassin), Longbow/Piercing Arrow (Marksman), Aegis Aura/Radiant Field
+  (Support). Mages use the existing mage weapon pool.
+- Class placeholder moves: Arcane Bolt, Shockwave, Cleaving Strike, Shadow Strike, Piercing Shot,
+  Renewal Pulse. They are shared by class until unique champion moves are authored.
 - Evolutions:
   - Light Binding + Might -> Final Spark
   - Orb of Deception + Flow State (haste) -> Spirit Rush
   - Overload + Flow State (haste) -> Desperate Power
   - Conflagration + Far-Sight Lens (area) -> Pyroclasm
-- Signature moves (also learnable by other champions through level-ups):
-  Prismatic Nova, Pyre Pillar, Charm, Realm Warp, Force of Will, Dark Matter, Infernal Guardian,
-  Arcanopulse.
+- The eight existing signature moves are also learnable by other champions through level-ups.
 
 ### Passives (18)
 
@@ -218,27 +240,42 @@ Might, Wanderer's Boots, Heart of the Rift, Gathering Sigil, Far-Sight Lens, Flo
 Lucky Charm, Scholar's Tome, Renewal Bloom, Coin Devotion, Warding Sigil, Aether Lens, Lasting Hex,
 Piercing Bolt, Kinetic Seal, Crimson Pact, Titan's Grip.
 
-### Enemies (14)
+### Enemies (19)
 
-- Minions: Rift Crawler, Dartling, Weft Wisp, Ash Mote, Ironhide, Hex Weaver, Bloatspore, Spark Charger.
-- Elites: Rift Brute, Verdant Warden.
-- Bosses: Herald of Ash, Cinder Wyrm, Void Baron.
-- Final threat: The Hollow Star.
+- Minions: Rift Crawler, Dartling, Weft Wisp, Ash Mote, Ironhide, Hex Weaver, Bloatspore, Spark Charger,
+  Noxian Warhound, Blood Acolyte.
+- Elites: Rift Brute, Verdant Warden, Siege Ogre.
+- Bosses: Herald of Ash, Cinder Wyrm, Void Baron, Crimson Herald.
+- Final threats: The Hollow Star, The Dread Conqueror.
 
 Enemy behaviors: chase, weaver, charge, ranged; bloater explosion on death; slow/burn statuses; weighted
-minute-gated spawns; placeholder tint/radius.
+minute-gated spawns; placeholder tint/radius. Noxus adds the Warhound, Blood Acolyte, Siege Ogre,
+Crimson Herald, and Dread Conqueror.
 
-### Meta power-ups (23)
+### Stages (2)
+
+- **The Riftfield** - original arena, Runeterra, default palette, original 14 enemies and Hollow Star.
+- **Noxian Warfront** - Noxus, red/iron palette, Warhound/Blood Acolyte/Siege Ogre/Crimson Herald pool,
+  Dread Conqueror final threat, faster spawn/boss cadence, +HP scaling, and a wider pattern rotation.
+- Both stages are selectable now; stage gating/progression is deferred.
+- Stage selection is saved and sent by the co-op host; snapshots carry the stage id/name so every client
+  renders the correct palette and HUD label.
+
+### Meta power-ups (35)
 
 Eight basics (Raw Power, Vitality, Swiftness, Focused Casting, Far Reach, Attraction, Plating, Fortune),
 mage entries (Arcane Flow, Spell Velocity, Persistence), tank entries (Fortitude, Bulwark, Regeneration,
-Aegis), and one signature upgrade per champion (Radiance, Pyre, Foxfire, Runeweave, Transcendence,
-Tyranny, Kindling, Ascension). Each champion has a curated eight-entry tree in content.
+Aegis), fighter entries (Battle Fury, Bloodlust, Second Wind), assassin entries (Deadly Precision,
+Shadow Step, Hunter's Instinct), marksman entries (Steady Aim, Piercing Rounds, Rapid Fire), support
+entries (Benevolence, Aura Mastery, Lasting Light), and one signature upgrade per existing champion
+(Radiance, Pyre, Foxfire, Runeweave, Transcendence, Tyranny, Kindling, Ascension).
 
-### Synergies (4)
+Each existing champion has a curated tree; new champions build from common + class entries.
+
+### Synergies (5)
 
 Ignite (fire count), Arcane Affinity (arcane count), Light Weaver (light count), Elementalist
-(fire + arcane combo). Burn + slow also produces a reaction burst.
+(fire + arcane combo), and Battle Rhythm (physical count). Burn + slow also produces a reaction burst.
 
 ## 5. Progression and economy
 
@@ -264,42 +301,51 @@ Ignite (fire count), Arcane Affinity (arcane count), Light Weaver (light count),
 
 ## 6. Save data and gacha
 
-### Save v2
+### Save v5
 
-`packages/client/src/save/save.ts`, localStorage key `rift-survivors-save`.
+`packages/client/src/save/save.ts`, localStorage key `rift-survivors-save`, mirrored to the server
+account save when signed in.
 
 ```ts
 interface SaveData {
-  version: 2;
+  version: 5;
+  profileName: string;             // Showdown-style local/account name
   gold: number;
   selectedCharacter: string;
-  championUpgrades: Record<string, Record<string, number>>; // championId -> powerUpId -> rank
-  championShards: Record<string, number>;                   // championId -> shards
+  championUpgrades: Record<string, Record<string, number>>;
+  championShards: Record<string, number>;
+  championFocus: Record<string, string>;  // region -> focused champion
+  selectedStage: string;
   unlockedCharacters: string[];
   chests: number;
   achievements: string[];
   totalKills: number;
   bestTimeSec: number;
+  runsPlayed: number;
+  bestRun: { timeSec; kills; gold; characterId; stageId };
   settings: { volume; shake; damageNumbers; keybinds };
 }
 ```
 
-Migration from v1:
+Migrations:
 
-- Old global `purchases` are moved onto the selected/first champion's tree.
+- v1 global `purchases` are moved onto the selected/first champion's tree.
 - `selectedCharacter` is initialized from the old selection or first unlocked champion.
-- Shards start empty.
+- v3 adds per-region `championFocus`.
+- v4 adds `selectedStage`.
+- v5 adds `profileName`, `runsPlayed`, and `bestRun`.
 - `purchases` is removed.
 
 ### Starter and unlocking
 
 - The free starter is **Ahri** (content flag `starter: true`), Common.
 - Everything else is gacha/shard-only. The old dev unlock-all was removed.
-- Fresh save: 1/8 champions. Old dev saves with all champions should use Reset Save.
+- Fresh save: 1/173 champions. Old dev saves with all champions should use Reset Save.
 
 ### Region gacha
 
-Six region chests: Demacia, Noxus, Ionia, Shurima, Bandle City, Runeterra.
+Fourteen region chests: Demacia, Noxus, Ionia, Shurima, Bandle City, Runeterra, Freljord, Piltover, Zaun,
+Bilgewater, Shadow Isles, Mount Targon, Ixtal, Void.
 
 Per pull (1 chest):
 
@@ -320,15 +366,20 @@ Per pull (1 chest):
   If all of the region's Epic+ champions are owned, the guarantee gives 5 Epic+ shards (or 200 gold if
   the region has no Epic+ definition at all).
 - Every region currently contains at least one Epic+ champion, so the guarantee is meaningful.
+- **Focus:** the player can select a focus champion per region; champion/shard outcomes have a 50%
+  preference for that locked champion. The focus is visible in Champions/Chests and saved in the account
+  save.
 
 ### Per-champion upgrades
 
 - The Upgrades page always edits `save.selectedCharacter`.
-- The selected champion's content-defined `upgradeIds` control the tree; eight entries per champion.
+- The selected champion's content-defined `upgradeIds` control the tree.
+- Existing eight champions have curated trees; new champions use five common entries + their class
+  entries (8-9 entries total).
 - Cost/rank/refund are per champion; old global purchases do not carry to other champions.
 - `computeMetaBonuses` filters by the champion's tree and is used for solo runs and co-op messages.
-- Current trees emphasize haste for mages (Focused Casting + Arcane Flow) and health/armor/regen/resist
-  entries exist for future tank kits.
+- Class trees: Mage (haste/area/duration), Tank (health/armor/regen/resist), Fighter (might/lifesteal/
+  regen), Assassin (might/speed/haste), Marksman (haste/projectile/pierce), Support (growth/area/duration).
 
 ### Admin panel
 
@@ -343,6 +394,26 @@ Press **H** anywhere:
 - Close
 
 Admin changes persist immediately to localStorage. This is a local dev tool, not a production feature.
+
+### Profile and accounts
+
+- New **PROFILE** section in the main hub:
+  - Showdown-style nickname (3-20 characters, letters/numbers/underscore/hyphen, reserved names blocked)
+  - lifetime stats: best survival, total kills, runs played, champions owned, best-run kills/gold,
+    chests, achievements
+  - best run: time, kills, gold, champion, stage
+  - selected champion/stage/gold strip
+- Local profile works offline. With an account, the avatar/name appear in the nav/topbar and the same
+  nickname is used for co-op.
+- Server-side accounts:
+  - Discord OAuth2 routes + optional dev login (`RIFT_DEV_AUTH=1`)
+  - file-backed accounts (`data/accounts.json` by default)
+  - 30-day in-memory sessions
+  - `GET /api/me`, `PUT /api/save`, `PUT /api/nickname`, `POST /api/logout`
+  - cloud save sync after each local save when signed in
+  - unique case-insensitive nicknames enforced server-side
+- Full hosting/account details are in [`15-HOSTING-AND-ACCOUNTS.md`](15-HOSTING-AND-ACCOUNTS.md).
+- Discord friends/invite embeds are not built yet; co-op still joins by room code.
 
 ## 7. UI and presentation
 
@@ -378,8 +449,7 @@ is DOM so text stays crisp and CSS-styled.
 
 ### Other screens
 
-- Name entry (with BACK TO MENU)
-- Co-op lobby (host/join, player list, room code)
+- Co-op lobby (host/join, player list, room code, profile identity)
 - Esc pause (resume, restart solo, quit, sound/shake/damage settings)
 - Run results (time, kills, gold, chests, achievements)
 - Connection-lost/reconnect overlay
@@ -401,27 +471,29 @@ Last full run (all green):
 - `biome check`: pass
 - `tsc --noEmit` for all packages: pass
 - tests:
-  - **87 sim** tests
-  - **13 content** tests (+2 balance tests skipped by default)
-  - **21 client** tests
-  - **9 server** tests
-  - total **130 passing, 2 skipped**
+  - **90 sim** tests
+  - **15 content** tests (+2 balance tests skipped by default)
+  - **23 client** tests
+  - **14 server** tests
+  - total **142 passing, 2 skipped**
 - Client and server production builds: pass.
 
 Coverage highlights:
 
 - Sim: RNG, stores, modifiers, spatial hash, stats, co-op, per-player meta, separation, moves, evolutions,
-  drops, endgame, progression stress, determinism, bot/fitness, perf.
-- Content: schema/load, starting weapons/moves, upgrade IDs, region/rarity identity, flavor completeness,
-  evolution recipes, enemy behaviors, passives.
-- Client: gacha/shards/guarantee, v1->v2 save migration, per-champion upgrades, ability/offer card math,
-  boss bar, loadout, stats formatting.
+  stages, drops, endgame, progression stress, determinism, bot/fitness, perf.
+- Content: schema/load, full 173 roster, class/starting weapon/move resolution, upgrade IDs, region/rarity
+  identity, stage enemy/final pools, flavor completeness, evolution recipes, enemy behaviors, passives.
+- Client: gacha/shards/focus/guarantee, v1->v5 save migration, per-champion upgrades, best-run/profile,
+  ability/offer card math, boss bar, loadout, stats formatting.
 - Server: lobby/start/snapshot, protocol mismatch, 4-player jitter, room capacity, reconnect, deltas/resync,
-  per-player meta.
+  per-player meta, account dev login/session/save/nickname.
 
 ### Browser verification performed
 
-- Main menu sections: PLAY, CHAMPIONS, CHESTS, UPGRADES, SETTINGS.
+- Main menu sections: PROFILE, PLAY, CHAMPIONS, CHESTS, UPGRADES, SETTINGS.
+- 173-champion paginated collection, class/region/search controls, focus buttons.
+- Noxian Warfront stage selection and HUD stage label.
 - 10-pull result panel.
 - In-game HUD + party frames with two clients.
 - Team kills label vs individual scoreboard.
@@ -429,16 +501,18 @@ Coverage highlights:
 - S does not close level-up.
 - H admin panel.
 - Fresh save starts with Ahri; Demacia/Lux remains locked and available.
+- Profile page + dev cloud login + server save account.
 
-### Balance baseline (D-030, 32:00)
+### Balance baseline (D-031, 32:00)
 
 | Seed | Level | Kills | Gold | Chests | Max alive | ms/tick |
 |---|---:|---:|---:|---:|---:|---:|
-| 101 | 47 | 5,538 | 1,585 | 45 | 85 | 0.0446 |
-| 202 | 45 | 5,539 | 1,897 | 60 | 62 | 0.0407 |
-| 303 | 45 | 5,535 | 1,775 | 72 | 61 | 0.0414 |
+| 101 | 47 | 5,539 | 1,845 | 66 | 87 | 0.0448 |
+| 202 | 43 | 5,538 | 1,922 | 76 | 66 | 0.0439 |
+| 303 | 43 | 5,536 | 1,988 | 58 | 72 | 0.0418 |
 
-All seeds survive to the 32:00 cutoff. Details and follow-ups are in `docs/BALANCE.md`.
+All seeds survive to the 32:00 cutoff. The bot uses Riftfield; Noxus remains a human/balance follow-up.
+Details and follow-ups are in `docs/BALANCE.md`.
 
 ## 9. Milestone status
 
@@ -452,11 +526,11 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | M2 renderer/movement | Done | 480x270 world, Pixi renderer, worker host, interpolation, controls |
 | M3 swarm/weapons/gems | Done | spawn director, behaviors, contact damage, gems/magnet |
 | M4 level-up/items | Done | 3+training cards, offers, stat pipeline, loadout limits; human 5-minute checkpoint not recorded |
-| M5 weapon library/champions | Done | 8 behavior archetypes, 23 weapons/moves, 8 champions, statuses |
+| M5 weapon library/champions | Done | 39 weapons/moves, 6 classes, 173 champions, statuses; unique moves deferred |
 | M6 chests/evolutions/pickups | Done (modified) | D-029 changed chests to saved meta currency; evolutions on level-up |
-| M7 full stage run | Done | 30-minute timeline, bosses, final threat, boss rush, results, bot |
-| M8 meta/unlocks | Mostly done | Gold, per-champion upgrades, region gacha, achievements; no second stage/stage select |
-| M9 content/balance/juice | Done (bot pass) | 8 champions, flavor, feedback/settings, bot balance; human feel pass still open |
+| M7 full stage run | Done | 30-minute timeline, bosses, final threat, boss rush, results, bot; Noxus added |
+| M8 meta/unlocks | Mostly done | Gold, per-champion upgrades, region gacha/focus, achievements, stage select; account/cloud save added |
+| M9 content/balance/juice | Done (bot pass) | 173 champions, class kits/placeholder moves, flavor, feedback/settings, bot balance; human feel pass still open |
 | M10 opt-in extras | Partial | Synergy engine + burn/slow reaction done; arcana/curses/shrines/keystones/mutators/dailies not |
 | M11 multiplayer server | Done | Protocol, rooms, snapshots/deltas, per-player stats, 4-player stress |
 | M12 co-op/deploy | Features done | Shared level, revive, reconnect, lobby, Dockerfile; deployment not done |
@@ -467,33 +541,41 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 
 ### Current limitations
 
-- **Local save only.** Accounts/cloud sync are deferred; reset is manual.
-- **Gacha economy is fast.** 45-72 chests per bot run at 1 chest/pull unlocks champions quickly. Tune chest
-  drops, shard amounts, or roster size after a human playtest.
-- **All champions are mages.** Tank upgrade data exists, but no tank champion is in the roster yet.
-- **Final threat is chase-only.** The boss rush exists, but boss patterns are still simple.
+- **Discord is not deployed.** The OAuth routes and env plumbing exist; dev login is the working local
+  account path until Discord credentials are configured.
+- **Accounts are friends-server scale.** JSON file + in-memory sessions; no rate limiting, session
+  persistence, backup automation, or co-op server-side save validation yet.
+- **No friends list or Discord invite embeds.** Co-op still joins by room code; account identity is used
+  for the lobby name.
+- **Save conflicts are simple.** If a server save exists it wins on login; there is no merge UI.
+- **Gacha economy is fast.** 58-76 chests per bot run at 1 chest/pull; tune chest drops/shard amounts or
+  use the larger roster/focus system after a human playtest.
+- **Rarities/regions are provisional.** They are generated/curated data intended for a review pass.
+- **Unique champion moves are deferred.** New champions use class weapons and placeholder class moves.
+- **All stages are available.** No formal stage unlock/progression.
+- **Final threats are still mostly chase/charge patterns.** Noxus adds a new final threat, but boss
+  mechanics remain simple.
 - **No real assets/audio.** Placeholder procedural art/SFX only.
-- **UI strings are hardcoded English.** The minimal `t()` helper exists but the D-030 UI is not wired to
-  locale files.
-- **No second stage/stage select.**
+- **UI strings are hardcoded English.** The minimal `t()` helper exists but the UI is not wired to locale
+  files.
 - **D1 human playtest and sign-off are still pending.**
-- **No deployment.** Dockerfile exists; hosting credentials are not configured.
-- **Party frames use the lobby snapshot.** They are correct at start but do not live-update lobby changes
-  mid-run.
+- **No deployment.** Dockerfile exists; Discord credentials/domain/database are not configured. Cloudflare
+  requires a server port or Worker port; see docs/15.
+- **Party frames use the lobby snapshot.** They do not live-update lobby changes mid-run.
 - **10-pull guarantee is region-scoped.** If a region's Epic+ champions are already owned, the guarantee
-  falls back to shards/gold rather than picking an out-of-region champion.
+  falls back to shards/gold.
 
 ### Explicitly deferred / not implemented
 
-- Stages/select, daily seeds, leaderboards.
+- Unique champion moves/kits, union/recipe UI, stage gating/progression.
+- Daily seeds, leaderboards, friends list, Discord invite embeds, chat.
 - Arcana/curses/shrines/keystones/mutators extras.
-- Union/recipe UI (evolutions are implemented; union isn't).
-- Binary network codec, input rewind, interest filtering, rate limiting.
-- Replays.
-- Accounts and server-side meta sync.
+- Binary network codec, input rewind, interest filtering, rate limiting, replays.
+- Full server-authoritative saves/meta for co-op (the account store exists; game-server validation is
+  still client-trusted).
+- Cloudflare Workers/Durable Objects port and deployment.
 - Real content packs beyond the core + LoL-inspired packs.
-- The old separate CharacterSelect class (`packages/client/src/charselect.ts`) is unused and can be
-  removed.
+- The old CharacterSelect/NameScreen classes are unused and can be removed.
 
 ## 11. Key files
 
@@ -508,8 +590,13 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | Content contracts | `packages/sim/src/content-types.ts`, `types.ts` |
 | Core content | `packages/content/src/packs/core.ts` |
 | Champions/weapons/moves | `packages/content/src/packs/lol.ts` |
+| Generated full roster | `packages/content/src/packs/roster.ts` |
+| Class presets/trees | `packages/content/src/champions/classes.ts` |
+| Roster generator | `packages/content/scripts/generate-roster.mjs` |
 | Content validation | `packages/content/src/schema.ts` |
 | Meta hub | `packages/client/src/meta-screen.ts` |
+| Profile/nickname | `packages/client/src/profile.ts`, `packages/shared/src/nickname.ts` |
+| Account client | `packages/client/src/account.ts` |
 | Gacha/save/meta logic | `packages/client/src/meta/meta.ts`, `save/save.ts` |
 | DOM HUD | `packages/client/src/hud.ts` |
 | Tooltip/card math | `packages/client/src/ability-info.ts` |
@@ -517,8 +604,10 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | Admin H panel | `packages/client/src/admin.ts` |
 | Client entry/flow | `packages/client/src/main.ts` |
 | Network protocol | `packages/shared/src/protocol.ts` |
+| Accounts/auth | `packages/server/src/accounts.ts`, `auth.ts` |
 | Co-op server | `packages/server/src/server.ts` |
-| Design log | `docs/10-DESIGN-DECISIONS.md` (D-030) |
+| Design log | `docs/10-DESIGN-DECISIONS.md` (D-031) |
+| Hosting/accounts guide | `docs/15-HOSTING-AND-ACCOUNTS.md` |
 | Balance baseline | `docs/BALANCE.md` |
 | Session handoff / next steps | `HANDOFF.md` |
 
@@ -531,3 +620,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
   champion-only gacha with regions/shards/1-pull/10-pull guarantee, starter Ahri, admin H panel, content
   flavor and descriptions.
 - **Follow-up:** HUD tooltip positions from the actual hover event (not just pointer movement).
+- **D-031:** full 173-champion roster, six classes with class weapons/trees/placeholder moves, region
+  focus, Noxian Warfront second stage + stage select, save v5 profile/best-run data, server-side accounts
+  with Discord OAuth/dev login/cloud save, profile UI. Unique moves and friends/invite integration remain
+  future work.

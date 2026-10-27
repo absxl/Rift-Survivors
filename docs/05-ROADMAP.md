@@ -10,7 +10,8 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 
 > **Current implementation snapshot:** see [`14-IMPLEMENTATION-STATUS.md`](14-IMPLEMENTATION-STATUS.md).
 > The checkboxes and notes below are the historical milestone plan; the current code includes the
-> D-029/D-030 batches (moves, per-champion trees, DOM HUD, region gacha shards, admin panel).
+> D-029/D-030/D-031 batches (moves, per-champion trees, DOM HUD, region gacha/focus, admin panel,
+> full 173-champion roster/classes, Noxian second stage, profiles and cloud accounts).
 
 ## D0 — Design interview (NO CODE)
 - [x] Read `09`, `10`, `13`, `03`, `11`, `12`
@@ -61,6 +62,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 - [x] Behavior archetypes: `orbit`, `aura`, `strike-random`, `boomerang`, `ground-pool`, `bounce` (+ existing `sweep`, `shoot-nearest`)
 - [x] ≥ 10 weapons (8 archetypes), ≥ 8 passives, all as content
 - [x] Character select; ≥ 3 characters (starting weapon + stats)
+- [x] Full D-031 roster: 173 champions, six classes, 39 weapons/moves, class trees
 - [x] Status effects (`slow`, `burn`) as needed by weapons
 
 ## M6 — Chests, evolutions & pickups
@@ -82,10 +84,11 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 ## M8 — Meta progression & unlocks
 - [x] Persistent gold, permanent-upgrade shop with refunds, versioned save + migration hook
 - [x] Gacha (performance-earned chests → unlocks champions) + achievements
-- [ ] Second stage (content only), stage select
+- [x] Region gacha/focus, profile/cloud accounts
+- [x] Second stage (Noxian Warfront), stage select
 
 ## M9 — Content, balance & feel
-- [ ] Fill content to the proposed scope in `03` (4 mages now; full roster in the champion-design pass)
+- [x] Fill content to the proposed scope in `03` (full 173 roster now; unique champion moves deferred)
 - [x] Juice pass: weapon-fire visuals (sweep arc / aura ring / ground pools), screen shake, procedural SFX with rate caps, settings (sound/shake)
 - [x] Balance pass with the bot; baseline + tuning variants recorded in `docs/BALANCE.md` (tuning follow-ups await a feel pass)
 

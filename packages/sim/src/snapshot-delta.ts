@@ -28,6 +28,8 @@ export interface SnapshotDelta {
   partyXpToNext: number;
   worldWidth: number;
   worldHeight: number;
+  stageId: string;
+  stageName: string;
   stores: StoreDelta[];
 }
 
@@ -86,6 +88,8 @@ export function buildSnapshotDelta(prev: WorldSnapshot, next: WorldSnapshot): Sn
     partyXpToNext: next.partyXpToNext,
     worldWidth: next.worldWidth,
     worldHeight: next.worldHeight,
+    stageId: next.stageId,
+    stageName: next.stageName,
     stores,
   };
 }
@@ -141,6 +145,8 @@ export function applySnapshotDelta(prev: WorldSnapshot, delta: SnapshotDelta): W
     partyXpToNext: delta.partyXpToNext,
     worldWidth: delta.worldWidth,
     worldHeight: delta.worldHeight,
+    stageId: delta.stageId,
+    stageName: delta.stageName,
     stores,
   };
 }

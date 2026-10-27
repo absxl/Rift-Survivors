@@ -24,6 +24,13 @@ import {
 } from "@rift/sim";
 import type { PlayerInput, World, WorldSnapshot } from "@rift/sim";
 import { WebSocket, WebSocketServer } from "ws";
+import { AccountStore } from "./accounts";
+import {
+  type AuthConfig,
+  authConfigFromEnv,
+  handleAccountHttp,
+  sessionTokenFromCookieHeader,
+} from "./auth";
 
 const MAX_PLAYERS = 4;
 /** Send a full snapshot this often (safety net / resync for any delta drift). */
@@ -36,6 +43,8 @@ interface Client {
   characterId: string;
   /** Per-champion meta-shop bonuses for this player. */
   metaBonuses: Record<string, number>;
+  /** Stage requested by this client; the host's stage is used for the room. */
+  stageId: string;
   ready: boolean;
   input: PlayerInput;
   /** Opaque token used to rejoin this slot after a disconnect. */
@@ -60,17 +69,28 @@ interface Room {
 export interface ServerHandle {
   port: number;
   rooms: Map<string, Room>;
+  accounts: AccountStore;
   close: () => void;
 }
 
 export interface ServerOptions {
   /** How long a mid-run slot stays reserved for a reconnect. Default 60s. */
   reconnectGraceMs?: number;
+  /** Account DB file; null uses an in-memory store (tests). */
+  accountsFile?: string | null;
+  auth?: Partial<AuthConfig>;
 }
 
 export function startServer(port: number, options: ServerOptions = {}): ServerHandle {
   const reconnectGraceMs = options.reconnectGraceMs ?? 60_000;
   const pack = loadGamePack();
+  const connectionAccounts = new Map<WebSocket, ReturnType<AccountStore["getSessionAccount"]>>();
+  const accountsFile =
+    options.accountsFile === undefined
+      ? (process.env.RIFT_ACCOUNTS_FILE ?? "data/accounts.json")
+      : options.accountsFile;
+  const accounts = new AccountStore({ file: accountsFile });
+  const authConfig = authConfigFromEnv(options.auth);
   const rooms = new Map<string, Room>();
   const conns = new Map<WebSocket, { room: Room; client: Client }>();
 
@@ -128,6 +148,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     name: string,
     characterId: string,
     metaBonuses: Record<string, number> = {},
+    stageId = "rift-field",
   ): void => {
     // Reuse the lowest free slot so ids stay stable and unique for the sim.
     const used = new Set(room.clients.map((c) => c.playerId));
@@ -139,6 +160,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       name,
       characterId,
       metaBonuses,
+      stageId,
       ready: true,
       input: { playerId, moveX: 0, moveY: 0 },
       token: randomUUID(),
@@ -160,6 +182,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
         content: pack,
         characterIds: room.clients.map((c) => c.characterId),
         playerMetaBonuses: room.clients.map((c) => c.metaBonuses),
+        stageId: room.clients[0]?.stageId ?? "rift-field",
       },
       room.seed,
     );
@@ -298,8 +321,16 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
         send(ws, { type: "error", message: "protocol mismatch" });
         return;
       }
+      const account = connectionAccounts.get(ws);
       if (msg.type === "create") {
-        addClient(newRoom(), ws, msg.name, msg.characterId, msg.metaBonuses);
+        addClient(
+          newRoom(),
+          ws,
+          account?.nickname ?? msg.name,
+          msg.characterId,
+          msg.metaBonuses,
+          msg.stageId,
+        );
       } else {
         const room = rooms.get(msg.code.toUpperCase());
         if (!room) {
@@ -315,7 +346,14 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
           send(ws, { type: "error", message: "room full" });
           return;
         }
-        addClient(room, ws, msg.name, msg.characterId, msg.metaBonuses);
+        addClient(
+          room,
+          ws,
+          account?.nickname ?? msg.name,
+          msg.characterId,
+          msg.metaBonuses,
+          msg.stageId,
+        );
       }
       return;
     }
@@ -411,17 +449,32 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
   };
 
   const http: Server = createServer((req, res) => {
-    if (req.url === "/health") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true, rooms: rooms.size, version: PROTOCOL_VERSION }));
-    } else {
-      res.writeHead(404);
-      res.end();
-    }
+    void (async () => {
+      try {
+        if (await handleAccountHttp(req, res, accounts, authConfig)) return;
+        if (req.url === "/health") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ ok: true, rooms: rooms.size, version: PROTOCOL_VERSION }));
+          return;
+        }
+        res.writeHead(404);
+        res.end();
+      } catch (error) {
+        console.error("[http] request error", error);
+        if (!res.headersSent) {
+          res.writeHead(500, { "content-type": "application/json" });
+        }
+        res.end(JSON.stringify({ error: "internal error" }));
+      }
+    })();
   });
 
   const wss = new WebSocketServer({ server: http });
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, request) => {
+    const account = accounts.getSessionAccount(
+      sessionTokenFromCookieHeader(request.headers.cookie),
+    );
+    if (account) connectionAccounts.set(ws, account);
     ws.on("message", (data) => {
       try {
         handle(ws, clientMessageSchema.parse(JSON.parse(data.toString())));
@@ -431,7 +484,10 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
         send(ws, { type: "error", message: "invalid message" });
       }
     });
-    ws.on("close", () => removeClient(ws));
+    ws.on("close", () => {
+      connectionAccounts.delete(ws);
+      removeClient(ws);
+    });
   });
 
   http.listen(port);
@@ -439,6 +495,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
   return {
     port,
     rooms,
+    accounts,
     close: () => {
       for (const room of rooms.values()) {
         if (room.timer) clearInterval(room.timer);

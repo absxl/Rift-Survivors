@@ -1,12 +1,31 @@
-# Rift Survivors - session handoff (2026-10-26)
+# Rift Survivors - session handoff (2026-10-27)
 
-This file records the D-030 batch so the next session can resume without re-deriving it.
-The batch is committed as `feat: D-030 DOM HUD, champion moves, region gacha, per-champion trees`
-plus a HUD tooltip follow-up. For the full feature/status reference, see
-[`docs/14-IMPLEMENTATION-STATUS.md`](docs/14-IMPLEMENTATION-STATUS.md). Amend/rewrite this file once
-signed off.
+This file records the current work. The full reference is
+[`docs/14-IMPLEMENTATION-STATUS.md`](docs/14-IMPLEMENTATION-STATUS.md); hosting/account details are in
+[`docs/15-HOSTING-AND-ACCOUNTS.md`](docs/15-HOSTING-AND-ACCOUNTS.md).
 
-## Implemented (committed)
+## D-031 update (current commit; see `git log -1`)
+
+- Full **173-champion roster** generated from Data Dragon 16.21.1 with six classes, curated primary regions,
+  provisional rarities, class weapons, class placeholder moves, class trees and generated descriptions.
+- Class power-ups for Fighter, Assassin, Marksman, Support; physical synergy; 39 weapons/moves total.
+- Champion collection UI: search, class/region filters, owned filter, 24-card pagination, focus buttons.
+- Region gacha **focus champion** per region (50% outcome preference) with save field.
+- **Noxian Warfront** second stage: 5 new enemies, final threat, rules overrides, palette, stage select,
+  stage id/name in snapshots/HUD, host stage for co-op.
+- Save **v5**: profileName, selectedStage, runsPlayed, bestRun; focus; migrations.
+- **Profile section**: nickname rules, lifetime stats, best run, selected champion/stage, account panel.
+- **Server-side accounts/cloud save**: JSON account store, Discord OAuth routes, dev login
+  (`RIFT_DEV_AUTH=1`), sessions, nickname uniqueness, `GET /api/me`, `PUT /api/save`,
+  `PUT /api/nickname`, `POST /api/logout`; browser syncs save and uses account nickname in lobby.
+- Co-op flow uses profile name; separate NameScreen prompt removed.
+- Docs 10/D-031, docs 14, docs 15, README, BALANCE updated. `.env.example` added.
+- Tests currently: 90 sim, 15 content, 23 client, 14 server. Typecheck passes. Build/restart and final
+  browser verification still needed at commit time.
+- Pending: Discord deployment/credentials, friends/invite embeds, Cloudflare Workers port, moves pass,
+  human balance on Noxus, unique champion kits.
+
+## Earlier D-030 details (historical)
 
 ### Simulation
 - `packages/sim/src/systems/separation.ts`: deterministic enemy body separation after enemy AI.

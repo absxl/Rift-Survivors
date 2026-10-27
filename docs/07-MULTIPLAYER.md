@@ -21,7 +21,7 @@ per-client interest filtering, input `seq`/`ackSeq`, 15 Hz snapshots, rate limit
 Client → Server
 | Type | Payload | Rate |
 |---|---|---|
-| `create` / `join` | `{ name, protocolVersion, characterId, metaBonuses?[, code] }` | once |
+| `create` / `join` | `{ name, protocolVersion, characterId, metaBonuses?, stageId?[, code] }` | once |
 | `ready` | `{ characterId, ready, metaBonuses? }` | on change |
 | `start` | — (host) | once |
 | `input` | `{ moveX, moveY }` | every tick (30 Hz) |
@@ -51,10 +51,13 @@ optional `metaBonuses: Record<string, number>`; the server stores it on the clie
 to that player's own modifier stack. This is what makes per-champion upgrades work independently in
 co-op; no global server-side account data is involved.
 
+The host's `stageId` selects the stage for the room. Snapshots carry `stageId`/`stageName`, so guests
+render the host's stage even when their own selected stage differs.
+
 ## Snapshots & deltas
 
-- `snapshot(world)` includes party XP/level, per-player `RunStats`, and one compacted store per kind
-  (`slots`, `generations`, field arrays).
+- `snapshot(world)` includes party XP/level, per-player `RunStats`, stage id/name, and one compacted store
+  per kind (`slots`, `generations`, field arrays).
 - `buildSnapshotDelta(prev, next)` sends the full `slots`/`generations` lists plus **full field values for
   changed rows only** (new, recycled, or modified slots). `applySnapshotDelta(prev, delta)` reconstructs a
   full snapshot; a `baseTick` mismatch throws.

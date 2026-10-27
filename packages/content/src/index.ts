@@ -7,6 +7,12 @@ import { loadLolPack } from "./packs/lol";
 export { contentPackSchema } from "./schema";
 export { loadCorePack } from "./packs/core";
 export { loadLolPack } from "./packs/lol";
+export {
+  CHAMPION_CLASS_IDS,
+  CLASSES,
+  type ChampionClassId,
+  type ClassDefinition,
+} from "./champions/classes";
 export const CONTENT_SCHEMA_VERSION = 1;
 
 /** The combined pack the game runs: core (enemies + items) + lol (champions + abilities). */
@@ -22,5 +28,6 @@ export function loadGamePack(): ContentPack {
     characters: [...core.characters, ...lol.characters],
     powerUps: [...core.powerUps, ...lol.powerUps],
     synergies: [...core.synergies, ...lol.synergies],
+    stages: [...(core.stages ?? []), ...(lol.stages ?? [])],
   };
 }

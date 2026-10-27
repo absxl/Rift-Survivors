@@ -196,6 +196,37 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
   bonuses. The bot baseline changed to include moves (see BALANCE). Gacha economy is intentionally
   fast with the current chest drops and will be tuned after human playtests.
 
+### D-031 - Full roster/classes, Noxian stage, profile and cloud accounts
+- Date: 2026-10-27 - Status: decided (user approved the four-track order)
+- Decision:
+  - **Six broad classes:** Mage, Tank, Fighter, Assassin, Marksman, Support. Class weapon pools,
+    placeholder class moves, class upgrade entries, and per-champion tree composition are content-driven.
+  - **Full roster:** 173 champions from the Riot Data Dragon roster (16.21.1) with curated primary regions,
+    provisional rarities, class, class starting weapon, placeholder class move, base stats/growth, and a
+    class upgrade tree. Unique moves/kits are explicitly deferred to the later moves pass.
+  - **Regions:** all canonical regions used by the roster (14 pools), keeping the current eight curated
+    assignments and filling the rest from the generated roster table. Rarities are provisional and meant
+    for a review pass.
+  - **Focus champion:** each region chest has a player-selected focus. Champion/shard outcomes have a
+    50% preference for a locked focus champion; the player can change focus per region.
+  - **Second stage:** **Noxian Warfront** with its own enemy pool (Warhound, Blood Acolyte, Siege Ogre,
+    Crimson Herald, Dread Conqueror), faster spawn rules, and a red/iron presentation palette. Both stages
+    are currently selectable; a formal stage unlock/progression pass comes later.
+  - **Stage select:** selected in PLAY, persisted as `selectedStage`, sent by the co-op host, carried in
+    snapshots, and rendered with a stage name in the HUD.
+  - **Profile:** Showdown-style local nickname, lifetime stats, runs played, best run (time/kills/gold/
+    champion/stage), selected champion/stage, and account panel. Nickname rules: 3-20 characters,
+    letters/numbers/underscore/hyphen, case-insensitive uniqueness, reserved names blocked.
+  - **Accounts:** server-side JSON-backed account/save storage (friends-server scale), sessions, Discord
+    OAuth routes, dev-only login for local testing, cloud-save sync on every save, and account nickname
+    used as the in-game/co-op identity. Discord deployment is deferred; dev auth is the local test path.
+  - **No friends/invite UI yet.** Co-op still joins by room code; Discord social/invite integration is a
+    later deployment feature.
+- Consequences: save schema **v5** adds profileName, runsPlayed, bestRun and selectedStage; content pack
+  gains optional `stages`; stage snapshots carry stage id/name; server gains account HTTP routes and
+  `.env` configuration. The full roster uses class/placeholder kits until the moves pass. Cloudflare
+  hosting is not done; see `docs/15-HOSTING-AND-ACCOUNTS.md` for the Pages/Workers/Tunnel options.
+
 ## Active ruleset(s)
 `classic` - configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 

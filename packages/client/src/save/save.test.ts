@@ -47,6 +47,11 @@ describe("save migration", () => {
     expect(data.selectedCharacter).toBe("brand");
     expect(data.championUpgrades.brand).toEqual({ power: 2, vitality: 1 });
     expect(data.championShards).toEqual({});
+    expect(data.championFocus).toEqual({});
+    expect(data.selectedStage).toBe("rift-field");
+    expect(data.profileName).toBe("Summoner");
+    expect(data.runsPlayed).toBe(0);
+    expect(data.bestRun).toEqual({ timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" });
     expect(data.gold).toBe(42);
     expect(data.chests).toBe(3);
     expect(data.settings.keybinds.up).toBe("w");

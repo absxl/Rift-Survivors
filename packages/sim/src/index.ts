@@ -47,6 +47,8 @@ export type {
   PassiveDef,
   PowerUpDef,
   Rarity,
+  StageDef,
+  StagePalette,
   StatDelta,
   StatusApply,
   SynergyDef,

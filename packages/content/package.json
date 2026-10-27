@@ -10,7 +10,8 @@
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "roster": "node scripts/generate-roster.mjs"
   },
   "dependencies": {
     "@rift/sim": "workspace:*",

@@ -1,8 +1,10 @@
 // League-client-inspired meta hub: PLAY / CHAMPIONS / UPGRADES / CHESTS /
 // ACHIEVEMENTS / SETTINGS. Champions are gacha-only; the Upgrades section
 // upgrades the currently selected champion's own tree.
-import type { CharacterDef, PowerUpDef, WeaponDef } from "@rift/sim";
+import { CLASSES } from "@rift/content";
+import type { CharacterDef, PowerUpDef, StageDef, WeaponDef } from "@rift/sim";
 import { statLabel, weaponName } from "./ability-info";
+import type { AccountClient } from "./account";
 import { championColor } from "./champion-colors";
 import {
   ACHIEVEMENTS,
@@ -12,24 +14,35 @@ import {
   buyPowerUp,
   canUnlockWithShards,
   championsInRegion,
+  focusFor,
   isUnlocked,
   nextCost,
   openRegionChests,
   rankOf,
   refundPowerUp,
   regionsOf,
+  setFocus,
   shardsFor,
   shardsRequired,
   unlockWithShards,
   upgradesForChampion,
 } from "./meta/meta";
+import { validateNickname } from "./profile";
 import { regionStyle } from "./regions";
 import type { Keybinds, SaveData } from "./save/save";
 import { persistSave, resetSave } from "./save/save";
 
-type Section = "play" | "champions" | "upgrades" | "chests" | "achievements" | "settings";
+type Section =
+  | "profile"
+  | "play"
+  | "champions"
+  | "upgrades"
+  | "chests"
+  | "achievements"
+  | "settings";
 
 const SECTIONS: Array<{ id: Section; label: string; glyph: string; hint: string }> = [
+  { id: "profile", label: "PROFILE", glyph: "◉", hint: "Name & lifetime stats" },
   { id: "play", label: "PLAY", glyph: "▶", hint: "Enter the Rift" },
   { id: "champions", label: "CHAMPIONS", glyph: "◈", hint: "Collection & selection" },
   { id: "upgrades", label: "UPGRADES", glyph: "✦", hint: "Selected champion's tree" },
@@ -67,6 +80,11 @@ export class MetaScreen {
   private settingsCb: ((settings: SaveData["settings"]) => void) | null = null;
   private section: Section = "play";
   private championFilter = "ALL";
+  private classFilter = "ALL";
+  private championQuery = "";
+  private ownedOnly = false;
+  private championPage = 0;
+  private readonly pageSize = 24;
   private listening: keyof Keybinds | null = null;
   private captureHandler: ((e: KeyboardEvent) => void) | null = null;
   private gachaResults: { region: string; drops: GachaDrop[] } | null = null;
@@ -77,11 +95,14 @@ export class MetaScreen {
     private readonly powerUps: PowerUpDef[],
     private readonly characters: CharacterDef[],
     private readonly weapons: WeaponDef[],
+    private readonly stages: StageDef[],
+    private readonly account: AccountClient,
   ) {
     this.root = document.createElement("div");
     this.root.className = "meta";
     document.body.appendChild(this.root);
     this.ensureSelected();
+    this.ensureStage();
     this.render();
   }
 
@@ -99,6 +120,7 @@ export class MetaScreen {
 
   show(): void {
     this.ensureSelected();
+    this.ensureStage();
     this.render();
     this.root.style.display = "block";
   }
@@ -119,6 +141,20 @@ export class MetaScreen {
     if (!unlocked.some((c) => c.id === this.save.selectedCharacter)) {
       this.save.selectedCharacter = unlocked[0].id;
     }
+  }
+
+  private ensureStage(): void {
+    if (this.stages.length === 0) {
+      this.save.selectedStage = "rift-field";
+      return;
+    }
+    if (!this.stages.some((stage) => stage.id === this.save.selectedStage)) {
+      this.save.selectedStage = this.stages[0].id;
+    }
+  }
+
+  private selectedStage(): StageDef | undefined {
+    return this.stages.find((stage) => stage.id === this.save.selectedStage) ?? this.stages[0];
   }
 
   private selected(): CharacterDef | undefined {
@@ -187,8 +223,18 @@ export class MetaScreen {
       hero.append(dot, el("span", "", selected.name ?? selected.id));
       currency.appendChild(hero);
     }
+    const profile = el("div", "meta-topbar-profile");
+    profile.append(
+      el(
+        "span",
+        "meta-topbar-profile-mark",
+        (this.save.profileName || "S").charAt(0).toUpperCase(),
+      ),
+      el("span", "", this.save.profileName || "Summoner"),
+    );
+    profile.addEventListener("click", () => this.setSection("profile"));
     const admin = el("div", "meta-admin-hint", "H · ADMIN");
-    bar.append(brand, currency, admin);
+    bar.append(brand, currency, profile, admin);
     return bar;
   }
 
@@ -205,7 +251,7 @@ export class MetaScreen {
         el(
           "div",
           "meta-sidebar-region",
-          `${selected.region ?? "Runeterra"} · ${selected.class ?? "mage"}`,
+          `${selected.region ?? "Runeterra"} · ${this.classLabel(selected.class)}`,
         ),
       );
       card.append(portrait, info);
@@ -236,6 +282,9 @@ export class MetaScreen {
   private renderContent(): HTMLElement {
     const content = el("main", "meta-content");
     switch (this.section) {
+      case "profile":
+        content.appendChild(this.renderProfile());
+        break;
       case "play":
         content.appendChild(this.renderPlay());
         break;
@@ -269,6 +318,181 @@ export class MetaScreen {
   }
 
   // -------------------------------------------------------------------------
+  // PROFILE
+  // -------------------------------------------------------------------------
+  private renderProfile(): HTMLElement {
+    const wrap = el("div", "meta-page");
+    wrap.appendChild(
+      this.sectionHead(
+        "SUMMONER PROFILE",
+        this.save.profileName || "Summoner",
+        "Your Showdown-style name, lifetime stats, and best run. Cloud save is active when signed in; Discord login is enabled once the server has Discord credentials.",
+      ),
+    );
+
+    const selected = this.selected();
+    const color = selected ? hex(championColor(selected.id)) : "#d7b56d";
+    const hero = el("div", "meta-profile-hero");
+    hero.style.setProperty("--champ-color", color);
+    const avatar = el(
+      "div",
+      "meta-profile-avatar",
+      (this.save.profileName || "S").charAt(0).toUpperCase(),
+    );
+    const copy = el("div", "meta-profile-copy");
+    copy.append(
+      el("div", "meta-kicker", "INGAME NAME"),
+      el("div", "meta-profile-name", this.save.profileName || "Summoner"),
+      el(
+        "div",
+        "meta-profile-note",
+        "3-20 characters · letters, numbers, underscore, hyphen · Showdown-style",
+      ),
+    );
+    const form = el("div", "meta-profile-form");
+    const input = el("input", "meta-search");
+    input.value = this.save.profileName || "Summoner";
+    input.maxLength = 20;
+    input.setAttribute("aria-label", "In-game nickname");
+    const saveName = el("button", "meta-play small", "SAVE NAME");
+    const message = el("div", "meta-profile-message");
+    const commit = async (): Promise<void> => {
+      const result = validateNickname(input.value);
+      if (!result.ok) {
+        message.textContent = result.error ?? "Invalid name.";
+        message.className = "meta-profile-message error";
+        return;
+      }
+      if (this.account.account) {
+        const error = await this.account.setNickname(result.value);
+        if (error) {
+          message.textContent = error;
+          message.className = "meta-profile-message error";
+          return;
+        }
+      }
+      this.save.profileName = result.value;
+      persistSave(this.save);
+      this.render();
+    };
+    saveName.addEventListener("click", () => void commit());
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") void commit();
+    });
+    form.append(input, saveName, message);
+    copy.appendChild(form);
+    hero.append(avatar, copy);
+    wrap.appendChild(hero);
+
+    const accountCard = el("div", "meta-profile-account");
+    const accountTitle = el("div", "meta-kicker", "ACCOUNT");
+    accountCard.appendChild(accountTitle);
+    if (this.account.account) {
+      const linked = this.account.account.discordLinked ? "DISCORD LINKED" : "DEV CLOUD ACCOUNT";
+      accountCard.append(
+        el("div", "meta-profile-account-title", linked),
+        el(
+          "div",
+          "meta-profile-account-note",
+          `Signed in as ${this.account.account.nickname}. Progress syncs to the server.`,
+        ),
+      );
+      const logout = el("button", "meta-btn danger", "LOG OUT");
+      logout.addEventListener("click", () => void this.account.logout());
+      accountCard.appendChild(logout);
+    } else {
+      accountCard.append(
+        el("div", "meta-profile-account-title", "LOCAL SAVE"),
+        el(
+          "div",
+          "meta-profile-account-note",
+          "Log in with Discord to sync this profile to the server and use it for friends and co-op identity. Without a server account, progress stays in this browser.",
+        ),
+      );
+      const actions = el("div", "meta-profile-account-actions");
+      const discord = el(
+        "button",
+        "meta-btn",
+        this.account.discordEnabled ? "LOGIN WITH DISCORD" : "DISCORD LOGIN NOT CONFIGURED",
+      );
+      discord.disabled = !this.account.discordEnabled;
+      discord.addEventListener("click", () => this.account.loginWithDiscord());
+      actions.appendChild(discord);
+      if (this.account.devAuth) {
+        const dev = el("button", "meta-btn ghost", "DEV CLOUD LOGIN");
+        const devMessage = el("span", "meta-profile-message");
+        dev.addEventListener("click", () => {
+          void (async () => {
+            const error = await this.account.devLogin(this.save.profileName);
+            if (error) {
+              devMessage.textContent = error;
+              devMessage.className = "meta-profile-message error";
+            }
+          })();
+        });
+        actions.append(dev, devMessage);
+      }
+      accountCard.appendChild(actions);
+    }
+    wrap.appendChild(accountCard);
+
+    const stats = el("div", "meta-profile-stats");
+    const unlocked = this.characters.filter((champion) =>
+      isUnlocked(this.save, champion.id),
+    ).length;
+    const best = this.save.bestRun;
+    const bestChampion = this.characters.find((champion) => champion.id === best.characterId);
+    const bestStage = this.stages.find((stage) => stage.id === best.stageId);
+    stats.append(
+      this.statCard(
+        "BEST SURVIVAL",
+        this.save.bestTimeSec > 0 ? this.formatTime(this.save.bestTimeSec) : "—",
+      ),
+      this.statCard("TOTAL KILLS", String(this.save.totalKills)),
+      this.statCard("RUNS PLAYED", String(this.save.runsPlayed)),
+      this.statCard("CHAMPIONS", `${unlocked} / ${this.characters.length}`),
+      this.statCard("BEST RUN KILLS", best.timeSec > 0 ? String(best.kills) : "—"),
+      this.statCard("BEST RUN GOLD", best.timeSec > 0 ? String(best.gold) : "—"),
+      this.statCard("CHESTS", String(this.save.chests)),
+      this.statCard("ACHIEVEMENTS", `${this.save.achievements.length} / ${ACHIEVEMENTS.length}`),
+    );
+    wrap.appendChild(stats);
+
+    const bestCard = el("div", "meta-profile-best");
+    bestCard.append(
+      el("div", "meta-kicker", "BEST RUN"),
+      best.timeSec > 0
+        ? el(
+            "div",
+            "meta-profile-best-main",
+            `${this.formatTime(best.timeSec)} · ${best.kills} KILLS · ${best.gold} GOLD`,
+          )
+        : el("div", "meta-profile-best-main", "No completed run yet."),
+      el(
+        "div",
+        "meta-profile-best-sub",
+        best.timeSec > 0
+          ? `${bestChampion?.name ?? (best.characterId || "Unknown champion")} · ${bestStage?.name ?? (best.stageId || "Unknown stage")}`
+          : "Play a run to establish your personal best.",
+      ),
+    );
+    wrap.appendChild(bestCard);
+
+    const current = el("div", "meta-profile-current");
+    current.append(
+      el("span", "meta-profile-current-item", `CHAMPION · ${selected?.name ?? "—"}`),
+      el(
+        "span",
+        "meta-profile-current-item",
+        `STAGE · ${this.selectedStage()?.name ?? "The Riftfield"}`,
+      ),
+      el("span", "meta-profile-current-item", `GOLD · ${this.save.gold}`),
+    );
+    wrap.appendChild(current);
+    return wrap;
+  }
+
+  // -------------------------------------------------------------------------
   // PLAY
   // -------------------------------------------------------------------------
   private renderPlay(): HTMLElement {
@@ -286,6 +510,7 @@ export class MetaScreen {
       wrap.appendChild(el("div", "meta-empty", "No champions in the content pack."));
       return wrap;
     }
+    const currentStage = this.selectedStage();
     const color = hex(championColor(selected.id));
     const hero = el("div", "meta-hero");
     hero.style.setProperty("--champ-color", color);
@@ -300,7 +525,8 @@ export class MetaScreen {
     chips.append(
       this.chip(selected.region ?? "Runeterra", "region"),
       this.chip(RARITY_LABELS[selected.rarity ?? "rare"], "rarity"),
-      this.chip(`${selected.class ?? "mage"}`, "class"),
+      this.chip(this.classLabel(selected.class), "class"),
+      this.chip(currentStage?.name ?? "The Riftfield", "stage"),
       this.chip(isUnlocked(this.save, selected.id) ? "UNLOCKED" : "LOCKED", "state"),
     );
     copy.append(chips);
@@ -343,6 +569,35 @@ export class MetaScreen {
     hero.append(art, copy);
     wrap.appendChild(hero);
 
+    if (this.stages.length > 0) {
+      const stageHead = el("div", "meta-stage-head");
+      stageHead.append(
+        el("div", "meta-kicker", "DEPLOYMENT"),
+        el("div", "meta-stage-title", "STAGE SELECT"),
+        el("div", "meta-stage-hint", "The host chooses this stage for online co-op."),
+      );
+      wrap.appendChild(stageHead);
+      const stageGrid = el("div", "meta-stage-grid");
+      for (const stage of this.stages) {
+        const style = regionStyle(stage.region);
+        const active = stage.id === this.save.selectedStage;
+        const card = el("button", `meta-stage-card${active ? " active" : ""}`);
+        card.style.setProperty("--stage-color", hex(stage.palette.accent));
+        card.style.setProperty("--region-color", style.color);
+        card.append(
+          el("span", "meta-stage-region", `${stage.region} · ${active ? "SELECTED" : "AVAILABLE"}`),
+          el("span", "meta-stage-name", stage.name),
+          el("span", "meta-stage-desc", stage.description),
+        );
+        card.addEventListener("click", () => {
+          this.save.selectedStage = stage.id;
+          this.persist();
+        });
+        stageGrid.appendChild(card);
+      }
+      wrap.appendChild(stageGrid);
+    }
+
     const stats = el("div", "meta-stat-strip");
     const unlockedCount = this.characters.filter((c) => isUnlocked(this.save, c.id)).length;
     stats.append(
@@ -377,13 +632,18 @@ export class MetaScreen {
     );
 
     const regions = regionsOf(this.characters);
-    const filters = el("div", "meta-filter-row");
-    const all = el("button", `meta-filter${this.championFilter === "ALL" ? " active" : ""}`, "ALL");
-    all.addEventListener("click", () => {
+    const regionFilters = el("div", "meta-filter-row");
+    const allRegions = el(
+      "button",
+      `meta-filter${this.championFilter === "ALL" ? " active" : ""}`,
+      "ALL REGIONS",
+    );
+    allRegions.addEventListener("click", () => {
       this.championFilter = "ALL";
+      this.championPage = 0;
       this.render();
     });
-    filters.appendChild(all);
+    regionFilters.appendChild(allRegions);
     for (const region of regions) {
       const button = el(
         "button",
@@ -394,30 +654,134 @@ export class MetaScreen {
       button.style.setProperty("--region-color", style.color);
       button.addEventListener("click", () => {
         this.championFilter = region;
+        this.championPage = 0;
         this.render();
       });
-      filters.appendChild(button);
+      regionFilters.appendChild(button);
     }
-    wrap.appendChild(filters);
+    wrap.appendChild(regionFilters);
 
-    const visible =
-      this.championFilter === "ALL"
-        ? this.characters
-        : this.characters.filter((c) => (c.region ?? "Runeterra") === this.championFilter);
+    const classFilters = el("div", "meta-filter-row");
+    const allClasses = el(
+      "button",
+      `meta-filter${this.classFilter === "ALL" ? " active" : ""}`,
+      "ALL CLASSES",
+    );
+    allClasses.addEventListener("click", () => {
+      this.classFilter = "ALL";
+      this.championPage = 0;
+      this.render();
+    });
+    classFilters.appendChild(allClasses);
+    for (const [className, def] of Object.entries(CLASSES)) {
+      const button = el(
+        "button",
+        `meta-filter${this.classFilter === className ? " active" : ""}`,
+        def.label,
+      );
+      button.addEventListener("click", () => {
+        this.classFilter = className;
+        this.championPage = 0;
+        this.render();
+      });
+      classFilters.appendChild(button);
+    }
+    wrap.appendChild(classFilters);
+
+    const searchRow = el("div", "meta-search-row");
+    const search = el("input", "meta-search");
+    search.type = "search";
+    search.placeholder = "Search champions...";
+    search.value = this.championQuery;
+    search.addEventListener("input", () => {
+      this.championQuery = search.value;
+      this.championPage = 0;
+      this.render();
+      this.focusChampionSearch();
+    });
+    searchRow.appendChild(search);
+    const owned = el(
+      "button",
+      `meta-filter${this.ownedOnly ? " active" : ""}`,
+      this.ownedOnly ? "OWNED ONLY" : "OWNED + LOCKED",
+    );
+    owned.addEventListener("click", () => {
+      this.ownedOnly = !this.ownedOnly;
+      this.championPage = 0;
+      this.render();
+    });
+    searchRow.appendChild(owned);
+    const count = el("div", "meta-result-count");
+    searchRow.appendChild(count);
+    wrap.appendChild(searchRow);
+
+    const query = this.championQuery.trim().toLowerCase();
+    let visible = this.characters.filter((champion) => {
+      if (
+        this.championFilter !== "ALL" &&
+        (champion.region ?? "Runeterra") !== this.championFilter
+      ) {
+        return false;
+      }
+      if (this.classFilter !== "ALL" && (champion.class ?? "mage") !== this.classFilter)
+        return false;
+      if (this.ownedOnly && !isUnlocked(this.save, champion.id)) return false;
+      if (query) {
+        const haystack =
+          `${champion.name ?? ""} ${champion.id} ${champion.region ?? ""} ${champion.class ?? ""}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+    visible = [...visible].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id));
+    const pages = Math.max(1, Math.ceil(visible.length / this.pageSize));
+    this.championPage = Math.max(0, Math.min(this.championPage, pages - 1));
+    const start = this.championPage * this.pageSize;
+    const pageItems = visible.slice(start, start + this.pageSize);
+    count.textContent = `${visible.length} CHAMPION${visible.length === 1 ? "" : "S"}`;
+
     const grid = el("div", "meta-champion-grid");
-    for (const champion of visible) grid.appendChild(this.championCard(champion));
+    for (const champion of pageItems) grid.appendChild(this.championCard(champion));
+    if (pageItems.length === 0) {
+      grid.appendChild(el("div", "meta-empty", "No champions match those filters."));
+    }
     wrap.appendChild(grid);
+
+    if (pages > 1 || visible.length > this.pageSize) {
+      const pager = el("div", "meta-pagination");
+      const prev = el("button", "meta-btn small", "← PREV");
+      prev.disabled = this.championPage <= 0;
+      prev.addEventListener("click", () => {
+        this.championPage = Math.max(0, this.championPage - 1);
+        this.render();
+      });
+      const label = el(
+        "div",
+        "meta-page-label",
+        `PAGE ${this.championPage + 1} / ${pages} · ${start + 1}-${Math.min(start + this.pageSize, visible.length)} OF ${visible.length}`,
+      );
+      const next = el("button", "meta-btn small", "NEXT →");
+      next.disabled = this.championPage >= pages - 1;
+      next.addEventListener("click", () => {
+        this.championPage = Math.min(pages - 1, this.championPage + 1);
+        this.render();
+      });
+      pager.append(prev, label, next);
+      wrap.appendChild(pager);
+    }
     return wrap;
   }
 
   private championCard(champion: CharacterDef): HTMLElement {
     const unlocked = isUnlocked(this.save, champion.id);
     const selected = this.save.selectedCharacter === champion.id;
-    const style = regionStyle(champion.region ?? "Runeterra");
+    const regionName = champion.region ?? "Runeterra";
+    const focused = !unlocked && focusFor(this.save, regionName) === champion.id;
+    const style = regionStyle(regionName);
     const color = hex(championColor(champion.id));
     const card = el(
       "div",
-      `meta-champion-card${unlocked ? " unlocked" : " locked"}${selected ? " selected" : ""}`,
+      `meta-champion-card${unlocked ? " unlocked" : " locked"}${selected ? " selected" : ""}${focused ? " focused" : ""}`,
     );
     card.style.setProperty("--champ-color", color);
     card.style.setProperty("--region-color", style.color);
@@ -441,6 +805,7 @@ export class MetaScreen {
       RARITY_LABELS[champion.rarity ?? "rare"],
     );
     top.append(portrait, info, rarity);
+    if (focused) top.appendChild(el("span", "meta-focus-mark", "★"));
     card.appendChild(top);
 
     const desc = el("p", "meta-champion-desc", champion.description ?? "");
@@ -486,7 +851,14 @@ export class MetaScreen {
       card.appendChild(progress);
 
       const footer = el("div", "meta-champion-footer");
+      const focus = el("button", "meta-btn small focus", focused ? "FOCUSED ★" : "FOCUS");
+      focus.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setFocus(this.save, regionName, focused ? null : champion.id);
+        this.persist();
+      });
       footer.appendChild(el("span", "meta-locked-note", "GACHA ONLY"));
+      footer.appendChild(focus);
       if (canUnlockWithShards(this.save, champion)) {
         const unlock = el("button", "meta-btn small unlock", "UNLOCK");
         unlock.addEventListener("click", (e) => {
@@ -530,7 +902,7 @@ export class MetaScreen {
       el(
         "div",
         "meta-kicker",
-        `${champion.region ?? "Runeterra"} · ${champion.class ?? "mage"} tree`,
+        `${champion.region ?? "Runeterra"} · ${this.classLabel(champion.class)} tree`,
       ),
       el("h2", "meta-upgrade-name", champion.name ?? champion.id),
       el("div", "meta-subtitle", champion.description ?? ""),
@@ -595,7 +967,7 @@ export class MetaScreen {
       this.sectionHead(
         "REGION GACHA",
         "CHESTS",
-        "Open 1 chest for one pull, or 10 for ten pulls with a guaranteed Epic+ champion. Duplicates become shards; spend shards to choose who unlocks first.",
+        "Open 1 chest for one pull, or 10 for ten pulls with a guaranteed Epic+ champion. Champion and shard outcomes favor your region focus; spend shards to choose who unlocks first.",
       ),
     );
 
@@ -606,6 +978,7 @@ export class MetaScreen {
       el("span", "", `${Math.round(GACHA_ODDS.shards * 100)}% CHAMPION SHARDS`),
       el("span", "", `${Math.round(GACHA_ODDS.gold * 100)}% GOLD`),
       el("span", "meta-odds-rarity", "RARITY WEIGHTS: 60 COMMON / 30 RARE / 9 EPIC / 1 LEGENDARY"),
+      el("span", "meta-odds-focus", "FOCUS: 50% CHAMPION/SHARD PREFERENCE"),
       el("span", "meta-odds-guarantee", "10-PULL: EPIC+ GUARANTEED"),
     );
     wrap.appendChild(odds);
@@ -628,12 +1001,38 @@ export class MetaScreen {
       );
       card.appendChild(head);
 
+      const lockedPool = pool.filter((champion) => !isUnlocked(this.save, champion.id));
+      const focusId = focusFor(this.save, region);
+      const focusRow = el("div", "meta-focus-row");
+      const focusLabel = el("span", "meta-focus-label", "FOCUS");
+      const focusSelect = el("select", "meta-focus-select");
+      const noFocus = el("option", "", "No focus");
+      noFocus.value = "";
+      focusSelect.appendChild(noFocus);
+      for (const champion of lockedPool) {
+        const option = el("option", "", champion.name ?? champion.id);
+        option.value = champion.id;
+        focusSelect.appendChild(option);
+      }
+      focusSelect.value = lockedPool.some((c) => c.id === focusId) ? (focusId ?? "") : "";
+      focusSelect.disabled = lockedPool.length === 0;
+      focusSelect.addEventListener("change", () => {
+        setFocus(this.save, region, focusSelect.value || null);
+        this.persist();
+      });
+      focusRow.append(focusLabel, focusSelect);
+      card.appendChild(focusRow);
+
       const champions = el("div", "meta-region-champions");
       for (const champion of pool) {
         const unlocked = isUnlocked(this.save, champion.id);
         const shards = shardsFor(this.save, champion.id);
         const needed = shardsRequired(champion);
-        const item = el("div", `meta-region-champion${unlocked ? " owned" : ""}`);
+        const focused = !unlocked && focusId === champion.id;
+        const item = el(
+          "div",
+          `meta-region-champion${unlocked ? " owned" : ""}${focused ? " focused" : ""}`,
+        );
         const dot = el("span", "meta-region-dot", champion.name?.charAt(0) ?? "?");
         dot.style.color = hex(championColor(champion.id));
         const copy = el("span", "meta-region-champion-copy");
@@ -648,6 +1047,7 @@ export class MetaScreen {
           ),
         );
         item.append(dot, copy);
+        if (focused) item.appendChild(el("span", "meta-focus-mark", "★"));
         champions.appendChild(item);
       }
       card.appendChild(champions);
@@ -865,7 +1265,7 @@ export class MetaScreen {
     ) {
       return;
     }
-    resetSave(this.characters[0]?.id ?? "lux");
+    resetSave(this.characters[0]?.id ?? "lux", this.stages[0]?.id ?? "rift-field");
     window.location.reload();
   }
 
@@ -904,6 +1304,17 @@ export class MetaScreen {
 
   private chip(label: string, kind: string): HTMLElement {
     return el("span", `meta-chip ${kind}`, label);
+  }
+
+  private classLabel(className: string | undefined): string {
+    return CLASSES[(className ?? "mage") as keyof typeof CLASSES]?.label ?? "Mage";
+  }
+
+  private focusChampionSearch(): void {
+    const input = this.root.querySelector<HTMLInputElement>(".meta-search");
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
   }
 
   private kitItem(label: string, title: string, description: string): HTMLElement {

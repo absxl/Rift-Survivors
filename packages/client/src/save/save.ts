@@ -14,8 +14,18 @@ export interface SaveSettings {
   keybinds: Keybinds;
 }
 
+export interface BestRun {
+  timeSec: number;
+  kills: number;
+  gold: number;
+  characterId: string;
+  stageId: string;
+}
+
 export interface SaveData {
   version: number;
+  /** Showdown-style local profile name; synced to the account later. */
+  profileName: string;
   gold: number;
   /** Legacy global power-up ranks; migrated into the selected champion's tree. */
   purchases?: Record<string, number>;
@@ -25,30 +35,41 @@ export interface SaveData {
   championUpgrades: Record<string, Record<string, number>>;
   /** Per-champion shards collected from region chests. */
   championShards: Record<string, number>;
+  /** region -> champion id the player is focusing in that region's chests. */
+  championFocus: Record<string, string>;
+  /** Content stage id used for the next solo/co-op run. */
+  selectedStage: string;
   unlockedCharacters: string[];
   /** Gacha chests earned but not yet opened. */
   chests: number;
   achievements: string[];
   totalKills: number;
   bestTimeSec: number;
+  runsPlayed: number;
+  bestRun: BestRun;
   settings: SaveSettings;
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 5;
 const SAVE_KEY = "rift-survivors-save";
 
-export function defaultSave(firstCharacter: string): SaveData {
+export function defaultSave(firstCharacter: string, firstStage = "rift-field"): SaveData {
   return {
     version: SAVE_VERSION,
+    profileName: "Summoner",
     gold: 0,
     selectedCharacter: firstCharacter,
     championUpgrades: {},
     championShards: {},
+    championFocus: {},
+    selectedStage: firstStage,
     unlockedCharacters: [firstCharacter],
     chests: 0,
     achievements: [],
     totalKills: 0,
     bestTimeSec: 0,
+    runsPlayed: 0,
+    bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
     settings: {
       volume: 0.22,
       shake: true,
@@ -58,29 +79,50 @@ export function defaultSave(firstCharacter: string): SaveData {
   };
 }
 
-export function loadSave(firstCharacter: string): SaveData {
+export function loadSave(firstCharacter: string, firstStage = "rift-field"): SaveData {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return defaultSave(firstCharacter);
+    if (!raw) return defaultSave(firstCharacter, firstStage);
     const parsed = JSON.parse(raw) as Partial<SaveData>;
-    return migrate(parsed, firstCharacter);
+    return migrate(parsed, firstCharacter, firstStage);
   } catch {
-    return defaultSave(firstCharacter);
+    return defaultSave(firstCharacter, firstStage);
   }
+}
+
+let saveSink: ((save: SaveData) => void) | null = null;
+
+/** Attach an optional cloud-save sink (used when an account session exists). */
+export function setSaveSink(sink: ((save: SaveData) => void) | null): void {
+  saveSink = sink;
 }
 
 export function persistSave(save: SaveData): void {
   localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  saveSink?.(save);
 }
 
 /** Upgrade a v1 save (global purchases) to v2 (per-champion trees + gacha shards). */
-function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
-  const base = defaultSave(firstCharacter);
+export function migrateSave(
+  parsed: Partial<SaveData>,
+  firstCharacter: string,
+  firstStage: string,
+): SaveData {
+  return migrate(parsed, firstCharacter, firstStage);
+}
+
+function migrate(parsed: Partial<SaveData>, firstCharacter: string, firstStage: string): SaveData {
+  const base = defaultSave(firstCharacter, firstStage);
   const merged: SaveData = {
     ...base,
     ...parsed,
     championUpgrades: { ...(parsed.championUpgrades ?? {}) },
     championShards: { ...(parsed.championShards ?? {}) },
+    championFocus: { ...(parsed.championFocus ?? {}) },
+    selectedStage:
+      typeof parsed.selectedStage === "string" && parsed.selectedStage
+        ? parsed.selectedStage
+        : firstStage,
     settings: {
       ...base.settings,
       ...parsed.settings,
@@ -88,6 +130,17 @@ function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
     },
   };
   if (merged.unlockedCharacters.length === 0) merged.unlockedCharacters = [firstCharacter];
+  if (typeof merged.profileName !== "string" || merged.profileName.length === 0) {
+    merged.profileName = "Summoner";
+  }
+  merged.runsPlayed = Number.isFinite(merged.runsPlayed) ? Math.max(0, merged.runsPlayed) : 0;
+  merged.bestRun = {
+    timeSec: Number.isFinite(merged.bestRun?.timeSec) ? merged.bestRun.timeSec : 0,
+    kills: Number.isFinite(merged.bestRun?.kills) ? merged.bestRun.kills : 0,
+    gold: Number.isFinite(merged.bestRun?.gold) ? merged.bestRun.gold : 0,
+    characterId: merged.bestRun?.characterId ?? "",
+    stageId: merged.bestRun?.stageId ?? "",
+  };
 
   const selected =
     typeof parsed.selectedCharacter === "string" && parsed.selectedCharacter
@@ -112,8 +165,8 @@ function migrate(parsed: Partial<SaveData>, firstCharacter: string): SaveData {
   return merged;
 }
 
-export function resetSave(firstCharacter: string): SaveData {
-  const fresh = defaultSave(firstCharacter);
+export function resetSave(firstCharacter: string, firstStage = "rift-field"): SaveData {
+  const fresh = defaultSave(firstCharacter, firstStage);
   persistSave(fresh);
   return fresh;
 }

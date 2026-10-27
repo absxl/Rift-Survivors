@@ -739,6 +739,10 @@
         border-color: #4d6a45;
         color: #b6e59e;
       }
+      .meta-chip.stage {
+        border-color: #6b3b32;
+        color: #ffb4a6;
+      }
       .meta-chip.kit {
         border-color: #2b4058;
         color: #9fb3c9;
@@ -830,6 +834,205 @@
         padding: 8px 14px;
         font-size: 10px;
         letter-spacing: 1px;
+      }
+      .meta-profile-hero {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        border: 1px solid var(--rift-line);
+        background:
+          radial-gradient(circle at 8% 40%, color-mix(in srgb, var(--champ-color) 16%, transparent), transparent 30%),
+          linear-gradient(160deg, #101a27, #090f17);
+        padding: 18px;
+      }
+      .meta-profile-avatar {
+        width: 78px;
+        height: 78px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--champ-color);
+        color: var(--champ-color);
+        background: #080d14;
+        font-size: 36px;
+        text-shadow: 0 0 22px color-mix(in srgb, var(--champ-color) 55%, transparent);
+      }
+      .meta-profile-copy {
+        min-width: 0;
+        flex: 1;
+      }
+      .meta-profile-name {
+        color: #f3f7fc;
+        font-size: 32px;
+        letter-spacing: 2px;
+      }
+      .meta-profile-note {
+        color: #778ca2;
+        font-size: 9px;
+        letter-spacing: 1px;
+        margin-top: 4px;
+      }
+      .meta-profile-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .meta-profile-form .meta-search {
+        max-width: 260px;
+      }
+      .meta-profile-message {
+        min-height: 12px;
+        color: #6fcf9a;
+        font-size: 9px;
+        letter-spacing: 0.5px;
+      }
+      .meta-profile-message.error {
+        color: #e06b5f;
+      }
+      .meta-profile-account {
+        border: 1px solid #2a4058;
+        background: #0b131f;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .meta-profile-account-title {
+        color: #f0f5fc;
+        font-size: 14px;
+        letter-spacing: 2px;
+      }
+      .meta-profile-account-note {
+        color: #7f94a9;
+        font-size: 10px;
+        line-height: 1.5;
+        max-width: 820px;
+      }
+      .meta-profile-account-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+      }
+      .meta-profile-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      .meta-profile-best {
+        border: 1px solid #5b4a28;
+        background: linear-gradient(120deg, rgba(103, 79, 37, 0.18), #0a111b);
+        padding: 14px;
+      }
+      .meta-profile-best-main {
+        color: var(--rift-gold-bright);
+        font-size: 20px;
+        letter-spacing: 1px;
+        margin-top: 4px;
+      }
+      .meta-profile-best-sub {
+        color: #8fa3b8;
+        font-size: 10px;
+        margin-top: 4px;
+        letter-spacing: 1px;
+      }
+      .meta-profile-current {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .meta-profile-current-item {
+        border: 1px solid #24384c;
+        background: #0a111b;
+        color: #9fb3c7;
+        font-size: 9px;
+        letter-spacing: 1px;
+        padding: 6px 9px;
+      }
+      .meta-topbar-profile {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-left: 1px solid var(--rift-line);
+        padding-left: 12px;
+        color: #c7d5e4;
+        font-size: 10px;
+        letter-spacing: 1px;
+        cursor: pointer;
+      }
+      .meta-topbar-profile:hover {
+        color: var(--rift-gold-bright);
+      }
+      .meta-topbar-profile-mark {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #5b4a28;
+        color: var(--rift-gold-bright);
+        font-size: 9px;
+      }
+      .meta-stage-head {
+        margin-top: 4px;
+      }
+      .meta-stage-title {
+        color: #f0f5fc;
+        font-size: 14px;
+        letter-spacing: 3px;
+        margin-top: 2px;
+      }
+      .meta-stage-hint {
+        color: #6b8096;
+        font-size: 9px;
+        letter-spacing: 1px;
+        margin-top: 3px;
+      }
+      .meta-stage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+      }
+      .meta-stage-card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        text-align: left;
+        border: 1px solid #24384c;
+        background:
+          radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--stage-color) 12%, transparent), transparent 45%),
+          #0b131f;
+        color: #c4d3e2;
+        font-family: var(--font-ui);
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: border-color 120ms ease, background 120ms ease;
+      }
+      .meta-stage-card:hover {
+        border-color: var(--stage-color);
+      }
+      .meta-stage-card.active {
+        border-color: var(--stage-color);
+        background:
+          radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--stage-color) 22%, transparent), transparent 50%),
+          #111c27;
+        box-shadow: inset 2px 0 0 var(--stage-color);
+      }
+      .meta-stage-region {
+        color: var(--region-color);
+        font-size: 8px;
+        letter-spacing: 1.5px;
+      }
+      .meta-stage-name {
+        color: #f0f5fc;
+        font-size: 16px;
+        letter-spacing: 1px;
+      }
+      .meta-stage-desc {
+        color: #859aae;
+        font-size: 10px;
+        line-height: 1.5;
       }
       .meta-stat-strip {
         display: grid;
@@ -927,10 +1130,95 @@
         border-color: var(--rift-gold);
         background: rgba(215, 181, 109, 0.08);
       }
+      .meta-search-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .meta-search {
+        flex: 1;
+        min-width: 220px;
+        background: #0a121c;
+        border: 1px solid #2a4058;
+        color: #e1ebf6;
+        font-family: var(--font-ui);
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        padding: 8px 10px;
+        outline: none;
+      }
+      .meta-search:focus {
+        border-color: var(--rift-gold);
+      }
+      .meta-result-count {
+        color: #71869c;
+        font-size: 9px;
+        letter-spacing: 1px;
+        margin-left: auto;
+      }
+      .meta-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 6px 0;
+      }
+      .meta-page-label {
+        color: #7c90a5;
+        font-size: 9px;
+        letter-spacing: 1px;
+      }
       .meta-champion-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
         gap: 12px;
+      }
+      .meta-champion-card.focused {
+        border-color: var(--rift-gold);
+        box-shadow: 0 0 18px rgba(215, 181, 109, 0.12);
+      }
+      .meta-focus-mark {
+        color: var(--rift-gold-bright);
+        font-size: 12px;
+        margin-left: auto;
+      }
+      .meta-btn.focus {
+        border-color: #5b4a28;
+        color: var(--rift-gold-bright);
+      }
+      .meta-focus-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-top: 1px solid #203345;
+        border-bottom: 1px solid #203345;
+        padding: 6px 0;
+      }
+      .meta-focus-label {
+        color: var(--rift-gold);
+        font-size: 8px;
+        letter-spacing: 1.5px;
+      }
+      .meta-focus-select {
+        flex: 1;
+        min-width: 0;
+        background: #0a121c;
+        border: 1px solid #2a4058;
+        color: #c5d5e5;
+        font-family: var(--font-ui);
+        font-size: 10px;
+        padding: 4px 6px;
+      }
+      .meta-focus-select:disabled {
+        opacity: 0.45;
+      }
+      .meta-region-champion.focused {
+        color: var(--rift-gold-bright);
+      }
+      .meta-odds-focus {
+        color: #b6d6ff;
+        font-size: 8px;
       }
       .meta-champion-card {
         position: relative;
@@ -1482,6 +1770,12 @@
         font-size: 10px;
         letter-spacing: 1px;
         text-shadow: 0 1px 2px #000;
+      }
+      .hud-stage-name {
+        color: #7f98ae;
+        font-size: 8px;
+        letter-spacing: 1.5px;
+        margin-right: 6px;
       }
       .hud-gold { color: #ffd98a; }
       .hud-chests { color: #c8b0ff; }

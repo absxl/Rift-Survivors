@@ -21,6 +21,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     protocolVersion: z.number(),
     characterId: z.string(),
     metaBonuses: z.record(z.number()).optional(),
+    stageId: z.string().optional(),
   }),
   z.object({
     type: z.literal("join"),
@@ -29,6 +30,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     protocolVersion: z.number(),
     characterId: z.string(),
     metaBonuses: z.record(z.number()).optional(),
+    stageId: z.string().optional(),
   }),
   z.object({
     type: z.literal("ready"),

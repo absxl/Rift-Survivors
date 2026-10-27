@@ -12,9 +12,11 @@ coverage/
 # user-supplied real art/audio (never committed, see docs/06)
 assets/local/
 
-# env / logs
+# env / logs / local server data
 .env
 *.log
+data/
+packages/server/data/
 
 # OS
 .DS_Store

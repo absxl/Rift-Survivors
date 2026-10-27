@@ -10,6 +10,8 @@ export interface RunResult {
   won: boolean;
   /** Chests picked up during the run (saved for the shop). */
   chestsFound?: number;
+  characterId?: string;
+  stageId?: string;
 }
 
 export const SHARD_REQUIREMENTS: Record<Rarity, number> = {
@@ -157,6 +159,14 @@ export function shardsFor(save: SaveData, characterId: string): number {
   return save.championShards[characterId] ?? 0;
 }
 
+export function focusFor(save: SaveData, region: string): string | null {
+  return save.championFocus[region] || null;
+}
+
+export function setFocus(save: SaveData, region: string, championId: string | null): void {
+  save.championFocus[region] = championId ?? "";
+}
+
 export function canUnlockWithShards(save: SaveData, character: CharacterDef): boolean {
   return (
     !isUnlocked(save, character.id) && shardsFor(save, character.id) >= shardsRequired(character)
@@ -176,6 +186,19 @@ export function awardRun(save: SaveData, result: RunResult): number {
   save.gold += result.gold;
   save.totalKills += result.kills;
   save.bestTimeSec = Math.max(save.bestTimeSec, result.timeSec);
+  save.runsPlayed += 1;
+  if (
+    result.timeSec > save.bestRun.timeSec ||
+    (result.timeSec === save.bestRun.timeSec && result.kills > save.bestRun.kills)
+  ) {
+    save.bestRun = {
+      timeSec: result.timeSec,
+      kills: result.kills,
+      gold: result.gold,
+      characterId: result.characterId ?? save.selectedCharacter,
+      stageId: result.stageId ?? save.selectedStage,
+    };
+  }
   const performanceChests = Math.min(
     5,
     Math.floor(result.timeSec / 300) + (result.timeSec >= 60 ? 1 : 0),
@@ -225,8 +248,26 @@ function rarityWeight(character: CharacterDef): number {
   return RARITY_WEIGHTS[character.rarity ?? "rare"];
 }
 
+/** Pick a locked champion, giving the player's region focus a 50% preference. */
+function chooseLocked(
+  save: SaveData,
+  region: string,
+  pool: CharacterDef[],
+  rng: RandomSource,
+): CharacterDef {
+  const locked = pool.filter((c) => !isUnlocked(save, c.id));
+  const focus = locked.find((c) => c.id === save.championFocus[region]);
+  if (focus && rng() < 0.5) return focus;
+  return pickWeighted(locked, rarityWeight, rng);
+}
+
 /** Roll once inside a region. Assumes the caller has already spent the chest. */
-function rollRegion(save: SaveData, pool: CharacterDef[], rng: RandomSource): GachaDrop {
+function rollRegion(
+  save: SaveData,
+  region: string,
+  pool: CharacterDef[],
+  rng: RandomSource,
+): GachaDrop {
   const locked = pool.filter((c) => !isUnlocked(save, c.id));
   if (locked.length === 0) {
     save.gold += GACHA_ODDS.fallbackGold;
@@ -235,12 +276,12 @@ function rollRegion(save: SaveData, pool: CharacterDef[], rng: RandomSource): Ga
 
   const roll = rng();
   if (roll < GACHA_ODDS.champion) {
-    const winner = pickWeighted(locked, rarityWeight, rng);
+    const winner = chooseLocked(save, region, pool, rng);
     unlockChampion(save, winner.id);
     return { kind: "champion", championId: winner.id, amount: 1 };
   }
   if (roll < GACHA_ODDS.champion + GACHA_ODDS.shards) {
-    const winner = pickWeighted(locked, rarityWeight, rng);
+    const winner = chooseLocked(save, region, pool, rng);
     const shardRoll = rng();
     const amount = winner.rarity === "common" ? 3 : shardRoll < 0.35 ? 2 : 1;
     addShards(save, winner.id, amount);
@@ -251,10 +292,16 @@ function rollRegion(save: SaveData, pool: CharacterDef[], rng: RandomSource): Ga
 }
 
 /** Force the 10-pull's Epic+ guarantee. */
-function guaranteedEpicPlus(save: SaveData, pool: CharacterDef[], rng: RandomSource): GachaDrop {
+function guaranteedEpicPlus(
+  save: SaveData,
+  region: string,
+  pool: CharacterDef[],
+  rng: RandomSource,
+): GachaDrop {
   const epic = pool.filter((c) => isEpicPlus(c) && !isUnlocked(save, c.id));
   if (epic.length > 0) {
-    const winner = pickWeighted(epic, rarityWeight, rng);
+    const focus = epic.find((c) => c.id === save.championFocus[region]);
+    const winner = focus && rng() < 0.5 ? focus : pickWeighted(epic, rarityWeight, rng);
     unlockChampion(save, winner.id);
     return { kind: "champion", championId: winner.id, amount: 1, guaranteed: true };
   }
@@ -289,10 +336,10 @@ export function openRegionChests(
   if (pool.length === 0) return null;
   save.chests -= count;
 
-  if (count === 1) return [rollRegion(save, pool, rng)];
+  if (count === 1) return [rollRegion(save, region, pool, rng)];
 
   const drops: GachaDrop[] = [];
-  for (let i = 0; i < 9; i++) drops.push(rollRegion(save, pool, rng));
+  for (let i = 0; i < 9; i++) drops.push(rollRegion(save, region, pool, rng));
   const epicIndex = drops.findIndex((drop) => {
     if (drop.kind !== "champion") return false;
     const champion = pool.find((c) => c.id === drop.championId);
@@ -302,9 +349,9 @@ export function openRegionChests(
     // The natural pull already satisfied the guarantee; label it so the player
     // can see which result the 10-pull promised.
     drops[epicIndex].guaranteed = true;
-    drops.push(rollRegion(save, pool, rng));
+    drops.push(rollRegion(save, region, pool, rng));
   } else {
-    drops.push(guaranteedEpicPlus(save, pool, rng));
+    drops.push(guaranteedEpicPlus(save, region, pool, rng));
   }
   return drops;
 }
@@ -317,7 +364,7 @@ export function openChest(
 ): GachaDrop {
   if (save.chests <= 0) return { kind: "gold", amount: 0 };
   save.chests -= 1;
-  return rollRegion(save, allCharacters, rng);
+  return rollRegion(save, "Runeterra", allCharacters, rng);
 }
 
 interface AchievementDef {

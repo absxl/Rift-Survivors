@@ -5,7 +5,7 @@ import { WebSocket } from "ws";
 import { startServer } from "./server";
 
 const PORT = 8799;
-const server = startServer(PORT);
+const server = startServer(PORT, { accountsFile: null });
 
 afterAll(() => server.close());
 
@@ -25,6 +25,58 @@ function inbox(ws: WebSocket): () => Promise<Record<string, unknown>> {
     return queue.shift() as Record<string, unknown>;
   };
 }
+
+describe("account server", () => {
+  it("supports dev login, nickname updates, and server-side saves", async () => {
+    const accountServer = startServer(8801, {
+      accountsFile: null,
+      auth: { devAuth: true, redirectUri: "http://localhost:5173/auth/discord/callback" },
+    });
+    try {
+      const unauthorized = await fetch("http://127.0.0.1:8801/api/me");
+      expect(unauthorized.status).toBe(401);
+
+      const configResponse = await fetch("http://127.0.0.1:8801/api/auth-config");
+      expect(await configResponse.json()).toMatchObject({ devAuth: true });
+
+      const login = await fetch("http://127.0.0.1:8801/api/dev-login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nickname: "CloudTester" }),
+      });
+      expect(login.status).toBe(200);
+      const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+      expect(cookie).toContain("rift_session=");
+
+      const me = await fetch("http://127.0.0.1:8801/api/me", {
+        headers: { cookie },
+      });
+      const meBody = (await me.json()) as { account: { nickname: string } };
+      expect(meBody.account.nickname).toBe("CloudTester");
+
+      const save = await fetch("http://127.0.0.1:8801/api/save", {
+        method: "PUT",
+        headers: { cookie, "content-type": "application/json" },
+        body: JSON.stringify({ save: { version: 5, gold: 777 } }),
+      });
+      expect(save.status).toBe(200);
+      const meAfter = await fetch("http://127.0.0.1:8801/api/me", {
+        headers: { cookie },
+      });
+      const afterBody = (await meAfter.json()) as { save: { gold: number } };
+      expect(afterBody.save.gold).toBe(777);
+
+      const taken = await fetch("http://127.0.0.1:8801/api/nickname", {
+        method: "PUT",
+        headers: { cookie, "content-type": "application/json" },
+        body: JSON.stringify({ nickname: "CloudTester" }),
+      });
+      expect(taken.status).toBe(200);
+    } finally {
+      accountServer.close();
+    }
+  }, 20_000);
+});
 
 describe("room server", () => {
   it("creates a room, starts, and streams snapshots", async () => {

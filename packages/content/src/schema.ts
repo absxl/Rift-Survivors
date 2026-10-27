@@ -4,6 +4,7 @@ import type {
   EnemyDef,
   PassiveDef,
   PowerUpDef,
+  StageDef,
   StatDelta,
   SynergyDef,
   TagQuery,
@@ -114,6 +115,21 @@ const powerUpDefSchema: z.ZodType<PowerUpDef> = z.object({
   costs: z.array(z.number()),
 });
 
+const stageDefSchema: z.ZodType<StageDef> = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  region: z.string(),
+  palette: z.object({
+    background: z.number().int(),
+    grid: z.number().int(),
+    accent: z.number().int(),
+  }),
+  enemyIds: z.array(z.string()).optional(),
+  finalThreatId: z.string().optional(),
+  rules: z.record(z.union([z.number(), z.string(), z.boolean()])).optional(),
+});
+
 const tagQuerySchema: z.ZodType<TagQuery> = z.object({
   all: z.array(z.string()).optional(),
   any: z.array(z.string()).optional(),
@@ -145,4 +161,5 @@ export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   characters: z.array(characterDefSchema),
   powerUps: z.array(powerUpDefSchema),
   synergies: z.array(synergyDefSchema),
+  stages: z.array(stageDefSchema).optional(),
 });

@@ -54,6 +54,7 @@ export class Hud {
   private readonly timeEl: HTMLElement;
   private readonly killsLabel: HTMLElement;
   private readonly killsEl: HTMLElement;
+  private readonly stageEl: HTMLElement;
   private readonly goldEl: HTMLElement;
   private readonly chestsEl: HTMLElement;
   private readonly partyEl: HTMLElement;
@@ -118,9 +119,10 @@ export class Hud {
     topbar.appendChild(center);
 
     const currency = el("div", "hud-currency");
+    this.stageEl = el("span", "hud-stage-name", "");
     this.goldEl = el("span", "hud-gold", "0 G");
     this.chestsEl = el("span", "hud-chests", "0 CHESTS");
-    currency.append(this.goldEl, this.chestsEl);
+    currency.append(this.stageEl, this.goldEl, this.chestsEl);
     topbar.appendChild(currency);
     this.root.appendChild(topbar);
 
@@ -220,6 +222,7 @@ export class Hud {
   update(s: WorldSnapshot): void {
     const secs = Math.floor(s.tick / 30);
     this.timeEl.textContent = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, "0")}`;
+    this.stageEl.textContent = (s.stageName ?? "").toUpperCase();
 
     const playerStore = s.stores.find((st) => st.kind === "player");
     const pIdx = playerStore ? playerStore.slots.indexOf(this.localPlayerId) : -1;

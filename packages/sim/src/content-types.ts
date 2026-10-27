@@ -157,6 +157,27 @@ export interface SynergyDef {
   hidden?: boolean;
 }
 
+export interface StagePalette {
+  /** 0xRRGGBB presentation colors; never read by gameplay systems. */
+  background: number;
+  grid: number;
+  accent: number;
+}
+
+export interface StageDef {
+  id: string;
+  name: string;
+  description: string;
+  region: string;
+  palette: StagePalette;
+  /** Enemy ids allowed in this stage; omitted/empty means the whole pack. */
+  enemyIds?: string[];
+  /** Final threat override for this stage. */
+  finalThreatId?: string;
+  /** Stage-specific overrides for spawned rules. */
+  rules?: Record<string, number | string | boolean>;
+}
+
 export interface ContentPack {
   id: string;
   schemaVersion: number;
@@ -166,4 +187,6 @@ export interface ContentPack {
   characters: CharacterDef[];
   powerUps: PowerUpDef[];
   synergies: SynergyDef[];
+  /** Optional for test packs and backwards-compatible content. */
+  stages?: StageDef[];
 }

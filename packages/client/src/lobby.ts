@@ -16,6 +16,7 @@ export class Lobby {
   private isHost = false;
   private characterId = "lux";
   private metaBonuses: Record<string, number> = {};
+  private stageId = "rift-field";
 
   constructor(private readonly serverUrl: string) {
     this.root = document.createElement("div");
@@ -98,6 +99,10 @@ export class Lobby {
     this.metaBonuses = bonuses;
   }
 
+  setStage(stageId: string): void {
+    this.stageId = stageId;
+  }
+
   setName(name: string): void {
     this.nameInput.value = name;
   }
@@ -140,7 +145,12 @@ export class Lobby {
     try {
       this.netHost = await this.connect();
       this.isHost = true;
-      this.netHost.createRoom(this.nameInput.value || "host", this.characterId, this.metaBonuses);
+      this.netHost.createRoom(
+        this.nameInput.value || "host",
+        this.characterId,
+        this.metaBonuses,
+        this.stageId,
+      );
     } catch {
       this.status.textContent = "server unreachable";
     }
@@ -161,6 +171,7 @@ export class Lobby {
         this.nameInput.value || "player",
         this.characterId,
         this.metaBonuses,
+        this.stageId,
       );
     } catch {
       this.status.textContent = "server unreachable";

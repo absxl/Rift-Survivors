@@ -66,7 +66,21 @@ describe("content packs", () => {
     }
   });
 
-  it("gives every character a gacha identity, signature move, and valid tree", () => {
+  it("ships the full roster across all six classes", () => {
+    const game = loadGamePack();
+    expect(game.characters.length).toBeGreaterThanOrEqual(170);
+    const classes = new Set(game.characters.map((c) => c.class));
+    for (const required of ["mage", "tank", "fighter", "assassin", "marksman", "support"]) {
+      expect(classes.has(required), required).toBe(true);
+      expect(game.characters.filter((c) => c.class === required).length, required).toBeGreaterThan(
+        3,
+      );
+    }
+    const ids = new Set(game.characters.map((c) => c.id));
+    expect(ids.size).toBe(game.characters.length);
+  });
+
+  it("gives every character a gacha identity, starting kit, and valid tree", () => {
     const game = loadGamePack();
     const weaponIds = new Map(game.weapons.map((w) => [w.id, w]));
     const powerUpIds = new Set(game.powerUps.map((p) => p.id));
@@ -139,6 +153,24 @@ describe("content packs", () => {
     }
   });
 
+  it("loads multiple stages with resolvable enemy/final pools", () => {
+    const game = loadGamePack();
+    expect(game.stages?.length ?? 0).toBeGreaterThanOrEqual(2);
+    const enemyById = new Map(game.enemies.map((enemy) => [enemy.id, enemy]));
+    for (const stage of game.stages ?? []) {
+      expect(stage.name, stage.id).toBeTruthy();
+      expect(stage.description, stage.id).toBeTruthy();
+      expect(stage.enemyIds?.length ?? 0, stage.id).toBeGreaterThan(0);
+      for (const id of stage.enemyIds ?? [])
+        expect(enemyById.has(id), `${stage.id}:${id}`).toBe(true);
+      if (stage.finalThreatId) {
+        const final = enemyById.get(stage.finalThreatId);
+        expect(final?.category, stage.id).toBe("final-threat");
+      }
+    }
+    expect(game.stages?.some((stage) => stage.id === "noxus-warfront")).toBe(true);
+  });
+
   it("synergies resolve (tag tiers non-empty)", () => {
     const game = loadGamePack();
     expect(game.synergies.length).toBeGreaterThanOrEqual(1);
@@ -161,7 +193,7 @@ describe("content packs", () => {
     expect(minions.length).toBeGreaterThanOrEqual(6);
     expect(elites.length).toBeGreaterThanOrEqual(2);
     expect(bosses.length).toBeGreaterThanOrEqual(3);
-    expect(finals.length).toBe(1);
+    expect(finals.length).toBeGreaterThanOrEqual(1);
 
     for (const def of game.enemies) {
       expect(world.registries.enemyBehaviors.has(def.behavior)).toBe(true);

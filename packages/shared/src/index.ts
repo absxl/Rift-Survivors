@@ -6,3 +6,4 @@ export {
   type ServerMessage,
   type LobbyPlayer,
 } from "./protocol";
+export { validateNickname, type NicknameValidation } from "./nickname";

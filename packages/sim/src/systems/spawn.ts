@@ -153,13 +153,16 @@ function pickMinion(world: World): number {
   const eligible: { index: number; weight: number }[] = [];
   world.content.enemies.forEach((def, index) => {
     if (def.category !== "minion") return;
+    if (!world.stageAllowsEnemy(def.id)) return;
     if (minutes < (def.minMinute ?? 0)) return;
     if (def.maxMinute !== undefined && minutes > def.maxMinute) return;
     const weight = Math.max(0, def.spawnWeight ?? 1);
     if (weight > 0) eligible.push({ index, weight });
   });
   if (eligible.length === 0) {
-    return world.content.enemies.findIndex((e) => e.category === "minion");
+    return world.content.enemies.findIndex(
+      (e) => e.category === "minion" && world.stageAllowsEnemy(e.id),
+    );
   }
   let total = 0;
   for (const entry of eligible) total += entry.weight;
@@ -177,6 +180,7 @@ function pickElite(world: World): number {
   const eligible: { index: number; weight: number }[] = [];
   world.content.enemies.forEach((def, index) => {
     if (def.category !== "elite") return;
+    if (!world.stageAllowsEnemy(def.id)) return;
     if (minutes < (def.minMinute ?? 0)) return;
     if (def.maxMinute !== undefined && minutes > def.maxMinute) return;
     const weight = Math.max(0, def.spawnWeight ?? 1);
@@ -234,8 +238,12 @@ function spawnEnemy(world: World, defIndex: number): number {
 
 /** Boss schedule, final threat, and the post-threat boss rush. */
 function spawnBosses(world: World): void {
-  const bosses = world.content.enemies.filter((e) => e.category === "boss");
-  const finalThreat = world.content.enemies.find((e) => e.category === "final-threat");
+  const bosses = world.content.enemies.filter(
+    (e) => e.category === "boss" && world.stageAllowsEnemy(e.id),
+  );
+  const finalThreat = world.stage?.finalThreatId
+    ? world.content.enemies.find((e) => e.id === world.stage?.finalThreatId)
+    : world.content.enemies.find((e) => e.category === "final-threat");
 
   // Final threat at the scheduled time (once).
   if (

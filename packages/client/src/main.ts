@@ -2,6 +2,7 @@
 import { loadGamePack } from "@rift/content";
 import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
+import { AccountClient } from "./account";
 import { AdminPanel } from "./admin";
 import { Sfx } from "./audio";
 import { Banner } from "./banner";
@@ -14,12 +15,17 @@ import { LevelUpUI } from "./levelup";
 import { Lobby } from "./lobby";
 import { MetaScreen } from "./meta-screen";
 import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
-import { NameScreen } from "./name-screen";
 import type { NetHost } from "./net-host";
 import { PauseMenu } from "./pause-menu";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 import { RunEndUI } from "./run-end";
-import { loadSave, persistSave, resolveSelectedCharacter } from "./save/save";
+import {
+  loadSave,
+  migrateSave,
+  persistSave,
+  resolveSelectedCharacter,
+  setSaveSink,
+} from "./save/save";
 
 function formatTime(secs: number): string {
   const mm = Math.floor(secs / 60);
@@ -55,17 +61,39 @@ async function main(): Promise<void> {
   // least one gacha target (Demacia/Lux included).
   const firstCharacter =
     pack.characters.find((c) => c.starter)?.id ?? pack.characters[0]?.id ?? "ahri";
-  const save = loadSave(firstCharacter);
+  const firstStage = pack.stages?.[0]?.id ?? "rift-field";
+  let save = loadSave(firstCharacter, firstStage);
+  if (!pack.stages?.some((stage) => stage.id === save.selectedStage)) {
+    save.selectedStage = firstStage;
+  }
+
+  // Restore the account session before building the menu. If the server is
+  // offline or the player is a guest, the local save remains authoritative.
+  const account = new AccountClient();
+  const restored = await account.restore();
+  if (restored?.save) {
+    save = migrateSave(restored.save, firstCharacter, firstStage);
+    save.profileName = restored.account.nickname;
+    if (!pack.stages?.some((stage) => stage.id === save.selectedStage)) {
+      save.selectedStage = firstStage;
+    }
+  } else if (restored) {
+    save.profileName = restored.account.nickname;
+  }
+  if (account.account) {
+    setSaveSink((next) => account.queueSave(next));
+  }
 
   // Gacha-only unlock policy: no dev unlock-all. Existing saves can be reset
   // from Settings or the H admin panel to begin the collection fresh.
   resolveSelectedCharacter(save, firstCharacter);
   persistSave(save);
+  if (account.account && !restored?.save) account.queueSave(save);
 
   const worldLayer = new Container();
   app.stage.addChild(worldLayer);
 
-  const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies);
+  const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies, pack.stages ?? []);
   const hud = new Hud(pack.weapons, pack.passives, pack.enemies, pack.characters);
   const input = new Input();
   input.attach();
@@ -91,7 +119,6 @@ async function main(): Promise<void> {
 
   const runEnd = new RunEndUI();
   const banner = new Banner();
-  const nameScreen = new NameScreen();
   const pauseMenu = new PauseMenu();
   const connectionLost = new ConnectionLost();
   let runEnded = false;
@@ -154,7 +181,15 @@ async function main(): Promise<void> {
       const kills = idx >= 0 && playerStore ? playerStore.fields.kills[idx] : 0;
       const chestsFound = idx >= 0 && playerStore ? playerStore.fields.chests[idx] : 0;
       const timeSec = Math.floor(snap.tick / 30);
-      const result = { gold, kills, timeSec, won: false, chestsFound };
+      const result = {
+        gold,
+        kills,
+        timeSec,
+        won: false,
+        chestsFound,
+        characterId: currentCharacterId,
+        stageId: save.selectedStage,
+      };
       const chests = awardRun(save, result);
       const newAchievements = checkAchievements(save, result);
       persistSave(save);
@@ -173,7 +208,14 @@ async function main(): Promise<void> {
   host.onSnapshot(handleSnapshot);
   host.onOffer(onOffer);
 
-  const metaScreen = new MetaScreen(save, pack.powerUps, pack.characters, pack.weapons);
+  const metaScreen = new MetaScreen(
+    save,
+    pack.powerUps,
+    pack.characters,
+    pack.weapons,
+    pack.stages ?? [],
+    account,
+  );
   new AdminPanel(save, pack.characters, pack.powerUps, () => metaScreen.refresh());
   sfx.setVolume(save.settings.volume);
   renderer.setShake(save.settings.shake);
@@ -217,6 +259,7 @@ async function main(): Promise<void> {
         characterId,
         pack.characters.find((c) => c.id === characterId),
       ),
+      save.selectedStage,
     );
   };
 
@@ -262,13 +305,11 @@ async function main(): Promise<void> {
     metaScreen.hide();
     sfx.unlock();
     coopCharacterId = save.selectedCharacter;
-    nameScreen.show();
-  });
-  nameScreen.onBack(() => metaScreen.show());
-  lobby.onBack(() => metaScreen.show());
-  nameScreen.onConfirm((name) => {
     lobby.setCharacter(coopCharacterId);
-    lobby.setName(name);
+    // The Showdown-style profile name is the identity used in the lobby; there
+    // is no separate per-session name prompt.
+    lobby.setName(save.profileName || "Summoner");
+    lobby.setStage(save.selectedStage);
     lobby.setMetaBonuses(
       computeMetaBonuses(
         save,
@@ -279,6 +320,7 @@ async function main(): Promise<void> {
     );
     lobby.show();
   });
+  lobby.onBack(() => metaScreen.show());
   lobby.onPlayers((players) => {
     hud.setParty(players);
   });

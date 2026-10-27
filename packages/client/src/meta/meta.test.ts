@@ -2,6 +2,7 @@ import type { CharacterDef, PowerUpDef } from "@rift/sim";
 import { describe, expect, it } from "vitest";
 import type { SaveData } from "../save/save";
 import {
+  awardRun,
   buyPowerUp,
   computeMetaBonuses,
   openRegionChests,
@@ -13,16 +14,21 @@ import {
 
 function save(overrides: Partial<SaveData> = {}): SaveData {
   return {
-    version: 2,
+    version: 5,
+    profileName: "Tester",
     gold: 0,
     selectedCharacter: "a",
     championUpgrades: {},
     championShards: {},
+    championFocus: {},
+    selectedStage: "rift-field",
     unlockedCharacters: ["a"],
     chests: 10,
     achievements: [],
     totalKills: 0,
     bestTimeSec: 0,
+    runsPlayed: 0,
+    bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
     settings: {
       volume: 0.2,
       shake: true,
@@ -71,6 +77,34 @@ describe("per-champion upgrades", () => {
   });
 });
 
+describe("run rewards and profile", () => {
+  it("tracks runs and keeps the best run by survival time", () => {
+    const data = save();
+    awardRun(data, {
+      gold: 100,
+      kills: 10,
+      timeSec: 60,
+      won: false,
+      chestsFound: 1,
+      characterId: "a",
+      stageId: "rift-field",
+    });
+    expect(data.runsPlayed).toBe(1);
+    expect(data.bestRun).toMatchObject({ timeSec: 60, kills: 10, gold: 100, characterId: "a" });
+    awardRun(data, {
+      gold: 30,
+      kills: 3,
+      timeSec: 30,
+      won: false,
+      characterId: "b",
+      stageId: "noxus-warfront",
+    });
+    expect(data.runsPlayed).toBe(2);
+    expect(data.bestRun.timeSec).toBe(60);
+    expect(data.bestRun.characterId).toBe("a");
+  });
+});
+
 describe("region gacha", () => {
   it("opens one chest and can unlock a champion on a low roll", () => {
     const data = save({ chests: 1, unlockedCharacters: [] });
@@ -80,6 +114,13 @@ describe("region gacha", () => {
     expect(drops?.[0].championId).toBe("a");
     expect(data.unlockedCharacters).toContain("a");
     expect(data.chests).toBe(0);
+  });
+
+  it("prefers the focused champion when the player has set one", () => {
+    const data = save({ chests: 1, unlockedCharacters: [], championFocus: { Test: "b" } });
+    const drops = openRegionChests(data, "Test", CHARACTERS, 1, () => 0);
+    expect(drops?.[0].championId).toBe("b");
+    expect(data.unlockedCharacters).toContain("b");
   });
 
   it("a 10-pull guarantees an Epic+ champion", () => {

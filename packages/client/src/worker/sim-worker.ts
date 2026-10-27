@@ -62,6 +62,7 @@ ctx.onmessage = (event: MessageEvent) => {
     optionIndex?: number;
     characterId?: string;
     metaBonuses?: Record<string, number>;
+    stageId?: string;
   };
   if (msg.type === "input" && msg.input) currentInput = msg.input;
   else if (msg.type === "pause") clientPaused = true;
@@ -93,6 +94,7 @@ ctx.onmessage = (event: MessageEvent) => {
         content: pack,
         characterId: msg.characterId,
         metaBonuses: msg.metaBonuses,
+        stageId: msg.stageId,
       },
       SEED,
     );
