@@ -11,7 +11,8 @@
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
-    "roster": "node scripts/generate-roster.mjs"
+    "roster": "node scripts/generate-roster.mjs",
+    "profiles": "node scripts/generate-champion-profiles.mjs"
   },
   "dependencies": {
     "@rift/sim": "workspace:*",

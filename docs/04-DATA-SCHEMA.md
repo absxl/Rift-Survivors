@@ -9,7 +9,9 @@ tests. IDs are `kebab-case` strings, unique within their type.
 > names/descriptions, per-champion meta-upgrade trees, optional `ContentPack.stages` (`StageDef` with
 > palette/enemyIds/finalThreatId/rules/optional `terrain`), and the generated 173-champion roster. The
 > live terrain contract is `StageTerrain` in `packages/sim/src/content-types.ts`: 32 px tile thresholds,
-> water/lava/void effects, and client palette colours.
+> water/lava/void effects, and client palette colours. `CharacterDef.profile` is the source-backed dossier
+> contract: official title/roles/difficulty, region/origin/residence/faction/species/occupation, an
+> original summary, and official/wiki source URLs with a verified date.
 
 > **These schemas are a starting point and WILL change** after the design interview (`09`/`10`).
 > Change them only via the process in `12-CHANGE-PLAYBOOK.md` (ADR, `schemaVersion` bump, migration).
@@ -84,8 +86,16 @@ interface PassiveDef extends BaseDef {
 
 ## Character
 ```ts
+interface ChampionProfile {
+  title: string;                                        // official champion title
+  regions: string[];                                    // chest-eligible; [0] is primary
+  origin?: string; residence?: string; faction?: string; species?: string; occupation?: string;
+  roles: string[]; difficulty?: string; summary: string;
+  sources: { official: string; wiki: string; verifiedAt: string };
+}
 interface CharacterDef extends BaseDef {
   startingWeapon: string;                               // WeaponDef id
+  profile?: ChampionProfile;                            // source-backed dossier data
   baseStats: Partial<Record<PlayerStat | WeaponWideStat, number>>;
   growth?: { everyLevels: number; mods: ModifierDef[] };// innate growth bonus (e.g. +x% every N levels)
   quirk?: (EffectDef | ModifierDef)[];                  // optional unique rule via effects engine
@@ -193,6 +203,8 @@ interface Offer {
 - Every `evolution.requiresPassive` and `evolvesTo` resolves; evolved weapons are not in level-up pools;
   no evolution cycles.
 - Every character's `startingWeapon` exists; every stage's `enemy` refs and `finalThreat` resolve.
+  Every character has a non-empty profile; `profile.regions[0]` matches `region`, every region is one of
+  the 14 chest regions, and profile source URLs/verified date are present.
 - Every tag is declared in `tags.ts`; every `TagQuery` is satisfiable by at least one def.
 - Every effect trigger/condition/action kind and every rule key is registered.
 - Every pack's `requires` resolve; no id collisions except deliberate pack overrides.

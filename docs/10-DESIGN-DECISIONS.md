@@ -254,6 +254,37 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
   non-human bot, the benchmark baseline has a wider spread than the flat-field D-031 numbers. Props,
   destructible cover, and terrain-aware player auto-steering are not included yet.
 
+### D-033 - Source-backed champion dossiers, multi-region chests, golden crests
+- Date: 2026-10-29 - Status: decided (user approved full dossier, current+origin region policy, original
+  summaries, and committing the official region crests).
+- Decision:
+  - **Profile audit:** every champion gets a source-backed `ChampionProfile` with official title, official
+    League role(s), difficulty, origin/residence/faction/species, a short original summary, and explicit
+    official + wiki source URLs. Data is fetched once by a checked-in audit script; the game never fetches
+    at runtime. Official pages are used for title/role/difficulty/facts; wiki Universe pages are used for
+    canonical region, origin, residence, faction, and species.
+  - **Region corrections:** known primary-region errors are corrected from the wiki (e.g. Alistar and Nami
+    to Runeterra, Corki to Bandle City, Senna to Runeterra, Skarner to Ixtal, Tahm Kench to Runeterra, and
+    Brand to Runeterra/Freljord). A primary region is kept as the first association for theme identity.
+  - **Multi-region:** champions use all chest-eligible current regions plus documented origin regions
+    (for example Riven Noxus/Ionia, Samira Noxus/Shurima, Kayn Ionia/Noxus, Aatrox Shurima/Runeterra, and
+    Brand Runeterra/Freljord). Lost places that are not one of the 14 chest regions (Camavor, Blessed
+    Isles, Icathia) remain visible as origin lore but do not create extra chests. Multi-region champions
+    appear in every associated region pool; focus remains per region; shards and unlocks remain global.
+  - **Dossier UI:** clicking a champion opens a full dossier with a blended region crest, title, region
+    chips, identity facts, original summary, verified source links, Rift Survivors kit, rarity, shards,
+    per-region focus, and select/unlock actions. Collection cards, PLAY hero, sidebar, upgrades header, and
+    chest cards use the same theme.
+  - **Visual language:** official golden Universe region crests are committed under the explicit D-033
+    exception (13 crests; Runeterra gets an original golden world-rune). Crests are split/overlapped for
+    multi-region identities. No champion splash art or other Riot assets are used.
+  - **Reactive styling:** cards use pointer-tracked region light, hover lift, crest watermark, and
+    multi-region badges; theme transitions and reduced-motion fallbacks are included.
+- Consequences: `CharacterDef` gained optional `profile`; content gained 173 audited records and an
+  audit script; client region helpers and tests gained multi-region unions/pool membership/theme tests.
+  Save schema is unchanged. The official crests are copyrighted and must be replaced before public
+  redistribution; sources and the private fan-project exception are recorded in `ASSETS.md` and docs/06.
+
 ## Active ruleset(s)
 `classic` - configured with the loadout (6W+6I+4M), move auto-cast, cross-synergies, boss-rush end.
 

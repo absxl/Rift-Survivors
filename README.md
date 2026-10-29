@@ -5,8 +5,9 @@ coding agent such as OpenCode. It targets the **look and feel of the original Va
 play, auto-firing weapons, 6 weapons + 4 signature moves + 6 passive slots, level-up evolutions, a ≈30-minute timeline, a pixel-perfect
 low-res look - with League of Legends as the skin. The current build has 173 champions across six
 classes, the Noxian Warfront second stage, procedural walls/water/lava terrain, minion personalities,
-a `levitate` traversal tag, region gacha/focus, per-champion trees, a Showdown-style profile, and optional
-server-side accounts. Nothing is copied from Vampire Survivors or from the Pokémon survivor project you
+a `levitate` traversal tag, source-backed multi-region champion dossiers with official golden region
+crests, region gacha/focus, per-champion trees, a Showdown-style profile, and optional server-side
+accounts. Nothing is copied from Vampire Survivors or from the Pokémon survivor project you
 found; the kit defines a fresh architecture (TypeScript + PixiJS, deterministic sim,
 optional co-op server) built so **the design can change radically later without rewrites**.
 
@@ -45,8 +46,9 @@ optional co-op server) built so **the design can change radically later without 
 | `docs/11-SYNERGIES-AND-QUIRKS.md` | Opt-in extras engine: tags, effects, modifiers, synergies, idea bank |
 | `docs/12-CHANGE-PLAYBOOK.md` | How to make radical changes safely (seams, ADRs, migrations, recipes) |
 | `docs/13-CLASSIC-FEEL-SPEC.md` | The classic survivor structure and feel to reproduce, plus the League skin mapping |
-| `docs/14-IMPLEMENTATION-STATUS.md` | **Current implemented feature/status reference** (D-032): roster, classes, procedural terrain, minion behaviours, Levitate, gacha, save/profile, accounts, co-op, tests, limitations |
+| `docs/14-IMPLEMENTATION-STATUS.md` | **Current implemented feature/status reference** (D-033): roster, source-backed profiles, multi-region gacha, procedural terrain, minion behaviours, Levitate, save/profile, accounts, co-op, tests, limitations |
 | `docs/15-HOSTING-AND-ACCOUNTS.md` | Discord/account setup, local dev login, Cloudflare/Node hosting options |
+| `ASSETS.md` | Region-crest attribution and the private fan-project art policy |
 
 ## Tips
 - Keep the repo **private**; put any real art only in `assets/local/` (gitignored). The placeholder art is

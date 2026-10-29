@@ -1,8 +1,9 @@
 # 14 - Implementation status
 
-Last updated: **2026-10-27**.
-Current batch: **D-032** (terrain, minion personalities, Levitate) on top of D-029/30/31.
-Commits: `f5e4a31` is the last D-031 baseline; the D-032 batch is committed at `git log -1`.
+Last updated: **2026-10-29**.
+Current batch: **D-033** (source-backed champion dossiers, multi-region chests, golden crests) on top of
+D-029/30/31/32.
+Commits: `4f217ac` is the D-032 baseline; the D-033 batch is committed at `git log -1`.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
 [`10-DESIGN-DECISIONS.md`](10-DESIGN-DECISIONS.md); the classic baseline is in
@@ -84,6 +85,15 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
 - **Levitate:** champion tags can include `levitate`; those champions cross terrain, ignore liquid slows
   and damage, and show a `LEVITATE` chip in collection/PLAY. Syndra, Anivia, Kayle, Morgana, Aurelion
   Sol, Yuumi, and five other floating champions currently have it.
+- **Champion dossiers:** every champion has a source-backed profile with official title, League role(s),
+  difficulty, origin/residence/faction/species, an original summary, and official/wiki source links.
+  Clicking a card opens the dossier; collection cards, PLAY, sidebar, upgrades, and chests use its theme.
+- **Multi-region chests:** a champion can belong to multiple chest regions through current affiliations
+  plus documented origin. Examples: Riven Noxus/Ionia, Samira Noxus/Shurima, Kayn Ionia/Noxus, Aatrox
+  Shurima/Runeterra, Brand Runeterra/Freljord. Focus is per region; shards and unlocks stay global.
+- **Golden crests:** the 13 official Universe region crests are committed under the D-033 private
+  fan-project exception; Runeterra uses an original golden world-rune. Multi-region portraits blend or
+  overlap crests. No champion splash art is used.
 - **Minion personalities:** beyond chase/ranged, enemies now include runners, tanks, fans, healers,
   shielders, summoners, bombers, weavers, and chargers. Support pulses and shields are visible in the
   renderer.
@@ -199,6 +209,8 @@ Counts generated from `loadGamePack()`:
 | Passives | 18 |
 | Enemies | 20 |
 | Minions / elites / bosses / final threats | 11 / 3 / 4 / 2 |
+| Champion profiles | 173 |
+| Multi-region champions | 49 (current + documented origin) |
 | Meta power-ups | 35 |
 | Synergies | 5 |
 | Regions | 14 |
@@ -223,6 +235,14 @@ class upgrade tree. Current class counts:
 Eleven floating/flying champions carry the **`levitate`** tag (Syndra, Anivia, Aurelion Sol, Bard,
 Kayle, Morgana, Soraka, Vex, Yuumi, Zoe, Kindred). The tag is content-driven and is displayed in the
 collection/PLAY chips.
+
+Every champion also has a **source-audited dossier profile**: official title/roles/difficulty from
+`leagueoflegends.com/en-au`, and canonical region/origin/residence/faction/species from the wiki Universe
+pages. Records include source URLs and `verifiedAt: 2026-10-29`; summaries are original text. Corrections
+include Alistar → Runeterra, Brand → Runeterra/Freljord, Corki → Bandle City, Nami → Runeterra,
+Senna → Runeterra, Skarner → Ixtal, Smolder → Noxus, and Tahm Kench → Runeterra. Multi-region membership
+follows current regions plus documented origin; lost places such as Camavor/Blessed Isles/Icathia are
+shown as lore only and do not add chests.
 
 The existing eight champions keep their unique starting weapons/moves and curated trees:
 
@@ -464,6 +484,23 @@ Admin changes persist immediately to localStorage. This is a local dev tool, not
 The renderer still draws the world, enemy health bars, damage numbers, particles and screen shake; the HUD
 is DOM so text stays crisp and CSS-styled.
 
+### Champion dossier
+
+`packages/client/src/meta-screen.ts` + `packages/client/src/regions.ts`:
+
+- Clicking any champion card opens a fixed dossier overlay instead of directly selecting them.
+- The dossier shows the official title, region chips, League role(s), difficulty, origin, residence,
+  faction, species, occupation, original summary, Rift Survivors kit, rarity, shards, per-region focus,
+  source links, and select/unlock actions.
+- Region theming uses the official golden Universe crests; multi-region champions layer 2-3 crests with
+  blended primary/secondary/tertiary colors. Runeterra uses an original golden world-rune.
+- Collection cards have crest watermarks, title/region lines, cross-region badges, pointer-tracked light,
+  and a dossier hint. PLAY and the sidebar use the same profile theme.
+- Chest pools include every associated region; cross-region champions are labelled in each pool. Focus is
+  independent per region. The dossier is keyboard/escape/backdrop closable and responsive at mobile widths.
+- Official crest source/licence notes and the private fan-project exception are in [`ASSETS.md`](../ASSETS.md)
+  and [`06-ASSETS-AND-LEGAL.md`](06-ASSETS-AND-LEGAL.md).
+
 ### Level-up UI
 
 `packages/client/src/levelup.ts` + `ability-info.ts`:
@@ -499,10 +536,10 @@ Last full run (all green):
 - `tsc --noEmit` for all packages: pass
 - tests:
   - **99 sim** tests
-  - **16 content** tests (+2 balance tests skipped by default)
-  - **23 client** tests
+  - **17 content** tests (+2 balance tests skipped by default)
+  - **28 client** tests
   - **14 server** tests
-  - total **152 passing, 2 skipped**
+  - total **158 passing, 2 skipped**
 - Client and server production builds: pass.
 
 Coverage highlights:
@@ -512,10 +549,12 @@ Coverage highlights:
   wall collision, water slow, damaging liquid, levitate traversal, healer/shielder/summoner/fan
   behaviours.
 - Content: schema/load, full 173 roster, class/starting weapon/move resolution, upgrade IDs, region/rarity
-  identity, stage enemy/final pools, terrain palettes/effects, Levitate assignments, flavor completeness,
-  evolution recipes, enemy behaviors, passives.
-- Client: gacha/shards/focus/guarantee, v1->v5 save migration, per-champion upgrades, best-run/profile,
-  ability/offer card math, boss bar, loadout, stats formatting.
+  identity, source-backed profiles, corrected regions, multi-region membership, stage enemy/final pools,
+  terrain palettes/effects, Levitate assignments, flavor completeness, evolution recipes, enemy behaviors,
+  passives.
+- Client: gacha/shards/focus/guarantee, multi-region pool membership and focus, theme blending and crest
+  paths, v1->v5 save migration, per-champion upgrades, best-run/profile, ability/offer card math, boss bar,
+  loadout, stats formatting.
 - Server: lobby/start/snapshot, protocol mismatch, 4-player jitter, room capacity, reconnect, deltas/resync,
   per-player meta, account dev login/session/save/nickname.
 
@@ -535,6 +574,10 @@ Coverage highlights:
 - D-032 terrain: seamless floor, rocky wall collision, safe spawn island, and the `LEVITATE` chip on
   Syndra's card. Water/lava behaviour and levitate traversal are covered by automated tests; Noxus
   still needs a full human visual run.
+- D-033 profiles: 173 source-backed champion profiles, corrected region assignments, multi-region
+  collection cards and chest pools, the Aatrox/Riven dossier with blended Shurima/Noxus/Ionia crests,
+  per-region focus controls, pointer-reactive cards, and the official golden crest set in Demacia/Noxus
+  chest cards. Mobile dossier layout verified at 390×844; full human feel/balance remains pending.
 
 ### Balance baseline (D-032, wall-aware bot)
 
@@ -595,7 +638,13 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 - **Terrain balance is bot-sensitive.** The wall-aware benchmark bot reaches 32:00 on seeds 101/202 but
   dies at 16:35 on seed 303 after getting trapped/contact/projectile-pressured. A human terrain pass is
   pending.
-- **No real assets/audio.** Placeholder procedural art/SFX only.
+- **No champion art/audio.** Procedural placeholder champions, enemies, and SFX; the only committed
+  official art is the 13 region crests under the explicit D-033 private fan-project exception.
+- **Some profile summaries are factual templates.** Core champions have hand-written summaries; the rest
+  use a concise, source-backed identity summary. A deeper prose/lore pass is optional.
+- **Multi-region pools duplicate champions by design.** A champion can be pulled from multiple chest
+  regions; focus and shard progress remain global. This makes the effective gacha pool larger and needs a
+  human economy check.
 - **UI strings are hardcoded English.** The minimal `t()` helper exists but the UI is not wired to locale
   files.
 - **D1 human playtest and sign-off are still pending.**
@@ -649,7 +698,12 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | Terrain generator | `packages/sim/src/terrain.ts` |
 | Flow-field pathing | `packages/sim/src/pathfinding.ts` |
 | Terrain client rendering | `packages/client/src/renderer.ts` |
-| Design log | `docs/10-DESIGN-DECISIONS.md` (D-032) |
+| Champion profile data | `packages/content/src/champions/profiles.generated.ts` |
+| Profile audit/generator | `packages/content/scripts/generate-champion-profiles.mjs` |
+| Region themes/crest map | `packages/client/src/regions.ts` |
+| Region crest assets | `packages/client/public/regions/` |
+| Asset attribution | `ASSETS.md` |
+| Design log | `docs/10-DESIGN-DECISIONS.md` (D-033) |
 | Hosting/accounts guide | `docs/15-HOSTING-AND-ACCOUNTS.md` |
 | Balance baseline | `docs/BALANCE.md` |
 | Session handoff / next steps | `HANDOFF.md` |
@@ -671,3 +725,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
   player/enemy/projectile collision, BFS flow-field pathing, ground-spawn floor search, minion
   personalities (runner/tank/fan/healer/shielder/summoner/bomber) and `levitate` champion/enemy tags.
   The earlier visual reskin was scrapped; the League-client UI remains. No destructible props yet.
+- **D-033:** 173 source-backed champion dossiers (official title/roles/difficulty + wiki regions/origin/
+  faction/species), corrected primary regions, 49 current+origin multi-region chest memberships, blended
+  region themes, full dossier UI, pointer-reactive cards, official golden Universe crests under the
+  private fan-project exception, and a generated Runeterra rune. Save schema unchanged.

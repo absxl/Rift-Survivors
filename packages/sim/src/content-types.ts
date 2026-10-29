@@ -99,12 +99,38 @@ export interface PassiveDef {
   perLevel: Record<string, number>;
 }
 
+/** Source-backed identity data shown in the champion dossier. */
+export interface ChampionProfile {
+  /** Official champion title (e.g. "the Nine-Tailed Fox"). */
+  title: string;
+  /** Every chest-eligible region; the first entry is the primary region. */
+  regions: string[];
+  /** Where the champion is from in lore (may be a historical place). */
+  origin?: string;
+  residence?: string;
+  faction?: string;
+  species?: string;
+  occupation?: string;
+  /** Official League role(s), e.g. ["Mage", "Assassin"]. */
+  roles: string[];
+  difficulty?: string;
+  /** Original short in-game profile text, not copied official lore. */
+  summary: string;
+  sources: {
+    official: string;
+    wiki: string;
+    verifiedAt: string;
+  };
+}
+
 export interface CharacterDef {
   id: string;
   name?: string;
   description?: string;
-  /** Gacha region theme (e.g. "Demacia"). */
+  /** Primary gacha region. Kept in sync with profile.regions[0]. */
   region?: string;
+  /** Multi-region identity data for profiles and region chests. */
+  profile?: ChampionProfile;
   rarity?: Rarity;
   /** Broad archetype used by class-specific upgrade trees. */
   class?: string;

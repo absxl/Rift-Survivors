@@ -28,7 +28,7 @@ import {
   upgradesForChampion,
 } from "./meta/meta";
 import { validateNickname } from "./profile";
-import { regionStyle } from "./regions";
+import { championRegions, regionCrest, regionStyle, regionTheme } from "./regions";
 import type { Keybinds, SaveData } from "./save/save";
 import { persistSave, resetSave } from "./save/save";
 
@@ -89,6 +89,7 @@ export class MetaScreen {
   private captureHandler: ((e: KeyboardEvent) => void) | null = null;
   private gachaResults: { region: string; drops: GachaDrop[] } | null = null;
   private scrollTop = 0;
+  private dossierChampionId: string | null = null;
 
   constructor(
     private readonly save: SaveData,
@@ -127,6 +128,7 @@ export class MetaScreen {
 
   hide(): void {
     this.cancelRebind();
+    this.dossierChampionId = null;
     this.root.style.display = "none";
   }
 
@@ -172,9 +174,62 @@ export class MetaScreen {
 
   private setSection(section: Section): void {
     this.cancelRebind();
+    this.dossierChampionId = null;
     this.section = section;
     this.scrollTop = 0;
     this.render();
+  }
+
+  private openDossier(championId: string): void {
+    this.dossierChampionId = championId;
+    this.render();
+  }
+
+  private closeDossier(): void {
+    this.dossierChampionId = null;
+    this.render();
+  }
+
+  private applyRegionTheme(node: HTMLElement, regions: string[]): void {
+    const theme = regionTheme(regions);
+    const primary = theme.colors[0] ?? "#c8aa6e";
+    const secondary = theme.colors[1] ?? primary;
+    const tertiary = theme.colors[2] ?? secondary;
+    node.style.setProperty("--region-primary", primary);
+    node.style.setProperty("--region-secondary", secondary);
+    node.style.setProperty("--region-tertiary", tertiary);
+    node.style.setProperty("--region-accent", theme.acc);
+    node.dataset.regions = String(regions.length);
+    node.dataset.motif = theme.motifs[0] ?? "runes";
+  }
+
+  private crestStack(regions: string[], className = ""): HTMLElement {
+    const stack = el("div", `meta-crest-stack ${className}`.trim());
+    stack.dataset.count = String(Math.max(1, regions.length));
+    regions.forEach((region, index) => {
+      const image = document.createElement("img");
+      image.src = regionCrest(region);
+      image.alt = `${region} crest`;
+      image.loading = "lazy";
+      image.className = "meta-region-crest";
+      image.style.setProperty("--crest-index", String(index));
+      image.style.setProperty("--crest-count", String(regions.length));
+      stack.appendChild(image);
+    });
+    return stack;
+  }
+
+  private regionChips(regions: string[], className = ""): HTMLElement {
+    const row = el("div", `meta-region-chip-row ${className}`.trim());
+    for (const region of regions) {
+      const style = regionStyle(region);
+      const chip = el("span", "meta-region-chip", region);
+      chip.style.setProperty("--region-color", style.color);
+      chip.style.setProperty("--region-accent", style.accent);
+      if (region === regions[0]) chip.classList.add("primary");
+      row.appendChild(chip);
+    }
+    return row;
   }
 
   private render(): void {
@@ -192,6 +247,11 @@ export class MetaScreen {
     shell.appendChild(body);
     this.root.appendChild(shell);
     content.scrollTop = this.scrollTop;
+    if (this.dossierChampionId) {
+      const dossier = this.renderDossier(this.dossierChampionId);
+      if (dossier) this.root.appendChild(dossier);
+      else this.dossierChampionId = null;
+    }
   }
 
   private renderTopbar(): HTMLElement {
@@ -243,15 +303,18 @@ export class MetaScreen {
     const selected = this.selected();
     if (selected) {
       const card = el("div", "meta-sidebar-champion");
+      const regions = championRegions(selected);
+      this.applyRegionTheme(card, regions);
       card.style.setProperty("--champ-color", hex(championColor(selected.id)));
       const portrait = el("div", "meta-sidebar-portrait", selected.name?.charAt(0) ?? "?");
       const info = el("div", "meta-sidebar-info");
       info.append(
         el("div", "meta-sidebar-name", selected.name ?? selected.id),
+        el("div", "meta-sidebar-title", selected.profile?.title ?? ""),
         el(
           "div",
           "meta-sidebar-region",
-          `${selected.region ?? "Runeterra"} · ${this.classLabel(selected.class)}`,
+          `${regions.join(" · ")} · ${this.classLabel(selected.class)}`,
         ),
       );
       card.append(portrait, info);
@@ -511,19 +574,31 @@ export class MetaScreen {
       return wrap;
     }
     const currentStage = this.selectedStage();
+    const regions = championRegions(selected);
+    const profile = selected.profile;
     const color = hex(championColor(selected.id));
     const hero = el("div", "meta-hero");
     hero.style.setProperty("--champ-color", color);
+    this.applyRegionTheme(hero, regions);
 
     const art = el("div", "meta-hero-art");
     const halo = el("div", "meta-hero-halo");
     halo.textContent = selected.name?.charAt(0).toUpperCase() ?? "?";
-    art.append(halo, el("div", "meta-hero-art-label", selected.region ?? "Runeterra"));
+    art.append(
+      this.crestStack(regions, "meta-hero-crest"),
+      halo,
+      el("div", "meta-hero-art-label", regions.join(" + ")),
+    );
 
     const copy = el("div", "meta-hero-copy");
     const chips = el("div", "meta-chip-row");
+    for (const region of regions) {
+      const regionStyleValue = regionStyle(region);
+      const chip = this.chip(region, "region");
+      chip.style.setProperty("--region-color", regionStyleValue.color);
+      chips.appendChild(chip);
+    }
     chips.append(
-      this.chip(selected.region ?? "Runeterra", "region"),
       this.chip(RARITY_LABELS[selected.rarity ?? "rare"], "rarity"),
       this.chip(this.classLabel(selected.class), "class"),
       this.chip(currentStage?.name ?? "The Riftfield", "stage"),
@@ -531,8 +606,11 @@ export class MetaScreen {
       this.chip(isUnlocked(this.save, selected.id) ? "UNLOCKED" : "LOCKED", "state"),
     );
     copy.append(chips);
+    if (profile?.title) copy.appendChild(el("div", "meta-hero-title", profile.title));
     copy.appendChild(el("h2", "meta-hero-name", selected.name ?? selected.id));
-    copy.appendChild(el("p", "meta-hero-desc", selected.description ?? "A mage of the Rift."));
+    copy.appendChild(
+      el("p", "meta-hero-desc", profile?.summary ?? selected.description ?? "A mage of the Rift."),
+    );
 
     const weapon = this.weapons.find((w) => w.id === selected.startingWeapon);
     const move = this.weapons.find((w) => w.id === selected.startingMove);
@@ -718,10 +796,8 @@ export class MetaScreen {
 
     const query = this.championQuery.trim().toLowerCase();
     let visible = this.characters.filter((champion) => {
-      if (
-        this.championFilter !== "ALL" &&
-        (champion.region ?? "Runeterra") !== this.championFilter
-      ) {
+      const regions = championRegions(champion);
+      if (this.championFilter !== "ALL" && !regions.includes(this.championFilter)) {
         return false;
       }
       if (this.classFilter !== "ALL" && (champion.class ?? "mage") !== this.classFilter)
@@ -729,7 +805,7 @@ export class MetaScreen {
       if (this.ownedOnly && !isUnlocked(this.save, champion.id)) return false;
       if (query) {
         const haystack =
-          `${champion.name ?? ""} ${champion.id} ${champion.region ?? ""} ${champion.class ?? ""}`.toLowerCase();
+          `${champion.name ?? ""} ${champion.id} ${regions.join(" ")} ${champion.class ?? ""} ${champion.profile?.title ?? ""}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -773,32 +849,251 @@ export class MetaScreen {
     return wrap;
   }
 
+  private renderDossier(championId: string): HTMLElement | null {
+    const champion = this.characters.find((candidate) => candidate.id === championId);
+    if (!champion) return null;
+    const profile = champion.profile;
+    const regions = championRegions(champion);
+    const unlocked = isUnlocked(this.save, champion.id);
+    const selected = this.save.selectedCharacter === champion.id;
+    const title = profile?.title ?? "Champion of the Rift";
+    const roles = profile?.roles?.length ? profile.roles : [this.classLabel(champion.class)];
+    const overlay = el("div", "meta-dossier");
+    this.applyRegionTheme(overlay, regions);
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", `${champion.name ?? champion.id} champion profile`);
+    overlay.tabIndex = -1;
+
+    const backdrop = el("div", "meta-dossier-backdrop");
+    backdrop.addEventListener("click", () => this.closeDossier());
+    const panel = el("article", "meta-dossier-panel");
+    panel.addEventListener("click", (event) => event.stopPropagation());
+
+    const close = el("button", "meta-dossier-close", "\u00d7");
+    close.setAttribute("aria-label", "Close champion profile");
+    close.addEventListener("click", () => this.closeDossier());
+
+    const hero = el("header", "meta-dossier-hero");
+    const art = el("div", "meta-dossier-art");
+    art.append(
+      this.crestStack(regions, "meta-dossier-crest"),
+      el("div", "meta-dossier-art-label", regions[0] ?? "Runeterra"),
+    );
+    const heading = el("div", "meta-dossier-heading");
+    heading.append(
+      el("div", "meta-kicker", "CHAMPION DOSSIER"),
+      el("div", "meta-dossier-title", title),
+      el("h2", "meta-dossier-name", champion.name ?? champion.id),
+      this.regionChips(regions),
+    );
+    const roleRow = el("div", "meta-dossier-role-row");
+    for (const role of roles) roleRow.appendChild(this.chip(role, "class"));
+    roleRow.appendChild(
+      this.chip(`RIFT ${this.classLabel(champion.class).toUpperCase()}`, "stage"),
+    );
+    if (profile?.difficulty)
+      roleRow.appendChild(this.chip(profile.difficulty.toUpperCase(), "rarity"));
+    heading.appendChild(roleRow);
+    hero.append(art, heading);
+
+    const body = el("div", "meta-dossier-body");
+    const profileColumn = el("div", "meta-dossier-column");
+    const summary = el("section", "meta-dossier-summary");
+    summary.append(
+      el("div", "meta-kicker", "PROFILE"),
+      el("p", "", profile?.summary ?? champion.description ?? "A champion of the Rift."),
+    );
+    profileColumn.appendChild(summary);
+
+    const facts = el("section", "meta-dossier-facts");
+    const factEntries: Array<[string, string | undefined]> = [
+      ["ORIGIN", profile?.origin],
+      ["RESIDENCE", profile?.residence],
+      ["FACTION", profile?.faction],
+      ["SPECIES", profile?.species],
+      ["OCCUPATION", profile?.occupation],
+      ["LEAGUE ROLE", roles.join(" / ")],
+      ["DIFFICULTY", profile?.difficulty],
+      ["CHEST REGIONS", regions.join(" + ")],
+    ];
+    for (const [label, value] of factEntries) {
+      if (!value) continue;
+      const fact = el("div", "meta-dossier-fact");
+      fact.append(el("div", "meta-kicker", label), el("div", "meta-dossier-fact-value", value));
+      facts.appendChild(fact);
+    }
+    profileColumn.appendChild(facts);
+
+    const kit = el("section", "meta-dossier-kit-block");
+    kit.appendChild(el("div", "meta-kicker", "RIFT SURVIVORS KIT"));
+    const weapon = this.weapons.find((w) => w.id === champion.startingWeapon);
+    const move = this.weapons.find((w) => w.id === champion.startingMove);
+    const kitGrid = el("div", "meta-kit");
+    kitGrid.appendChild(
+      this.kitItem(
+        "STARTING WEAPON",
+        weaponName(weapon, champion.startingWeapon),
+        weapon?.description ?? "",
+      ),
+    );
+    if (move) {
+      kitGrid.appendChild(
+        this.kitItem(
+          "SIGNATURE MOVE",
+          weaponName(move, champion.startingMove ?? ""),
+          move.description ?? "",
+        ),
+      );
+    }
+    kit.appendChild(kitGrid);
+    const tags = el("div", "meta-chip-row");
+    tags.appendChild(this.chip(RARITY_LABELS[champion.rarity ?? "rare"], "rarity"));
+    for (const tag of champion.tags ?? []) {
+      if (tag.startsWith("role:")) continue;
+      tags.appendChild(this.chip(tag.toUpperCase(), "kit"));
+    }
+    kit.appendChild(tags);
+    profileColumn.appendChild(kit);
+
+    const collection = el("aside", "meta-dossier-collection");
+    collection.append(
+      el("div", "meta-kicker", "COLLECTION"),
+      el(
+        "div",
+        "meta-dossier-status",
+        unlocked ? (selected ? "SELECTED FOR NEXT RUN" : "UNLOCKED") : "LOCKED",
+      ),
+    );
+    if (!unlocked) {
+      const shards = shardsFor(this.save, champion.id);
+      const required = shardsRequired(champion);
+      const progress = el("div", "meta-shard-progress");
+      const bar = el("div", "meta-shard-bar");
+      const fill = el("div", "meta-shard-fill");
+      fill.style.width = `${Math.min(100, (shards / required) * 100)}%`;
+      bar.appendChild(fill);
+      progress.append(el("div", "meta-shard-label", `${shards} / ${required} SHARDS`), bar);
+      collection.appendChild(progress);
+    }
+    collection.appendChild(this.regionChips(regions, "meta-dossier-focus-regions"));
+
+    if (unlocked) {
+      const select = el("button", "meta-play", selected ? "SELECTED" : "SELECT");
+      select.disabled = selected;
+      select.addEventListener("click", () => {
+        this.save.selectedCharacter = champion.id;
+        this.persist();
+      });
+      collection.appendChild(select);
+    } else {
+      for (const region of regions) {
+        const focused = focusFor(this.save, region) === champion.id;
+        const focus = el(
+          "button",
+          `meta-btn small${focused ? " active" : ""}`,
+          focused ? `FOCUSED IN ${region.toUpperCase()}` : `FOCUS IN ${region.toUpperCase()}`,
+        );
+        focus.addEventListener("click", () => {
+          setFocus(this.save, region, focused ? null : champion.id);
+          this.persist();
+        });
+        collection.appendChild(focus);
+      }
+      if (canUnlockWithShards(this.save, champion)) {
+        const unlock = el("button", "meta-play", "UNLOCK WITH SHARDS");
+        unlock.addEventListener("click", () => {
+          if (unlockWithShards(this.save, champion)) {
+            this.save.selectedCharacter = champion.id;
+            this.persist();
+          }
+        });
+        collection.appendChild(unlock);
+      }
+    }
+
+    if (profile?.sources) {
+      const sources = el("div", "meta-dossier-sources");
+      const official = document.createElement("a");
+      official.href = profile.sources.official;
+      official.target = "_blank";
+      official.rel = "noreferrer";
+      official.textContent = "OFFICIAL PAGE";
+      const wiki = document.createElement("a");
+      wiki.href = profile.sources.wiki;
+      wiki.target = "_blank";
+      wiki.rel = "noreferrer";
+      wiki.textContent = "WIKI";
+      sources.append(official, el("span", "", "\u00b7"), wiki);
+      sources.appendChild(
+        el("span", "meta-dossier-verified", `VERIFIED ${profile.sources.verifiedAt}`),
+      );
+      collection.appendChild(sources);
+    }
+
+    body.append(profileColumn, collection);
+    panel.append(close, hero, body);
+    overlay.append(backdrop, panel);
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeDossier();
+      }
+    });
+    window.setTimeout(() => close.focus(), 0);
+    return overlay;
+  }
+
   private championCard(champion: CharacterDef): HTMLElement {
     const unlocked = isUnlocked(this.save, champion.id);
     const selected = this.save.selectedCharacter === champion.id;
-    const regionName = champion.region ?? "Runeterra";
-    const focused = !unlocked && focusFor(this.save, regionName) === champion.id;
-    const style = regionStyle(regionName);
+    const regions = championRegions(champion);
+    const primaryRegion = regions[0] ?? "Runeterra";
+    const focusedRegion = !unlocked
+      ? regions.find((region) => focusFor(this.save, region) === champion.id)
+      : undefined;
+    const focused = focusedRegion !== undefined;
+    const profile = champion.profile;
     const color = hex(championColor(champion.id));
     const card = el(
       "div",
       `meta-champion-card${unlocked ? " unlocked" : " locked"}${selected ? " selected" : ""}${focused ? " focused" : ""}`,
     );
+    this.applyRegionTheme(card, regions);
     card.style.setProperty("--champ-color", color);
-    card.style.setProperty("--region-color", style.color);
-    if (unlocked) {
-      card.addEventListener("click", () => {
-        this.save.selectedCharacter = champion.id;
-        this.persist();
-      });
-    }
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute(
+      "aria-label",
+      `${champion.name ?? champion.id}, ${profile?.title ?? ""}. Open champion dossier.`,
+    );
+    card.addEventListener("click", () => this.openDossier(champion.id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        this.openDossier(champion.id);
+      }
+    });
+    card.addEventListener("pointermove", (event) => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+      card.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+    });
+    card.addEventListener("pointerleave", () => {
+      card.style.removeProperty("--mx");
+      card.style.removeProperty("--my");
+    });
+
+    card.appendChild(this.crestStack(regions, "meta-champion-crest"));
 
     const top = el("div", "meta-champion-top");
-    const portrait = el("div", "meta-champion-portrait", champion.name?.charAt(0) ?? "?");
+    const portrait = el("div", "meta-champion-portrait");
+    portrait.append(el("span", "meta-champion-initial", champion.name?.charAt(0) ?? "?"));
     const info = el("div", "meta-champion-info");
     info.append(
       el("div", "meta-champion-name", champion.name ?? champion.id),
-      el("div", "meta-champion-region", champion.region ?? "Runeterra"),
+      el("div", "meta-champion-title", profile?.title ?? ""),
+      el("div", "meta-champion-region", regions.join(" \u00b7 ")),
     );
     const rarity = el(
       "div",
@@ -806,11 +1101,11 @@ export class MetaScreen {
       RARITY_LABELS[champion.rarity ?? "rare"],
     );
     top.append(portrait, info, rarity);
-    if (focused) top.appendChild(el("span", "meta-focus-mark", "★"));
+    if (regions.length > 1) top.appendChild(el("span", "meta-cross-region", "CROSS-REGION"));
+    if (focused) top.appendChild(el("span", "meta-focus-mark", "\u25cf"));
     card.appendChild(top);
 
-    const desc = el("p", "meta-champion-desc", champion.description ?? "");
-    card.appendChild(desc);
+    card.appendChild(el("p", "meta-champion-desc", profile?.summary ?? champion.description ?? ""));
 
     const weapon = this.weapons.find((w) => w.id === champion.startingWeapon);
     const move = this.weapons.find((w) => w.id === champion.startingMove);
@@ -825,10 +1120,11 @@ export class MetaScreen {
     if (unlocked) {
       const footer = el("div", "meta-champion-footer");
       footer.appendChild(el("span", "meta-owned", selected ? "SELECTED FOR NEXT RUN" : "UNLOCKED"));
+      footer.appendChild(el("span", "meta-open-hint", "DOSSIER"));
       const button = el("button", "meta-btn small", selected ? "SELECTED" : "SELECT");
       button.disabled = selected;
-      button.addEventListener("click", (e) => {
-        e.stopPropagation();
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
         this.save.selectedCharacter = champion.id;
         this.persist();
       });
@@ -846,25 +1142,32 @@ export class MetaScreen {
         el(
           "div",
           "meta-shard-label",
-          `${shards} / ${required} SHARDS · ${champion.region ?? "Runeterra"} CHESTS`,
+          `${shards} / ${required} SHARDS \u00b7 ${regions.join(" + ")} CHESTS`,
         ),
         bar,
       );
       card.appendChild(progress);
 
       const footer = el("div", "meta-champion-footer");
-      const focus = el("button", "meta-btn small focus", focused ? "FOCUSED ★" : "FOCUS");
-      focus.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setFocus(this.save, regionName, focused ? null : champion.id);
+      const focus = el(
+        "button",
+        `meta-btn small focus${focused ? " active" : ""}`,
+        focused
+          ? `FOCUSED ${focusedRegion?.toUpperCase() ?? primaryRegion.toUpperCase()}`
+          : "FOCUS",
+      );
+      focus.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setFocus(this.save, focusedRegion ?? primaryRegion, focused ? null : champion.id);
         this.persist();
       });
       footer.appendChild(el("span", "meta-locked-note", "GACHA ONLY"));
+      footer.appendChild(el("span", "meta-open-hint", "DOSSIER"));
       footer.appendChild(focus);
       if (canUnlockWithShards(this.save, champion)) {
         const unlock = el("button", "meta-btn small unlock", "UNLOCK");
-        unlock.addEventListener("click", (e) => {
-          e.stopPropagation();
+        unlock.addEventListener("click", (event) => {
+          event.stopPropagation();
           if (unlockWithShards(this.save, champion)) {
             this.save.selectedCharacter = champion.id;
             this.persist();
@@ -876,7 +1179,6 @@ export class MetaScreen {
     }
     return card;
   }
-
   // -------------------------------------------------------------------------
   // UPGRADES (selected champion)
   // -------------------------------------------------------------------------
@@ -894,20 +1196,18 @@ export class MetaScreen {
       wrap.appendChild(el("div", "meta-empty", "No champion selected."));
       return wrap;
     }
-    const style = regionStyle(champion.region ?? "Runeterra");
+    const regions = championRegions(champion);
+    const style = regionStyle(regions[0] ?? "Runeterra");
     const header = el("div", "meta-upgrade-head");
+    this.applyRegionTheme(header, regions);
     header.style.setProperty("--champ-color", hex(championColor(champion.id)));
     header.style.setProperty("--region-color", style.color);
     const portrait = el("div", "meta-upgrade-portrait", champion.name?.charAt(0) ?? "?");
     const copy = el("div", "meta-upgrade-copy");
     copy.append(
-      el(
-        "div",
-        "meta-kicker",
-        `${champion.region ?? "Runeterra"} · ${this.classLabel(champion.class)} tree`,
-      ),
+      el("div", "meta-kicker", `${regions.join(" + ")} · ${this.classLabel(champion.class)} tree`),
       el("h2", "meta-upgrade-name", champion.name ?? champion.id),
-      el("div", "meta-subtitle", champion.description ?? ""),
+      el("div", "meta-subtitle", champion.profile?.summary ?? champion.description ?? ""),
     );
     const wallet = el("div", "meta-upgrade-wallet");
     wallet.append(
@@ -994,10 +1294,12 @@ export class MetaScreen {
       const style = regionStyle(region);
       const pool = championsInRegion(this.characters, region);
       const card = el("div", "meta-region-card");
+      this.applyRegionTheme(card, [region]);
       card.style.setProperty("--region-color", style.color);
       card.style.setProperty("--region-accent", style.accent);
       const head = el("div", "meta-region-head");
       head.append(
+        this.crestStack([region], "meta-region-crest-box"),
         el("div", "meta-region-name", region),
         el("div", "meta-region-blurb", style.blurb),
       );
@@ -1031,10 +1333,22 @@ export class MetaScreen {
         const shards = shardsFor(this.save, champion.id);
         const needed = shardsRequired(champion);
         const focused = !unlocked && focusId === champion.id;
+        const championRegionList = championRegions(champion);
+        const otherRegions = championRegionList.filter((candidate) => candidate !== region);
         const item = el(
           "div",
           `meta-region-champion${unlocked ? " owned" : ""}${focused ? " focused" : ""}`,
         );
+        item.tabIndex = 0;
+        item.setAttribute("role", "button");
+        item.setAttribute("aria-label", `Open ${champion.name ?? champion.id} dossier`);
+        item.addEventListener("click", () => this.openDossier(champion.id));
+        item.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            this.openDossier(champion.id);
+          }
+        });
         const dot = el("span", "meta-region-dot", champion.name?.charAt(0) ?? "?");
         dot.style.color = hex(championColor(champion.id));
         const copy = el("span", "meta-region-champion-copy");
@@ -1044,12 +1358,12 @@ export class MetaScreen {
             "span",
             "meta-region-champion-sub",
             unlocked
-              ? "UNLOCKED"
-              : `${RARITY_LABELS[champion.rarity ?? "rare"]} · ${shards}/${needed} SHARDS`,
+              ? `UNLOCKED${otherRegions.length ? ` · ALSO ${otherRegions.join(" / ").toUpperCase()}` : ""}`
+              : `${RARITY_LABELS[champion.rarity ?? "rare"]} · ${shards}/${needed} SHARDS${otherRegions.length ? " · CROSS-REGION" : ""}`,
           ),
         );
         item.append(dot, copy);
-        if (focused) item.appendChild(el("span", "meta-focus-mark", "★"));
+        if (focused) item.appendChild(el("span", "meta-focus-mark", "●"));
         champions.appendChild(item);
       }
       card.appendChild(champions);

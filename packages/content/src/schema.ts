@@ -1,4 +1,5 @@
 import type {
+  ChampionProfile,
   CharacterDef,
   ContentPack,
   EnemyDef,
@@ -88,11 +89,30 @@ const passiveDefSchema: z.ZodType<PassiveDef> = z.object({
   perLevel: z.record(z.number()),
 });
 
+const championProfileSchema: z.ZodType<ChampionProfile> = z.object({
+  title: z.string().min(1),
+  regions: z.array(z.string().min(1)).min(1),
+  origin: z.string().optional(),
+  residence: z.string().optional(),
+  faction: z.string().optional(),
+  species: z.string().optional(),
+  occupation: z.string().optional(),
+  roles: z.array(z.string().min(1)),
+  difficulty: z.string().optional(),
+  summary: z.string().min(1),
+  sources: z.object({
+    official: z.string().url(),
+    wiki: z.string().url(),
+    verifiedAt: z.string().min(1),
+  }),
+});
+
 const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   id: z.string(),
   name: z.string().optional(),
   description: z.string().optional(),
   region: z.string().optional(),
+  profile: championProfileSchema.optional(),
   rarity: z.enum(["common", "rare", "epic", "legendary"]).optional(),
   class: z.string().optional(),
   starter: z.boolean().optional(),

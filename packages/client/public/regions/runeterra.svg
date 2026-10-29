@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Runeterra world-rune crest</title>
+  <circle cx="128" cy="128" r="86" stroke="#c8aa6e" stroke-width="3" opacity=".9"/>
+  <circle cx="128" cy="128" r="66" stroke="#c8aa6e" stroke-width="1.5" opacity=".55"/>
+  <path d="M128 28v54M128 174v54M28 128h54M174 128h54" stroke="#c8aa6e" stroke-width="2" opacity=".75"/>
+  <path d="M128 66l34 20v40l-34 20-34-20V86z" stroke="#f0e6d2" stroke-width="3"/>
+  <path d="M128 82l22 13v26l-22 13-22-13V95z" fill="#c8aa6e" fill-opacity=".28" stroke="#c8aa6e" stroke-width="2"/>
+  <path d="M128 96v46M108 104l40 30M148 104l-40 30" stroke="#f0e6d2" stroke-width="2" opacity=".85"/>
+  <path d="M62 62l18 18M194 62l-18 18M62 194l18-18M194 194l-18-18" stroke="#c8aa6e" stroke-width="2" opacity=".65"/>
+</svg>

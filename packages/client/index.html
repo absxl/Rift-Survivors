@@ -2400,6 +2400,665 @@
         .meta-topbar-champion { display: none; }
         .meta-nav-hint { display: none; }
       }
+
+      /* ------------------------------------------------------------------ */
+      /* Champion identity: region crests, dossier, reactive surfaces        */
+      /* ------------------------------------------------------------------ */
+      .meta-crest-stack {
+        position: relative;
+        display: grid;
+        place-items: center;
+        isolation: isolate;
+        pointer-events: none;
+      }
+      .meta-crest-stack::before {
+        content: "";
+        position: absolute;
+        inset: 8%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, var(--region-primary) 28%, transparent),
+          transparent 68%
+        );
+        filter: blur(10px);
+        z-index: -1;
+      }
+      .meta-region-crest {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter:
+          drop-shadow(0 0 1px rgba(240, 230, 210, 0.5))
+          drop-shadow(0 8px 12px rgba(0, 0, 0, 0.55));
+      }
+      .meta-crest-stack[data-count="1"] .meta-region-crest {
+        position: relative;
+      }
+      .meta-crest-stack[data-count="2"] .meta-region-crest:nth-child(1) {
+        transform: translateX(-17%) scale(0.86);
+      }
+      .meta-crest-stack[data-count="2"] .meta-region-crest:nth-child(2) {
+        transform: translateX(17%) scale(0.86);
+        opacity: 0.86;
+      }
+      .meta-crest-stack[data-count="3"] .meta-region-crest:nth-child(1) {
+        transform: translate(-22%, 8%) scale(0.72);
+      }
+      .meta-crest-stack[data-count="3"] .meta-region-crest:nth-child(2) {
+        transform: translate(0, -13%) scale(0.78);
+      }
+      .meta-crest-stack[data-count="3"] .meta-region-crest:nth-child(3) {
+        transform: translate(22%, 8%) scale(0.72);
+        opacity: 0.84;
+      }
+      .meta-crest-stack[data-count="4"] .meta-region-crest {
+        transform: scale(0.68);
+      }
+      .meta-crest-stack[data-count="4"] .meta-region-crest:nth-child(1) {
+        translate: -22% -18%;
+      }
+      .meta-crest-stack[data-count="4"] .meta-region-crest:nth-child(2) {
+        translate: 22% -18%;
+      }
+      .meta-crest-stack[data-count="4"] .meta-region-crest:nth-child(3) {
+        translate: -22% 18%;
+      }
+      .meta-crest-stack[data-count="4"] .meta-region-crest:nth-child(4) {
+        translate: 22% 18%;
+      }
+      .meta-champion-crest {
+        position: absolute;
+        z-index: 0;
+        right: -14px;
+        top: 3px;
+        width: 118px;
+        height: 118px;
+        opacity: 0.27;
+        filter: sepia(0.25) saturate(1.2) brightness(1.18);
+        transition: opacity 220ms ease, transform 300ms ease;
+      }
+      .meta-champion-card:hover .meta-champion-crest,
+      .meta-champion-card:focus-visible .meta-champion-crest {
+        opacity: 0.44;
+        transform: scale(1.04);
+      }
+      .meta-champion-card {
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        isolation: isolate;
+        background:
+          radial-gradient(
+            circle at 100% 0%,
+            color-mix(in srgb, var(--region-primary) 18%, transparent),
+            transparent 42%
+          ),
+          radial-gradient(
+            circle at 0% 100%,
+            color-mix(in srgb, var(--region-secondary) 11%, transparent),
+            transparent 44%
+          ),
+          linear-gradient(160deg, #101a28, #0a111b);
+      }
+      .meta-champion-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        opacity: 0;
+        background: radial-gradient(
+          circle 170px at var(--mx, 50%) var(--my, 0%),
+          color-mix(in srgb, var(--region-primary) 18%, transparent),
+          transparent 70%
+        );
+        transition: opacity 220ms ease;
+        pointer-events: none;
+      }
+      .meta-champion-card:hover::before,
+      .meta-champion-card:focus-visible::before {
+        opacity: 1;
+      }
+      .meta-champion-card > *:not(.meta-champion-crest) {
+        position: relative;
+        z-index: 1;
+      }
+      .meta-champion-card:focus-visible {
+        outline: 1px solid var(--rift-gold-bright);
+        outline-offset: 2px;
+      }
+      .meta-champion-card.locked {
+        opacity: 0.9;
+      }
+      .meta-champion-card.locked:hover {
+        opacity: 1;
+        border-color: color-mix(in srgb, var(--region-primary) 55%, #2d4358);
+      }
+      .meta-champion-initial {
+        font-size: 24px;
+        color: var(--champ-color);
+        text-shadow: 0 0 12px color-mix(in srgb, var(--champ-color) 55%, transparent);
+      }
+      .meta-champion-title {
+        margin-top: 2px;
+        color: var(--rift-gold-bright);
+        font-size: 9px;
+        letter-spacing: 0.8px;
+        text-transform: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta-champion-region {
+        margin-top: 3px;
+        color: #9fb3c9;
+        font-size: 8px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta-cross-region {
+        align-self: flex-start;
+        border: 1px solid color-mix(in srgb, var(--region-secondary) 70%, #5b6f9f);
+        color: color-mix(in srgb, var(--region-secondary) 80%, #e7d9b0);
+        padding: 2px 5px;
+        font-size: 7px;
+        letter-spacing: 0.8px;
+        white-space: nowrap;
+      }
+      .meta-open-hint {
+        color: #5f7488;
+        font-size: 7px;
+        letter-spacing: 1px;
+      }
+      .meta-champion-card:hover .meta-open-hint {
+        color: var(--rift-gold-bright);
+      }
+      .meta-region-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        align-items: center;
+      }
+      .meta-region-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid color-mix(in srgb, var(--region-color) 70%, #2b4058);
+        color: color-mix(in srgb, var(--region-color) 70%, #f3f7fc);
+        background: color-mix(in srgb, var(--region-color) 7%, transparent);
+        padding: 3px 7px;
+        font-size: 8px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .meta-region-chip.primary {
+        background: color-mix(in srgb, var(--region-color) 14%, transparent);
+      }
+      .meta-region-chip.primary::before {
+        content: "\25cf";
+        font-size: 6px;
+        color: var(--region-color);
+      }
+      .meta-sidebar-title {
+        margin-top: 2px;
+        color: var(--rift-gold-bright);
+        font-size: 9px;
+        letter-spacing: 0.4px;
+      }
+      .meta-hero-title {
+        color: var(--rift-gold-bright);
+        font-size: 13px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .meta-hero-crest {
+        position: absolute;
+        width: 290px;
+        height: 290px;
+        opacity: 0.24;
+        filter: sepia(0.2);
+        z-index: 0;
+      }
+      .meta-hero-art > *:not(.meta-hero-crest) {
+        position: relative;
+        z-index: 1;
+      }
+      .meta-region-head {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr);
+        column-gap: 10px;
+        align-items: center;
+      }
+      .meta-region-crest-box {
+        grid-row: 1 / span 2;
+        grid-column: 1;
+        width: 48px;
+        height: 48px;
+        margin: 0;
+        opacity: 0.9;
+      }
+      .meta-region-head .meta-region-name,
+      .meta-region-head .meta-region-blurb {
+        grid-column: 2;
+      }
+
+      /* Full champion dossier ------------------------------------------------ */
+      .meta-dossier {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        --region-primary: #c8aa6e;
+        --region-secondary: #2b4f78;
+        --region-tertiary: #5a2020;
+      }
+      .meta-dossier-backdrop {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 50% 20%, rgba(23, 41, 60, 0.32), transparent 50%),
+          rgba(3, 7, 12, 0.82);
+        backdrop-filter: blur(5px);
+      }
+      .meta-dossier-panel {
+        position: relative;
+        width: min(1120px, 100%);
+        max-height: min(880px, calc(100vh - 48px));
+        overflow: auto;
+        border: 1px solid color-mix(in srgb, var(--region-primary) 55%, #31465b);
+        background:
+          radial-gradient(
+            circle at 14% 3%,
+            color-mix(in srgb, var(--region-primary) 22%, transparent),
+            transparent 36%
+          ),
+          radial-gradient(
+            circle at 96% 92%,
+            color-mix(in srgb, var(--region-secondary) 14%, transparent),
+            transparent 44%
+          ),
+          linear-gradient(140deg, #101b28, #080e16 70%);
+        box-shadow:
+          0 30px 90px rgba(0, 0, 0, 0.65),
+          inset 0 0 0 1px rgba(215, 181, 109, 0.08);
+        animation: meta-dossier-in 220ms ease-out;
+      }
+      @keyframes meta-dossier-in {
+        from { opacity: 0; transform: translateY(8px) scale(0.99); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .meta-dossier-close {
+        position: absolute;
+        z-index: 3;
+        top: 12px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border: 1px solid #41566b;
+        background: rgba(5, 11, 17, 0.72);
+        color: #dce8f4;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .meta-dossier-close:hover {
+        border-color: var(--rift-gold);
+        color: var(--rift-gold-bright);
+      }
+      .meta-dossier-hero {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        min-height: 295px;
+        border-bottom: 1px solid #2b4054;
+      }
+      .meta-dossier-art {
+        position: relative;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border-right: 1px solid #2b4054;
+        background:
+          radial-gradient(
+            circle at 50% 48%,
+            color-mix(in srgb, var(--region-primary) 26%, transparent),
+            transparent 55%
+          ),
+          linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--region-primary) 12%, #0a111b),
+            #080e16
+          );
+      }
+      .meta-dossier-art::before {
+        content: "";
+        position: absolute;
+        width: 210px;
+        height: 210px;
+        border: 1px solid color-mix(in srgb, var(--region-primary) 35%, transparent);
+        transform: rotate(45deg);
+        opacity: 0.55;
+      }
+      .meta-dossier-art::after {
+        content: "";
+        position: absolute;
+        inset: 34px;
+        border: 1px solid color-mix(in srgb, var(--region-secondary) 28%, transparent);
+        border-radius: 50%;
+        opacity: 0.5;
+      }
+      .meta-dossier-crest {
+        width: 230px;
+        height: 230px;
+        z-index: 1;
+        filter: drop-shadow(0 0 18px color-mix(in srgb, var(--region-primary) 35%, transparent));
+      }
+      .meta-dossier-art-label {
+        position: absolute;
+        left: 20px;
+        bottom: 16px;
+        z-index: 2;
+        color: color-mix(in srgb, var(--region-primary) 78%, #e8f1fa);
+        font-size: 9px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+      .meta-dossier-heading {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+        padding: 42px 54px 32px 36px;
+      }
+      .meta-dossier-title {
+        color: var(--rift-gold-bright);
+        font-size: 12px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+      .meta-dossier-name {
+        margin: 0;
+        color: #fff;
+        font-size: clamp(34px, 4vw, 55px);
+        font-weight: 500;
+        line-height: 0.95;
+        letter-spacing: 2px;
+        text-shadow: 0 0 24px color-mix(in srgb, var(--region-primary) 22%, transparent);
+      }
+      .meta-dossier-role-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .meta-dossier-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.75fr);
+        gap: 26px;
+        padding: 28px 34px 32px;
+      }
+      .meta-dossier-column {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        min-width: 0;
+      }
+      .meta-dossier-summary {
+        border-left: 2px solid var(--region-primary);
+        padding-left: 14px;
+      }
+      .meta-dossier-summary p {
+        margin: 7px 0 0;
+        color: #c7d5e5;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      .meta-dossier-facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        background: #24384c;
+        border: 1px solid #24384c;
+      }
+      .meta-dossier-fact {
+        min-height: 58px;
+        background: #0b1420;
+        padding: 11px 13px;
+      }
+      .meta-dossier-fact:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+      }
+      .meta-dossier-fact-value {
+        margin-top: 4px;
+        color: #d8e6f3;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .meta-dossier-kit-block .meta-kit {
+        margin-top: 8px;
+      }
+      .meta-dossier-collection {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        align-self: start;
+        border: 1px solid #31465b;
+        background:
+          linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--region-primary) 8%, #0b1420),
+            #080e16
+          );
+        padding: 18px;
+      }
+      .meta-dossier-status {
+        color: #fff;
+        font-size: 19px;
+        letter-spacing: 1px;
+      }
+      .meta-dossier-focus-regions {
+        margin-top: 2px;
+        padding-bottom: 4px;
+      }
+      .meta-dossier-collection .meta-play,
+      .meta-dossier-collection .meta-btn {
+        width: 100%;
+        text-align: center;
+      }
+      .meta-dossier-collection .meta-btn.active {
+        border-color: var(--rift-gold);
+        color: var(--rift-gold-bright);
+      }
+      .meta-dossier-sources {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        border-top: 1px solid #263a4d;
+        padding-top: 10px;
+        color: #6e8398;
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+      .meta-dossier-sources a {
+        color: #a9c8e2;
+        text-decoration: none;
+      }
+      .meta-dossier-sources a:hover {
+        color: var(--rift-gold-bright);
+      }
+      .meta-dossier-verified {
+        margin-left: auto;
+        color: #52677b;
+        white-space: nowrap;
+      }
+      @media (max-width: 900px) {
+        .meta-dossier {
+          padding: 10px;
+        }
+        .meta-dossier-panel {
+          max-height: calc(100vh - 20px);
+        }
+        .meta-dossier-hero {
+          grid-template-columns: 1fr;
+        }
+        .meta-dossier-art {
+          min-height: 190px;
+          border-right: 0;
+          border-bottom: 1px solid #2b4054;
+        }
+        .meta-dossier-crest {
+          width: 150px;
+          height: 150px;
+        }
+        .meta-dossier-heading {
+          padding: 30px 24px 22px;
+        }
+        .meta-dossier-body {
+          grid-template-columns: 1fr;
+          padding: 20px 18px 24px;
+        }
+        .meta-dossier-facts {
+          grid-template-columns: 1fr;
+        }
+        .meta-dossier-verified {
+          margin-left: 0;
+        }
+      }
+      @media (max-width: 900px) {
+        .meta {
+          overflow: auto;
+        }
+        .meta-shell,
+        .meta-body,
+        .meta-sidebar,
+        .meta-content,
+        .meta-topbar {
+          box-sizing: border-box;
+        }
+        .meta-shell {
+          height: auto;
+          min-height: 100%;
+        }
+        .meta-topbar {
+          height: auto;
+          min-height: 58px;
+          flex-wrap: wrap;
+          gap: 7px;
+          padding: 8px 10px;
+        }
+        .meta-currency {
+          gap: 4px;
+          margin-left: 0;
+        }
+        .meta-currency-pill {
+          padding: 4px 6px;
+          font-size: 8px;
+        }
+        .meta-topbar-profile {
+          padding-left: 7px;
+          font-size: 0;
+        }
+        .meta-topbar-profile-mark {
+          font-size: 9px;
+        }
+        .meta-admin-hint {
+          display: none;
+        }
+        .meta-body {
+          width: 100%;
+          max-width: 100%;
+          min-height: 0;
+          overflow: hidden;
+          flex-direction: column;
+        }
+        .meta-sidebar {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+          border-right: 0;
+          border-bottom: 1px solid var(--rift-line);
+          padding: 10px 12px;
+          gap: 8px;
+        }
+        .meta-sidebar-champion {
+          align-self: stretch;
+          max-width: 100%;
+        }
+        .meta-nav {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+          flex-direction: row;
+          overflow-x: auto;
+          gap: 4px;
+          padding-bottom: 2px;
+        }
+        .meta-nav-item {
+          flex: none;
+          white-space: nowrap;
+          padding: 7px 9px;
+        }
+        .meta-sidebar-footer {
+          display: none;
+        }
+        .meta-content {
+          width: 100%;
+          flex: none;
+          min-width: 0;
+          overflow-x: hidden;
+          overflow-y: visible;
+          padding: 18px 13px 40px;
+        }
+        .meta-page {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          gap: 14px;
+        }
+        .meta-page > * {
+          min-width: 0;
+        }
+        .meta-filter-row,
+        .meta-search-row {
+          flex-wrap: wrap;
+          min-width: 0;
+        }
+        .meta-champion-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .meta-region-head .meta-region-name,
+        .meta-region-head .meta-region-blurb {
+          min-width: 0;
+        }
+        .meta-hero-name {
+          font-size: 38px;
+        }
+        .meta-dossier-heading {
+          padding-right: 42px;
+        }
+      }
+      @media (max-width: 600px) {
+        .meta-topbar-profile {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .meta-champion-crest,
+        .meta-champion-card::before,
+        .meta-dossier-panel {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
     </style>
   </head>
   <body>

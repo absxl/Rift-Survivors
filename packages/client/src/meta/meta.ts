@@ -1,6 +1,7 @@
 // Meta progression logic: per-champion upgrades, region gacha shards, and
 // achievements. Pure functions over SaveData; the UI persists after calling them.
 import type { CharacterDef, PowerUpDef, Rarity } from "@rift/sim";
+import { REGION_ORDER, championRegions } from "../regions";
 import type { SaveData } from "../save/save";
 
 export interface RunResult {
@@ -63,18 +64,22 @@ export function isUnlocked(save: SaveData, characterId: string): boolean {
   return save.unlockedCharacters.includes(characterId);
 }
 
-/** Champion ids grouped into their gacha region, preserving content order. */
+/** Every region represented by the roster, in canonical display order. */
 export function regionsOf(characters: CharacterDef[]): string[] {
-  const regions: string[] = [];
-  for (const c of characters) {
-    const region = c.region ?? "Runeterra";
-    if (!regions.includes(region)) regions.push(region);
+  const regions = new Set<string>();
+  for (const champion of characters) {
+    for (const region of championRegions(champion)) regions.add(region);
   }
-  return regions;
+  const known = REGION_ORDER.filter((region) => regions.has(region));
+  const extra = [...regions].filter(
+    (region) => !REGION_ORDER.includes(region as (typeof REGION_ORDER)[number]),
+  );
+  return [...known, ...extra];
 }
 
+/** Multi-region champions appear in every associated chest pool. */
 export function championsInRegion(characters: CharacterDef[], region: string): CharacterDef[] {
-  return characters.filter((c) => (c.region ?? "Runeterra") === region);
+  return characters.filter((champion) => championRegions(champion).includes(region));
 }
 
 /** Upgrades shown for one champion; explicit tree first, else all content entries. */

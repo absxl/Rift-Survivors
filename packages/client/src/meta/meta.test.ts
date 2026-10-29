@@ -4,9 +4,11 @@ import type { SaveData } from "../save/save";
 import {
   awardRun,
   buyPowerUp,
+  championsInRegion,
   computeMetaBonuses,
   openRegionChests,
   rankOf,
+  regionsOf,
   shardsFor,
   shardsRequired,
   unlockWithShards,
@@ -55,6 +57,25 @@ const CHARACTERS: CharacterDef[] = [
     startingWeapon: "w",
   },
 ];
+
+const MULTI: CharacterDef = {
+  id: "multi",
+  name: "Multi",
+  region: "Noxus",
+  rarity: "epic",
+  startingWeapon: "w",
+  profile: {
+    title: "the Cross-Region",
+    regions: ["Noxus", "Ionia"],
+    roles: ["Mage"],
+    summary: "A test champion with two region homes.",
+    sources: {
+      official: "https://www.leagueoflegends.com/en-au/champions/example/",
+      wiki: "https://wiki.leagueoflegends.com/en-us/Universe:Example",
+      verifiedAt: "2026-10-29",
+    },
+  },
+};
 
 describe("per-champion upgrades", () => {
   const power: PowerUpDef = {
@@ -106,6 +127,21 @@ describe("run rewards and profile", () => {
 });
 
 describe("region gacha", () => {
+  it("puts multi-region champions in every associated chest pool", () => {
+    const roster = [...CHARACTERS, MULTI];
+    expect(championsInRegion(roster, "Noxus").filter((c) => c.id === "multi")).toHaveLength(1);
+    expect(championsInRegion(roster, "Ionia").filter((c) => c.id === "multi")).toHaveLength(1);
+    expect(regionsOf(roster)).toEqual(["Noxus", "Ionia", "Test"]);
+    expect(championsInRegion([MULTI], "Noxus")).toHaveLength(1);
+  });
+
+  it("can pull a multi-region champion from either region", () => {
+    const noxus = save({ chests: 1, unlockedCharacters: [] });
+    expect(openRegionChests(noxus, "Noxus", [MULTI], 1, () => 0)?.[0].championId).toBe("multi");
+    const ionia = save({ chests: 1, unlockedCharacters: [] });
+    expect(openRegionChests(ionia, "Ionia", [MULTI], 1, () => 0)?.[0].championId).toBe("multi");
+  });
+
   it("opens one chest and can unlock a champion on a low roll", () => {
     const data = save({ chests: 1, unlockedCharacters: [] });
     const drops = openRegionChests(data, "Test", CHARACTERS, 1, () => 0);

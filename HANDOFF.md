@@ -1,10 +1,38 @@
-# Rift Survivors - session handoff (2026-10-27)
+# Rift Survivors - session handoff (2026-10-29)
 
 This file records the current work. The full reference is
 [`docs/14-IMPLEMENTATION-STATUS.md`](docs/14-IMPLEMENTATION-STATUS.md); hosting/account details are in
 [`docs/15-HOSTING-AND-ACCOUNTS.md`](docs/15-HOSTING-AND-ACCOUNTS.md).
 
-## D-032 update (current commit; see `git log -1`)
+## D-033 update (current commit; see `git log -1`)
+
+- Added **source-backed champion dossiers** for all 173 champions: official title/roles/difficulty from
+  `leagueoflegends.com/en-au`, and wiki Universe region/origin/residence/faction/species. Each record
+  carries official/wiki URLs and `verifiedAt: 2026-10-29`; summaries are original text.
+- Corrected known region errors (Alistar, Brand, Corki, Locke, Nami, Senna, Skarner, Smolder, Tahm Kench)
+  and added **49 current+origin multi-region memberships**. Multi-region champions appear in every related
+  chest pool; focus is per region, shards/unlocks stay global. Lost non-chest places (Camavor, Blessed
+  Isles, Icathia) are profile lore only.
+- Added a full **champion dossier** overlay: official title, region chips, roles/difficulty, identity facts,
+  summary, source links, Rift kit, shards, per-region focus, select/unlock. Collection cards, PLAY hero,
+  sidebar, upgrades header, and chest rows use the profile theme.
+- Added **reactive card styling** (pointer light, crest watermark, cross-region badges, hover state) and
+  responsive/mobile dossier layouts with reduced-motion fallbacks.
+- Committed the 13 official golden Universe **region crests** under the owner-approved D-033 private
+  fan-project exception; Runeterra uses an original golden world-rune. Source/licence notes are in
+  `ASSETS.md`, docs/06 and D-033. No champion art is included.
+- Added `profiles.generated.ts` and the `pnpm --filter @rift/content profiles` audit/generator. Save schema
+  is unchanged.
+- Tests currently: **99 sim, 17 content (+2 balance skipped), 28 client, 14 server**; typecheck, Biome, full tests and client/server production builds pass.
+  Browser-verified collection cards, Aatrox/Riven dossier crest blending, corrected Alistar/Brand cards,
+  Demacia/Noxus chest crests, per-region focus controls, dossier close, and a 390px mobile dossier.
+- Builds/tests are complete; this batch is committed. Human Noxus/Riftfield playtesting remains pending.
+
+
+## D-032 baseline (commit `4f217ac`)
+
+- Kept as the previous terrain/minion/Levitate batch. See the D-032 section below for terrain, pathing,
+  minion personalities, and the balance baseline.
 
 - **Scrapped the visual reskin.** The League-client UI is retained; only the small `LEVITATE` chip was
   added to the collection and PLAY screens. No fonts/joystick/restyle files remain.

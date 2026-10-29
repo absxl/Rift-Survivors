@@ -175,6 +175,61 @@ describe("content packs", () => {
     }
   });
 
+  it("ships source-backed multi-region champion profiles", () => {
+    const game = loadGamePack();
+    const regions = new Set([
+      "Bandle City",
+      "Bilgewater",
+      "Demacia",
+      "Freljord",
+      "Ionia",
+      "Ixtal",
+      "Mount Targon",
+      "Noxus",
+      "Piltover",
+      "Runeterra",
+      "Shadow Isles",
+      "Shurima",
+      "Void",
+      "Zaun",
+    ]);
+    expect(game.characters.length).toBe(173);
+    for (const champion of game.characters) {
+      const profile = champion.profile;
+      expect(profile, champion.id).toBeTruthy();
+      if (!profile) continue;
+      expect(profile.title.length, champion.id).toBeGreaterThan(1);
+      expect(profile.summary.length, champion.id).toBeGreaterThan(20);
+      expect(profile.summary, champion.id).not.toContain("*");
+      expect(profile.regions.length, champion.id).toBeGreaterThan(0);
+      expect(profile.regions[0], champion.id).toBe(champion.region);
+      expect(new Set(profile.regions).size, champion.id).toBe(profile.regions.length);
+      for (const region of profile.regions)
+        expect(regions.has(region), `${champion.id}:${region}`).toBe(true);
+      expect(profile.roles.length, champion.id).toBeGreaterThan(0);
+      expect(profile.sources.official, champion.id).toContain("/en-au/champions/");
+      expect(profile.sources.wiki, champion.id).toContain("wiki.leagueoflegends.com");
+      expect(profile.sources.verifiedAt, champion.id).toBe("2026-10-29");
+    }
+
+    const byId = new Map(game.characters.map((champion) => [champion.id, champion]));
+    expect(byId.get("brand")?.region).toBe("Runeterra");
+    expect(byId.get("brand")?.profile?.regions).toEqual(["Runeterra", "Freljord"]);
+    expect(byId.get("alistar")?.region).toBe("Runeterra");
+    expect(byId.get("corki")?.region).toBe("Bandle City");
+    expect(byId.get("locke")?.region).toBe("Demacia");
+    expect(byId.get("nami")?.region).toBe("Runeterra");
+    expect(byId.get("skarner")?.region).toBe("Ixtal");
+    expect(byId.get("smolder")?.region).toBe("Noxus");
+    expect(byId.get("tahm-kench")?.region).toBe("Runeterra");
+    expect(byId.get("riven")?.profile?.regions).toEqual(["Noxus", "Ionia"]);
+    expect(byId.get("samira")?.profile?.regions).toEqual(["Noxus", "Shurima"]);
+    expect(byId.get("kayn")?.profile?.regions).toEqual(["Ionia", "Noxus"]);
+
+    const multi = game.characters.filter((champion) => (champion.profile?.regions.length ?? 0) > 1);
+    expect(multi.length).toBeGreaterThanOrEqual(30);
+  });
+
   it("marks floating champions with the levitate tag", () => {
     const game = loadGamePack();
     const levitating = new Set(

@@ -49,6 +49,7 @@ export {
 } from "./terrain";
 export type {
   CharacterDef,
+  ChampionProfile,
   ContentPack,
   DamageType,
   EnemyDef,

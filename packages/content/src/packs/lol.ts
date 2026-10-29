@@ -2,6 +2,7 @@
 // mapped onto generic weapon behaviors. Names and flavor are placeholder data and
 // never copied from game text/art; the sim only sees ids and numbers.
 import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
+import { CHAMPION_PROFILES } from "../champions/profiles.generated";
 import { contentPackSchema } from "../schema";
 import { ROSTER_CHAMPIONS } from "./roster";
 
@@ -1253,14 +1254,24 @@ export function loadLolPack(): ContentPack {
   const pack: ContentPack = {
     ...lolPack,
     weapons: tagWeapons(lolPack.weapons),
-    characters: [...lolPack.characters, ...ROSTER_CHAMPIONS].map((c) => ({
-      ...c,
-      tags: [
-        ...(c.tags ?? []),
-        `role:${c.class ?? "mage"}`,
-        ...(LEVITATE_CHAMPIONS.has(c.id) ? ["levitate"] : []),
-      ],
-    })),
+    characters: [...lolPack.characters, ...ROSTER_CHAMPIONS].map((c) => {
+      const profile = CHAMPION_PROFILES[c.id];
+      return {
+        ...c,
+        ...(profile
+          ? {
+              region: profile.regions[0],
+              description: profile.summary,
+              profile,
+            }
+          : {}),
+        tags: [
+          ...(c.tags ?? []),
+          `role:${c.class ?? "mage"}`,
+          ...(LEVITATE_CHAMPIONS.has(c.id) ? ["levitate"] : []),
+        ],
+      };
+    }),
   };
   return contentPackSchema.parse(pack);
 }

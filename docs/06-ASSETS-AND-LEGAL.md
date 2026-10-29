@@ -17,8 +17,13 @@ proper names. Use generic behavior ids (`sweep`, `orbit`, `aura`…) and origina
 Don't present the game as affiliated with it.
 
 ## Rules for the agent
-1. **Never commit copyrighted or ripped assets** — no splash art, champion models/icons, sounds, or music
+1. **Never commit copyrighted or ripped assets** - no splash art, champion models/icons, sounds, or music
    extracted from the League client or scraped from the web. Not even "temporarily".
+   - **D-033 exception:** the project owner explicitly approved committing the **13 official Universe region
+     crest PNGs** for this private, non-commercial fan project. They are used only as region identity marks,
+     are listed with source URLs in [`ASSETS.md`](../ASSETS.md), and must be replaced before any public
+     redistribution. This exception does not cover champion art, icons, models, audio, or any other Riot
+     asset. Runeterra uses an original generated golden rune.
 2. **Use placeholders by default.** `client/src/assets/placeholder.ts` generates **pixel-art sprites**
    procedurally (16×16-grid silhouettes by enemy size/behavior, palette swaps per stage, initial-letter
    portraits, a bitmap pixel font) so the game looks classic and is fully playable with zero external art.

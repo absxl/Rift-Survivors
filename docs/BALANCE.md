@@ -17,6 +17,9 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
 - D-032 added **procedural terrain** (walls, water/lava, collision, pathfinding) and **minion
   personalities** (runner, tank, fan, healer, shielder, summoner, bomber). The bot now steers around
   walls; it still does not dodge projectiles or run a human-style terrain route.
+- D-033 changed **champion meta/profiles**, not run combat. Multi-region champions now appear in multiple
+  region chest pools (49 current+origin memberships); the in-run balance baseline below is unchanged, but
+  the gacha economy needs a human check because effective pools overlap.
 - The previous visual reskin was scrapped; the League-client presentation remains.
 
 ## Enemy roster (20 types)
