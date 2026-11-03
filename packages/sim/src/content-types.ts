@@ -45,6 +45,27 @@ export interface AbilityScale {
   ad?: number;
 }
 
+/** One wiki-sourced real ability (reference data for the authoring pass). */
+export interface ChampionAbilityRef {
+  key: "Q" | "W" | "E" | "R";
+  name: string;
+  description: string;
+  blurb: string;
+  /** Rank-1 cooldown in seconds from the wiki. */
+  cooldown: number | null;
+  apRatio: number | null;
+  adRatio: number | null;
+  damageType: DamageType | null;
+  targeting: string | null;
+}
+
+/** Wiki ability data for one champion (generated, source-backed). */
+export interface ChampionAbilityData {
+  wikiPage: string;
+  abilities: Partial<Record<"Q" | "W" | "E" | "R", ChampionAbilityRef>>;
+  sources: { official: string; wiki: string; verifiedAt: string };
+}
+
 export interface AbilityDef {
   id: string;
   /** Display name (placeholder flavor; never used by sim logic). */

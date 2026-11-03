@@ -1236,13 +1236,15 @@ function tagAbilities(abilities: AbilityDef[]): AbilityDef[] {
   });
 }
 
-/** Load and validate the lol pack (champions + abilities + moves + synergies). */
+/** Load and validate the lol pack (champions + real abilities + synergies). */
 export function loadLolPack(): ContentPack {
   const pack: ContentPack = {
     ...lolPack,
-    abilities: tagAbilities(lolPack.abilities),
+    // Generic filler abilities + the 346 authored real champion abilities.
+    abilities: tagAbilities([...lolPack.abilities, ...AUTHORED_ABILITIES]),
     characters: [...lolPack.characters, ...ROSTER_CHAMPIONS].map((c) => {
       const profile = CHAMPION_PROFILES[c.id];
+      const kit = AUTHORED_KITS[c.id];
       return {
         ...c,
         ...(profile
@@ -1252,6 +1254,8 @@ export function loadLolPack(): ContentPack {
               profile,
             }
           : {}),
+        // Real kit abilities override the class placeholders everywhere.
+        ...(kit ? { startingAbility: kit.startingAbility, startingAbility2: kit.startingAbility2 } : {}),
         upgradeIds: [...new Set([...(c.upgradeIds ?? []), ...classUpgradeIds(c.class)])],
         tags: [
           ...(c.tags ?? []),

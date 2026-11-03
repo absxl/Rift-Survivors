@@ -76,4 +76,6 @@ export type {
   TagQuery,
   AbilityDef,
   AbilityStats,
+  ChampionAbilityData,
+  ChampionAbilityRef,
 } from "./content-types";
