@@ -19,6 +19,7 @@ import {
 import { Container, Graphics, Sprite, TilingSprite } from "pixi.js";
 import type { Texture } from "pixi.js";
 import { championSprite } from "./assets/champion-sprites";
+import { enemySprite } from "./assets/enemy-sprites";
 import { renderPixelTextSprite } from "./assets/pixel-font";
 import {
   type PlaceholderTextures,
@@ -807,7 +808,9 @@ export class GameRenderer {
         seen.add(slot);
         let sprite = this.enemySprites.get(slot);
         if (!sprite) {
-          sprite = new Sprite(this.textures.enemy);
+          // Per-enemy pixel sprite keyed by def id; tint stays for state colors.
+          const def = this.enemies[store.fields.kind[i]];
+          sprite = new Sprite(enemySprite(def?.id ?? ""));
           sprite.anchor.set(0.5, 0.5);
           this.enemySprites.set(slot, sprite);
           this.enemyLayer.addChild(sprite);
