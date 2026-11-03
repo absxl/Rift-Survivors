@@ -27,7 +27,7 @@ const BOT_PACK: ContentPack = {
       xp: 5,
       behavior: "chase",
       params: {},
-      dropsChest: true,
+      dropsKey: true,
     },
     {
       id: "herald",
@@ -39,7 +39,7 @@ const BOT_PACK: ContentPack = {
       xp: 50,
       behavior: "chase",
       params: {},
-      dropsChest: true,
+      dropsKey: true,
     },
     {
       id: "void-threat",

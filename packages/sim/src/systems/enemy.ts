@@ -4,10 +4,10 @@ import type { Registries } from "../registry";
 import type { World } from "../world";
 import { damagePlayer } from "./combat";
 import {
-  PICKUP_CHEST,
   PICKUP_FREEZE,
   PICKUP_GOLD,
   PICKUP_HEAL,
+  PICKUP_KEY,
   PICKUP_NUKE,
   PICKUP_VACUUM,
   dropPickup,
@@ -95,23 +95,22 @@ function deaths(world: World): void {
     const isElite = def?.category === "elite";
     const isBoss = def?.category === "boss" || def?.category === "final-threat";
     if (isElite) {
-      // Elites always pay gold; their chest is a luck-scaled 50% roll.
+      // Elites always pay gold; their key is a luck-scaled 50% roll.
       dropPickup(world, x, y, PICKUP_GOLD, world.num("pickup.eliteGold"));
-      const chance = Math.min(1, (def?.chestChance ?? 0.5) * luckMult);
+      if (killerValid) players.field("elitesKilled")[killer] += 1;
+      const chance = Math.min(1, (def?.keyChance ?? 0.5) * luckMult);
       if (chance > 0 && world.rng.chance(chance)) {
-        dropPickup(world, x, y, PICKUP_CHEST);
+        dropPickup(world, x, y, PICKUP_KEY);
       }
     } else if (isBoss) {
-      // Bosses/final threat guarantee a chest and a luck-scaled gold drop.
+      // Bosses/final threats guarantee a key and a luck-scaled gold drop.
       dropPickup(world, x, y, PICKUP_GOLD, Math.round(world.num("pickup.bossGold") * luckMult));
-      dropPickup(world, x, y, PICKUP_CHEST);
+      dropPickup(world, x, y, PICKUP_KEY);
+      if (killerValid) players.field("bossesKilled")[killer] += 1;
     } else {
-      // Minions: independent gold/chest rolls, plus consumables and a rare nuke.
+      // Minions: independent gold rolls, plus consumables and a rare nuke.
       if (world.rng.chance(Math.min(1, world.num("pickup.goldDropChance") * luckMult))) {
         dropPickup(world, x, y, PICKUP_GOLD);
-      }
-      if (world.rng.chance(Math.min(1, world.num("pickup.chestDropChance") * luckMult))) {
-        dropPickup(world, x, y, PICKUP_CHEST);
       }
       if (world.rng.chance(world.num("pickup.dropChance"))) {
         const kinds = [PICKUP_HEAL, PICKUP_HEAL, PICKUP_VACUUM, PICKUP_FREEZE];
@@ -143,7 +142,7 @@ function deaths(world: World): void {
       world.emit({ type: "boss-rush", reason: "killed" });
     }
 
-    if (killer < players.count) players.field("kills")[killer] += 1;
+    if (killerValid) players.field("kills")[killer] += 1;
     world.emit({ type: "enemy-died", slot, gen: enemies.gen(slot), x, y });
     enemies.free(slot);
   });

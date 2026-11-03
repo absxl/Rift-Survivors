@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 // One-off profile audit/generator. Fetches the official champion page and the
 // wiki Universe page, normalizes region associations, and writes a checked-in
 // profile data file. Run from the repo root:
@@ -6,7 +7,6 @@
 //
 // Network data is only used while generating; the game never fetches at runtime.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -132,7 +132,9 @@ function parseRegions(raw) {
   const all = [];
   const lines = regionRaw.split("\n");
   for (const line of lines) {
-    const currentLine = line.replace(/<s>[\s\S]*?<\/s>/gi, "").replace(/<del>[\s\S]*?<\/del>/gi, "");
+    const currentLine = line
+      .replace(/<s>[\s\S]*?<\/s>/gi, "")
+      .replace(/<del>[\s\S]*?<\/del>/gi, "");
     for (const match of currentLine.matchAll(/\{\{fi\|([^}|]+)/gi)) {
       const region = canonicalRegion(match[1]);
       if (region && !current.includes(region)) current.push(region);
@@ -158,18 +160,21 @@ function parseOfficial(html, fallbackTitle) {
     /data-testid="supertitle"[\s\S]{0,800}?data-testid="text">([^<]+)/i.exec(html)?.[1]?.trim() ??
       fallbackTitle,
   );
-  const roleBlock = /data-testid="roles"([\s\S]*?)(?:data-testid="difficulty"|$)/i.exec(html)?.[1] ?? "";
+  const roleBlock =
+    /data-testid="roles"([\s\S]*?)(?:data-testid="difficulty"|$)/i.exec(html)?.[1] ?? "";
   const rolesText = /data-testid="meta-details"[^>]*>([^<]+)/i.exec(roleBlock)?.[1]?.trim() ?? "";
   const roles = rolesText
     .split("/")
     .map((role) => role.trim())
     .filter(Boolean);
   const difficulty =
-    /data-testid="difficulty"[\s\S]*?data-testid="meta-details"[^>]*>([^<]+)/i.exec(html)?.[1]?.trim() ??
-    "";
+    /data-testid="difficulty"[\s\S]*?data-testid="meta-details"[^>]*>([^<]+)/i
+      .exec(html)?.[1]
+      ?.trim() ?? "";
   const description =
-    /data-testid="description"[\s\S]*?data-testid="rich-text-html"><div>([\s\S]*?)<\/div>/i.exec(html)?.[1] ??
-    "";
+    /data-testid="description"[\s\S]*?data-testid="rich-text-html"><div>([\s\S]*?)<\/div>/i.exec(
+      html,
+    )?.[1] ?? "";
   return { title, roles, difficulty, description: plain(description) };
 }
 
@@ -195,17 +200,26 @@ function makeSummary(name, profile, classLabel) {
 const SUMMARY_OVERRIDES = {
   ahri: "A fox-like Vesani of Ionia, Ahri is a spirit-mage and soul-devourer searching for the memories of her lost tribe.",
   lux: "A luminous noble of Demacia, Lux hides forbidden light magic behind a disciplined Crownguard smile.",
-  brand: "Once a Freljordian apprentice of Ryze, Brand is now a living pyre of world-rune fire and vengeance.",
-  annie: "A Noxian child prodigy bound to the pyromantic bear Tybaulk, Annie is as cheerful as she is dangerous.",
-  syndra: "An Ionian force-mage of immense potential, Syndra refuses every cage built to contain her.",
-  veigar: "A yordle sorcerer twisted by Noxian captivity, Veigar styles himself the Tiny Master of Evil.",
-  xerath: "An ascended Shuriman magus of raw arcane energy, Xerath seeks to unmake the empire that bound him.",
+  brand:
+    "Once a Freljordian apprentice of Ryze, Brand is now a living pyre of world-rune fire and vengeance.",
+  annie:
+    "A Noxian child prodigy bound to the pyromantic bear Tybaulk, Annie is as cheerful as she is dangerous.",
+  syndra:
+    "An Ionian force-mage of immense potential, Syndra refuses every cage built to contain her.",
+  veigar:
+    "A yordle sorcerer twisted by Noxian captivity, Veigar styles himself the Tiny Master of Evil.",
+  xerath:
+    "An ascended Shuriman magus of raw arcane energy, Xerath seeks to unmake the empire that bound him.",
   ryze: "A world-worn rune mage, Ryze carries the burden of Runeterra's oldest and most dangerous magic.",
-  riven: "A Noxian soldier broken by the invasion of Ionia, Riven is an exile seeking redemption with a blade reforged from her past.",
-  samira: "A Shuriman-born daredevil who found a home in Noxus, Samira turns danger into style and every battlefield into a performance.",
+  riven:
+    "A Noxian soldier broken by the invasion of Ionia, Riven is an exile seeking redemption with a blade reforged from her past.",
+  samira:
+    "A Shuriman-born daredevil who found a home in Noxus, Samira turns danger into style and every battlefield into a performance.",
   kayn: "A Noxian child raised by the Order of Shadow in Ionia, Kayn wields the Darkin scythe Rhaast—and fights for control of his own body.",
-  aatrox: "A Darkin god-warrior imprisoned in his own blade, Aatrox marches across Runeterra seeking an end to his tortured existence.",
-  "aurelion-sol": "A celestial dragon who forged the stars, Aurelion Sol suffers the indignity of a Targonian crown—and dreams of freedom.",
+  aatrox:
+    "A Darkin god-warrior imprisoned in his own blade, Aatrox marches across Runeterra seeking an end to his tortured existence.",
+  "aurelion-sol":
+    "A celestial dragon who forged the stars, Aurelion Sol suffers the indignity of a Targonian crown—and dreams of freedom.",
 };
 
 async function fetchCached(url, key) {
@@ -267,7 +281,10 @@ async function main() {
     let wikiRaw = "";
     const warnings = [];
     try {
-      official = parseOfficial(await fetchCached(officialUrl, `official-${slug}.html`), champion.title);
+      official = parseOfficial(
+        await fetchCached(officialUrl, `official-${slug}.html`),
+        champion.title,
+      );
     } catch (error) {
       warnings.push(`official: ${String(error)}`);
     }

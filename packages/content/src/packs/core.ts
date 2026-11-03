@@ -1,6 +1,6 @@
 // The `core` pack: generic enemies and passive items (stat sticks). Champions and
 // ability weapons live in the `lol` pack. Names are generic; League flavor is data.
-import type { ContentPack } from "@rift/sim";
+import type { ContentPack, PowerUpDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
 
 const corePack: ContentPack = {
@@ -139,7 +139,7 @@ const corePack: ContentPack = {
       xp: 5,
       behavior: "chase",
       params: {},
-      chestChance: 0.5,
+      keyChance: 0.5,
       tint: 0xff5555,
       spawnWeight: 1,
     },
@@ -154,7 +154,7 @@ const corePack: ContentPack = {
       xp: 12,
       behavior: "shielder",
       params: { period: 180, shieldRadius: 140, shieldAmount: 20, preferredRange: 150 },
-      chestChance: 0.5,
+      keyChance: 0.5,
       tint: 0x88ff88,
       spawnWeight: 0.7,
       minMinute: 10,
@@ -170,7 +170,7 @@ const corePack: ContentPack = {
       xp: 50,
       behavior: "chase",
       params: {},
-      dropsChest: true,
+      dropsKey: true,
       tint: 0xffaa66,
     },
     {
@@ -184,7 +184,7 @@ const corePack: ContentPack = {
       xp: 100,
       behavior: "ranged",
       params: { period: 150, range: 280, preferredRange: 165, speed: 3, lifetime: 140 },
-      dropsChest: true,
+      dropsKey: true,
       tint: 0xff6633,
     },
     {
@@ -198,7 +198,7 @@ const corePack: ContentPack = {
       xp: 200,
       behavior: "summoner",
       params: { minion: "chaser", period: 300 },
-      dropsChest: true,
+      dropsKey: true,
       tint: 0xaa66ff,
     },
     {
@@ -279,7 +279,7 @@ const corePack: ContentPack = {
       xp: 18,
       behavior: "tank",
       params: {},
-      chestChance: 0.6,
+      keyChance: 0.6,
       tint: 0xdd5533,
       spawnWeight: 1,
       minMinute: 8,
@@ -295,7 +295,7 @@ const corePack: ContentPack = {
       xp: 250,
       behavior: "ranged",
       params: { period: 110, range: 260, preferredRange: 160, speed: 2.8, lifetime: 170 },
-      dropsChest: true,
+      dropsKey: true,
       tint: 0xff4433,
     },
     {
@@ -317,128 +317,184 @@ const corePack: ContentPack = {
     {
       id: "might",
       name: "Might",
-      description: "Channels raw force: +20% spell damage per rank.",
+      description: "Channels raw force; each level raises spell damage.",
       maxLevel: 5,
       perLevel: { might: 0.2 },
     },
     {
       id: "boots",
       name: "Wanderer's Boots",
-      description: "Quickens your stride by 10% per rank.",
+      description: "Quickens your stride with every level.",
       maxLevel: 5,
       perLevel: { moveSpeed: 0.1 },
     },
     {
       id: "heart",
       name: "Heart of the Rift",
-      description: "Raises maximum health by 25% per rank.",
+      description: "Deepens your health pool with every level.",
       maxLevel: 5,
       perLevel: { maxHp: 0.25 },
     },
     {
       id: "magnet",
       name: "Gathering Sigil",
-      description: "Widens gem pickup range by 50% per rank.",
+      description: "Widens gem pickup range with every level.",
       maxLevel: 5,
       perLevel: { magnet: 0.5 },
     },
     {
       id: "scope",
       name: "Far-Sight Lens",
-      description: "Expands spell area by 15% per rank.",
+      description: "Expands spell area with every level.",
       maxLevel: 5,
       perLevel: { area: 0.15 },
     },
     {
       id: "haste",
       name: "Flow State",
-      description: "Shortens cast intervals by 12% per rank.",
+      description: "Shortens cast intervals with every level.",
       maxLevel: 5,
       perLevel: { cooldown: 0.12 },
     },
     {
       id: "plate",
       name: "Runic Plating",
-      description: "Adds +1 flat armor per rank.",
+      description: "Adds flat armor with every level.",
       maxLevel: 5,
       perLevel: { armor: 1 },
     },
     {
       id: "charm",
       name: "Lucky Charm",
-      description: "Raises luck by 10% per rank.",
+      description: "Raises luck with every level.",
       maxLevel: 5,
       perLevel: { luck: 0.1 },
     },
     {
       id: "learning",
       name: "Scholar's Tome",
-      description: "Gain 10% more experience per rank.",
+      description: "Gain more experience with every level.",
       maxLevel: 5,
       perLevel: { growth: 0.1 },
     },
     {
       id: "renewal",
       name: "Renewal Bloom",
-      description: "Regenerate +0.3 health per second per rank.",
+      description: "Regenerate health each second with every level.",
       maxLevel: 5,
       perLevel: { regen: 0.3 },
     },
     {
       id: "greed",
       name: "Coin Devotion",
-      description: "Gain 20% more gold per rank.",
+      description: "Gain more gold with every level.",
       maxLevel: 5,
       perLevel: { greed: 0.2 },
     },
     {
       id: "warding",
       name: "Warding Sigil",
-      description: "Reduce incoming damage by 6% per rank.",
+      description: "Reduce incoming damage with every level.",
       maxLevel: 5,
       perLevel: { resist: 0.06 },
     },
     {
       id: "velocity",
       name: "Aether Lens",
-      description: "Projectiles travel 15% faster per rank.",
+      description: "Projectiles travel faster with every level.",
       maxLevel: 5,
       perLevel: { projectileSpeed: 0.15 },
     },
     {
       id: "persistence",
       name: "Lasting Hex",
-      description: "Spell effects last 15% longer per rank.",
+      description: "Spell effects last longer with every level.",
       maxLevel: 5,
       perLevel: { duration: 0.15 },
     },
     {
       id: "piercing",
       name: "Piercing Bolt",
-      description: "Projectiles pass through one more enemy per rank.",
+      description: "Projectiles pass through more enemies as the bolt grows.",
       maxLevel: 3,
       perLevel: { pierce: 1 },
     },
     {
       id: "impact",
       name: "Kinetic Seal",
-      description: "Knockback is 20% stronger per rank.",
+      description: "Knockback grows stronger with every level.",
       maxLevel: 5,
       perLevel: { knockback: 0.2 },
     },
     {
       id: "vampirism",
       name: "Crimson Pact",
-      description: "Heal for 2% of spell damage dealt per rank.",
+      description: "Heal from spell damage with every level.",
       maxLevel: 3,
       perLevel: { lifesteal: 0.02 },
     },
     {
       id: "titan",
       name: "Titan's Grip",
-      description: "+15% max health and +1 armor per rank.",
+      description: "Gain max health and armor with every level.",
       maxLevel: 5,
       perLevel: { maxHp: 0.15, armor: 1 },
+    },
+    {
+      id: "aegis-bloom",
+      name: "Aegis Bloom",
+      description: "A layered flower of armor and spell-resistance.",
+      maxLevel: 8,
+      perLevel: { armor: 0.4, resist: 0.018 },
+    },
+    {
+      id: "hunters-bracer",
+      name: "Hunter's Bracer",
+      description: "Faster projectiles and longer-lived techniques.",
+      maxLevel: 8,
+      perLevel: { projectileSpeed: 0.05, duration: 0.04 },
+    },
+    {
+      id: "sanguine-bloom",
+      name: "Sanguine Bloom",
+      description: "Regeneration and spell-lifesteal in one crimson bloom.",
+      maxLevel: 8,
+      perLevel: { regen: 0.15, lifesteal: 0.008 },
+    },
+    {
+      id: "midas-sigil",
+      name: "Midas Sigil",
+      description: "A golden mark that draws both experience and coin.",
+      maxLevel: 8,
+      perLevel: { greed: 0.08, growth: 0.035 },
+    },
+    {
+      id: "torrent-charm",
+      name: "Torrent Charm",
+      description: "A tide-charm that widens pickup reach and quickens steps.",
+      maxLevel: 8,
+      perLevel: { magnet: 0.25, moveSpeed: 0.015 },
+    },
+    {
+      id: "storm-lens",
+      name: "Storm Lens",
+      description: "Expands spell scope while accelerating the magic within.",
+      maxLevel: 8,
+      perLevel: { area: 0.05, projectileSpeed: 0.03 },
+    },
+    {
+      id: "chronicle",
+      name: "Chronicle",
+      description: "Effects linger while the wielder learns from every wave.",
+      maxLevel: 8,
+      perLevel: { duration: 0.05, growth: 0.03 },
+    },
+    {
+      id: "berserkers-mask",
+      name: "Berserker's Mask",
+      description: "A furious mask that trades stillness for momentum.",
+      maxLevel: 8,
+      perLevel: { might: 0.06, moveSpeed: 0.015 },
     },
   ],
   characters: [],
@@ -473,7 +529,7 @@ const corePack: ContentPack = {
     {
       id: "focus",
       name: "Focused Casting",
-      description: "Tighten your forms: +5% casting speed per rank.",
+      description: "Tighten your forms for faster casting with every rank.",
       stat: "cooldown",
       perRank: 0.05,
       maxRank: 5,
@@ -482,7 +538,7 @@ const corePack: ContentPack = {
     {
       id: "reach",
       name: "Far Reach",
-      description: "Stretch the area of every spell by 5% per rank.",
+      description: "Stretch the area of every spell with every rank.",
       stat: "area",
       perRank: 0.05,
       maxRank: 5,
@@ -509,7 +565,7 @@ const corePack: ContentPack = {
     {
       id: "fortune",
       name: "Fortune",
-      description: "Bend luck toward chests, crits, and rare finds.",
+      description: "Bend luck toward keys, crits, and rare finds.",
       stat: "luck",
       perRank: 0.1,
       maxRank: 5,
@@ -758,6 +814,78 @@ const corePack: ContentPack = {
       maxRank: 3,
       costs: [20, 40, 60],
     },
+    {
+      id: "gilded-crown",
+      name: "Gilded Crown",
+      description: "A relic of plenty: experience and gold arrive together.",
+      stats: { growth: 0.03, greed: 0.05 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "windwalkers",
+      name: "Windwalkers",
+      description: "Light steps and a wider reach for the trail behind you.",
+      stats: { moveSpeed: 0.025, magnet: 0.15 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "bastion-plate",
+      name: "Bastion Plate",
+      description: "Layered warding that blunts both claws and spells.",
+      stats: { armor: 0.5, resist: 0.02 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "archmages-thesis",
+      name: "Archmage's Thesis",
+      description: "Mage capstone: faster casts that claim more space.",
+      stats: { cooldown: 0.03, area: 0.025 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "unbroken-wall",
+      name: "Unbroken Wall",
+      description: "Tank capstone: a deeper health pool and stubborn resistance.",
+      stats: { maxHp: 0.06, resist: 0.02 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "warlords-tempo",
+      name: "Warlord's Tempo",
+      description: "Fighter capstone: harder blows that feed the fighter.",
+      stats: { might: 0.035, lifesteal: 0.0075 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "executioners-mark",
+      name: "Executioner's Mark",
+      description: "Assassin capstone: sharper openings and quicker pursuit.",
+      stats: { might: 0.035, moveSpeed: 0.025 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "deadeye-manual",
+      name: "Deadeye Manual",
+      description: "Marksman capstone: faster shots that punch through more bodies.",
+      stats: { projectileSpeed: 0.04, pierce: 0.5 },
+      maxRank: 6,
+      costs: [],
+    },
+    {
+      id: "choir-of-light",
+      name: "Choir of Light",
+      description: "Support capstone: steadier growth and longer-lasting fields.",
+      stats: { growth: 0.03, duration: 0.045 },
+      maxRank: 6,
+      costs: [],
+    },
   ],
   synergies: [],
   stages: [
@@ -769,11 +897,12 @@ const corePack: ContentPack = {
       region: "Runeterra",
       palette: { background: 0xd8e2ec, grid: 0x203347, accent: 0x65cfff },
       terrain: {
-        wallThreshold: 0.8,
-        liquidThreshold: 0.06,
+        wallThreshold: 0.65,
+        liquidThreshold: 0.3,
         liquid: "water",
         liquidSlow: 0.3,
         liquidDamage: 0,
+        bushDensity: 1.9,
         colors: {
           floor: "#263a35",
           floorAlt: "#2d433b",
@@ -813,11 +942,12 @@ const corePack: ContentPack = {
       region: "Noxus",
       palette: { background: 0xffb8a8, grid: 0x5b2020, accent: 0xff6644 },
       terrain: {
-        wallThreshold: 0.8,
-        liquidThreshold: 0.05,
+        wallThreshold: 0.67,
+        liquidThreshold: 0.28,
         liquid: "lava",
         liquidSlow: 0.25,
         liquidDamage: 5,
+        bushDensity: 1.8,
         colors: {
           floor: "#342529",
           floorAlt: "#3d2b2e",
@@ -859,6 +989,56 @@ const corePack: ContentPack = {
     },
   ],
 };
+
+const BROAD_STAT_POWER_IDS = new Set([
+  "power",
+  "vitality",
+  "swiftness",
+  "focus",
+  "reach",
+  "attraction",
+  "plating",
+  "fortune",
+]);
+
+const COMMON_RANK_COSTS = [10, 20, 35, 55, 80, 110, 145, 185, 230, 280];
+const CLASS_RANK_COSTS = [30, 60, 100, 150, 210, 280];
+
+/**
+ * Preserve the compact authored data while applying the D-037 progression
+ * policy: broad passives reach ten ranks; class, signature, and multi-stat
+ * relics reach six.
+ */
+function expandPowerUp(powerUp: PowerUpDef): PowerUpDef {
+  const broad = BROAD_STAT_POWER_IDS.has(powerUp.id);
+  const maxRank = broad ? 10 : 6;
+  return {
+    ...powerUp,
+    maxRank,
+    costs: (broad ? COMMON_RANK_COSTS : CLASS_RANK_COSTS).slice(0, maxRank),
+    // Keep the final broad-stat totals close to the old rank-5 curve while
+    // adding more granular, longer progression steps.
+    perRank:
+      broad && powerUp.perRank !== undefined && powerUp.stat
+        ? powerUp.perRank * 0.7
+        : powerUp.perRank,
+  };
+}
+
+corePack.powerUps = corePack.powerUps.map(expandPowerUp);
+
+// Passives keep their authored rank-5/rank-3 final totals but become eight-step
+// tracks. New hybrid passives are authored at eight levels already.
+corePack.passives = corePack.passives.map((passive) => {
+  const scale = passive.maxLevel / 8;
+  return {
+    ...passive,
+    maxLevel: 8,
+    perLevel: Object.fromEntries(
+      Object.entries(passive.perLevel).map(([stat, amount]) => [stat, amount * scale]),
+    ),
+  };
+});
 
 /** Load and validate the core pack (enemies + items). */
 export function loadCorePack(): ContentPack {

@@ -6,29 +6,40 @@ import type { CharacterDef, PowerUpDef, StageDef, WeaponDef } from "@rift/sim";
 import { statLabel, weaponName } from "./ability-info";
 import type { AccountClient } from "./account";
 import { championColor } from "./champion-colors";
+import { ChestOpeningUI } from "./chest-opening";
+import { crestMark } from "./crest-identity";
 import {
   ACHIEVEMENTS,
   GACHA_ODDS,
-  type GachaDrop,
   RARITY_LABELS,
+  achievementCurrent,
   buyPowerUp,
   canUnlockWithShards,
   championsInRegion,
-  focusFor,
+  checkAchievements,
+  darkinChampions,
   isUnlocked,
   nextCost,
   openRegionChests,
+  powerUpRankStats,
   rankOf,
+  rarityRank,
   refundPowerUp,
+  regionProgressFor,
   regionsOf,
-  setFocus,
   shardsFor,
   shardsRequired,
   unlockWithShards,
   upgradesForChampion,
 } from "./meta/meta";
 import { validateNickname } from "./profile";
-import { championRegions, regionCrest, regionStyle, regionTheme } from "./regions";
+import {
+  DARKIN_CHEST,
+  championRegions,
+  isDarkinChampion,
+  regionStyle,
+  regionTheme,
+} from "./regions";
 import type { Keybinds, SaveData } from "./save/save";
 import { persistSave, resetSave } from "./save/save";
 
@@ -40,6 +51,10 @@ type Section =
   | "chests"
   | "achievements"
   | "settings";
+
+type ChampionSort = "name" | "rarity" | "class" | "region" | "unlock";
+type ChestSort = "featured" | "name" | "pool" | "locked" | "completion";
+type AchievementSort = "default" | "incomplete" | "complete" | "progress" | "reward" | "name";
 
 const SECTIONS: Array<{ id: Section; label: string; glyph: string; hint: string }> = [
   { id: "profile", label: "PROFILE", glyph: "◉", hint: "Name & lifetime stats" },
@@ -68,7 +83,10 @@ function hex(value: number): string {
 
 function percentStat(key: string, amount: number): string {
   const sign = amount >= 0 ? "+" : "";
-  if (key === "armor" || key === "pierce") return `${sign}${Math.round(amount)}`;
+  if (key === "armor" || key === "pierce") {
+    const value = Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
+    return `${sign}${value}`;
+  }
   if (key === "regen") return `${sign}${amount.toFixed(1)}/S`;
   return `${sign}${Math.round(amount * 100)}%`;
 }
@@ -81,15 +99,27 @@ export class MetaScreen {
   private section: Section = "play";
   private championFilter = "ALL";
   private classFilter = "ALL";
+  private rarityFilter = "ALL";
   private championQuery = "";
+  private championSort: ChampionSort = "name";
   private ownedOnly = false;
   private championPage = 0;
   private readonly pageSize = 24;
+  private chestQuery = "";
+  private chestFilter = "ALL";
+  private chestSort: ChestSort = "featured";
+  private achievementQuery = "";
+  private achievementSort: AchievementSort = "default";
   private listening: keyof Keybinds | null = null;
   private captureHandler: ((e: KeyboardEvent) => void) | null = null;
-  private gachaResults: { region: string; drops: GachaDrop[] } | null = null;
+  private readonly chestOpening: ChestOpeningUI;
   private scrollTop = 0;
   private dossierChampionId: string | null = null;
+  private regionDossier: string | null = null;
+  private achievementCategory = "ALL";
+  private achievementRegion = "ALL";
+  private pendingToasts: string[] = [];
+  private toastTimer: number | null = null;
 
   constructor(
     private readonly save: SaveData,
@@ -102,6 +132,7 @@ export class MetaScreen {
     this.root = document.createElement("div");
     this.root.className = "meta";
     document.body.appendChild(this.root);
+    this.chestOpening = new ChestOpeningUI();
     this.ensureSelected();
     this.ensureStage();
     this.render();
@@ -129,6 +160,7 @@ export class MetaScreen {
   hide(): void {
     this.cancelRebind();
     this.dossierChampionId = null;
+    this.regionDossier = null;
     this.root.style.display = "none";
   }
 
@@ -168,13 +200,17 @@ export class MetaScreen {
   }
 
   private persist(): void {
+    const newlyUnlocked = checkAchievements(this.save, null, this.characters);
+    if (newlyUnlocked.length > 0) this.pendingToasts.push(...newlyUnlocked);
     persistSave(this.save);
     this.render();
+    if (newlyUnlocked.length > 0) this.scheduleToasts();
   }
 
   private setSection(section: Section): void {
     this.cancelRebind();
     this.dossierChampionId = null;
+    this.regionDossier = null;
     this.section = section;
     this.scrollTop = 0;
     this.render();
@@ -182,12 +218,46 @@ export class MetaScreen {
 
   private openDossier(championId: string): void {
     this.dossierChampionId = championId;
+    this.regionDossier = null;
     this.render();
   }
 
   private closeDossier(): void {
     this.dossierChampionId = null;
     this.render();
+  }
+
+  private openRegionDossier(region: string): void {
+    this.dossierChampionId = null;
+    this.regionDossier = region;
+    this.render();
+  }
+
+  private closeRegionDossier(): void {
+    this.regionDossier = null;
+    this.render();
+  }
+
+  private scheduleToasts(): void {
+    if (this.pendingToasts.length === 0) return;
+    if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+    this.toastTimer = window.setTimeout(() => {
+      this.toastTimer = null;
+      this.showToasts();
+    }, 850);
+  }
+
+  private showToasts(): void {
+    const labels = this.pendingToasts.splice(0);
+    if (labels.length === 0) return;
+    for (const node of document.querySelectorAll(".meta-achievement-toast")) node.remove();
+    const toast = el("div", "meta-achievement-toast");
+    toast.appendChild(el("div", "meta-achievement-toast-kicker", "ACHIEVEMENT UNLOCKED"));
+    for (const label of labels) {
+      toast.appendChild(el("div", "meta-achievement-toast-label", label));
+    }
+    document.body.appendChild(toast);
+    window.setTimeout(() => toast.remove(), 4600);
   }
 
   private applyRegionTheme(node: HTMLElement, regions: string[]): void {
@@ -204,19 +274,16 @@ export class MetaScreen {
   }
 
   private crestStack(regions: string[], className = ""): HTMLElement {
-    const stack = el("div", `meta-crest-stack ${className}`.trim());
-    stack.dataset.count = String(Math.max(1, regions.length));
-    regions.forEach((region, index) => {
-      const image = document.createElement("img");
-      image.src = regionCrest(region);
-      image.alt = `${region} crest`;
-      image.loading = "lazy";
-      image.className = "meta-region-crest";
-      image.style.setProperty("--crest-index", String(index));
-      image.style.setProperty("--crest-count", String(regions.length));
-      stack.appendChild(image);
-    });
-    return stack;
+    const size = className.includes("hero")
+      ? "xl"
+      : className.includes("dossier")
+        ? "xl"
+        : className.includes("champion")
+          ? "lg"
+          : className.includes("region")
+            ? "sm"
+            : "md";
+    return crestMark(regions, size, className);
   }
 
   private regionChips(regions: string[], className = ""): HTMLElement {
@@ -251,6 +318,10 @@ export class MetaScreen {
       const dossier = this.renderDossier(this.dossierChampionId);
       if (dossier) this.root.appendChild(dossier);
       else this.dossierChampionId = null;
+    } else if (this.regionDossier) {
+      const dossier = this.renderRegionDossier(this.regionDossier);
+      if (dossier) this.root.appendChild(dossier);
+      else this.regionDossier = null;
     }
   }
 
@@ -269,12 +340,9 @@ export class MetaScreen {
     const currency = el("div", "meta-currency");
     const gold = el("div", "meta-currency-pill");
     gold.append(el("span", "meta-currency-icon", "⬡"), el("span", "", `${this.save.gold} GOLD`));
-    const chests = el("div", "meta-currency-pill accent");
-    chests.append(
-      el("span", "meta-currency-icon", "◆"),
-      el("span", "", `${this.save.chests} CHESTS`),
-    );
-    currency.append(gold, chests);
+    const keys = el("div", "meta-currency-pill accent");
+    keys.append(el("span", "meta-currency-icon", "◆"), el("span", "", `${this.save.keys} KEYS`));
+    currency.append(gold, keys);
     if (selected) {
       const hero = el("div", "meta-topbar-champion");
       const dot = el("span", "meta-topbar-dot", selected.name?.charAt(0) ?? "?");
@@ -516,7 +584,7 @@ export class MetaScreen {
       this.statCard("CHAMPIONS", `${unlocked} / ${this.characters.length}`),
       this.statCard("BEST RUN KILLS", best.timeSec > 0 ? String(best.kills) : "—"),
       this.statCard("BEST RUN GOLD", best.timeSec > 0 ? String(best.gold) : "—"),
-      this.statCard("CHESTS", String(this.save.chests)),
+      this.statCard("KEYS", String(this.save.keys)),
       this.statCard("ACHIEVEMENTS", `${this.save.achievements.length} / ${ACHIEVEMENTS.length}`),
     );
     wrap.appendChild(stats);
@@ -582,13 +650,13 @@ export class MetaScreen {
     this.applyRegionTheme(hero, regions);
 
     const art = el("div", "meta-hero-art");
+    const stageWrap = el("div", "meta-hero-stage-wrap");
+    const stage = el("div", "meta-hero-stage");
     const halo = el("div", "meta-hero-halo");
     halo.textContent = selected.name?.charAt(0).toUpperCase() ?? "?";
-    art.append(
-      this.crestStack(regions, "meta-hero-crest"),
-      halo,
-      el("div", "meta-hero-art-label", regions.join(" + ")),
-    );
+    stage.append(this.crestStack(regions, "meta-hero-crest"), halo);
+    stageWrap.append(stage, el("div", "meta-hero-art-label", regions.join(" + ")));
+    art.appendChild(stageWrap);
 
     const copy = el("div", "meta-hero-copy");
     const chips = el("div", "meta-chip-row");
@@ -605,9 +673,9 @@ export class MetaScreen {
       ...(selected.tags?.includes("levitate") ? [this.chip("LEVITATE", "class")] : []),
       this.chip(isUnlocked(this.save, selected.id) ? "UNLOCKED" : "LOCKED", "state"),
     );
-    copy.append(chips);
     if (profile?.title) copy.appendChild(el("div", "meta-hero-title", profile.title));
     copy.appendChild(el("h2", "meta-hero-name", selected.name ?? selected.id));
+    copy.appendChild(chips);
     copy.appendChild(
       el("p", "meta-hero-desc", profile?.summary ?? selected.description ?? "A mage of the Rift."),
     );
@@ -686,7 +754,7 @@ export class MetaScreen {
       ),
       this.statCard("TOTAL KILLS", String(this.save.totalKills)),
       this.statCard("CHAMPIONS", `${unlockedCount} / ${this.characters.length}`),
-      this.statCard("CHESTS", String(this.save.chests)),
+      this.statCard("KEYS", String(this.save.keys)),
     );
     wrap.appendChild(stats);
 
@@ -767,8 +835,25 @@ export class MetaScreen {
     }
     wrap.appendChild(classFilters);
 
+    const rarityFilters = el("div", "meta-filter-row");
+    const rarities = ["ALL", "common", "rare", "epic", "legendary"] as const;
+    for (const rarity of rarities) {
+      const button = el(
+        "button",
+        `meta-filter${this.rarityFilter === rarity ? " active" : ""}`,
+        rarity === "ALL" ? "ALL RARITIES" : RARITY_LABELS[rarity],
+      );
+      button.addEventListener("click", () => {
+        this.rarityFilter = rarity;
+        this.championPage = 0;
+        this.render();
+      });
+      rarityFilters.appendChild(button);
+    }
+    wrap.appendChild(rarityFilters);
+
     const searchRow = el("div", "meta-search-row");
-    const search = el("input", "meta-search");
+    const search = el("input", "meta-search meta-champion-search");
     search.type = "search";
     search.placeholder = "Search champions...";
     search.value = this.championQuery;
@@ -776,7 +861,7 @@ export class MetaScreen {
       this.championQuery = search.value;
       this.championPage = 0;
       this.render();
-      this.focusChampionSearch();
+      this.focusSearch(".meta-champion-search");
     });
     searchRow.appendChild(search);
     const owned = el(
@@ -790,6 +875,24 @@ export class MetaScreen {
       this.render();
     });
     searchRow.appendChild(owned);
+    searchRow.appendChild(
+      this.sortControl<ChampionSort>(
+        this.championSort,
+        [
+          ["name", "NAME A-Z"],
+          ["rarity", "RARITY"],
+          ["class", "CLASS"],
+          ["region", "REGION"],
+          ["unlock", "UNLOCK PROGRESS"],
+        ],
+        (sort) => {
+          this.championSort = sort;
+          this.championPage = 0;
+          this.render();
+        },
+        "Sort champions",
+      ),
+    );
     const count = el("div", "meta-result-count");
     searchRow.appendChild(count);
     wrap.appendChild(searchRow);
@@ -802,6 +905,8 @@ export class MetaScreen {
       }
       if (this.classFilter !== "ALL" && (champion.class ?? "mage") !== this.classFilter)
         return false;
+      if (this.rarityFilter !== "ALL" && (champion.rarity ?? "rare") !== this.rarityFilter)
+        return false;
       if (this.ownedOnly && !isUnlocked(this.save, champion.id)) return false;
       if (query) {
         const haystack =
@@ -810,7 +915,28 @@ export class MetaScreen {
       }
       return true;
     });
-    visible = [...visible].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id));
+    visible = [...visible].sort((a, b) => {
+      const byName = (a.name ?? a.id).localeCompare(b.name ?? b.id);
+      switch (this.championSort) {
+        case "rarity":
+          return rarityRank(b.rarity) - rarityRank(a.rarity) || byName;
+        case "class":
+          return this.classLabel(a.class).localeCompare(this.classLabel(b.class)) || byName;
+        case "region":
+          return (championRegions(a)[0] ?? "").localeCompare(championRegions(b)[0] ?? "") || byName;
+        case "unlock": {
+          const aOwned = isUnlocked(this.save, a.id);
+          const bOwned = isUnlocked(this.save, b.id);
+          if (aOwned !== bOwned) return Number(bOwned) - Number(aOwned);
+          if (aOwned) return byName;
+          const aProgress = shardsFor(this.save, a.id) / shardsRequired(a);
+          const bProgress = shardsFor(this.save, b.id) / shardsRequired(b);
+          return bProgress - aProgress || byName;
+        }
+        default:
+          return byName;
+      }
+    });
     const pages = Math.max(1, Math.ceil(visible.length / this.pageSize));
     this.championPage = Math.max(0, Math.min(this.championPage, pages - 1));
     const start = this.championPage * this.pageSize;
@@ -894,6 +1020,7 @@ export class MetaScreen {
     );
     if (profile?.difficulty)
       roleRow.appendChild(this.chip(profile.difficulty.toUpperCase(), "rarity"));
+    if (isDarkinChampion(champion)) roleRow.appendChild(this.chip("DARKIN", "rarity"));
     heading.appendChild(roleRow);
     hero.append(art, heading);
 
@@ -976,7 +1103,7 @@ export class MetaScreen {
       progress.append(el("div", "meta-shard-label", `${shards} / ${required} SHARDS`), bar);
       collection.appendChild(progress);
     }
-    collection.appendChild(this.regionChips(regions, "meta-dossier-focus-regions"));
+    collection.appendChild(this.regionChips(regions));
 
     if (unlocked) {
       const select = el("button", "meta-play", selected ? "SELECTED" : "SELECT");
@@ -987,19 +1114,6 @@ export class MetaScreen {
       });
       collection.appendChild(select);
     } else {
-      for (const region of regions) {
-        const focused = focusFor(this.save, region) === champion.id;
-        const focus = el(
-          "button",
-          `meta-btn small${focused ? " active" : ""}`,
-          focused ? `FOCUSED IN ${region.toUpperCase()}` : `FOCUS IN ${region.toUpperCase()}`,
-        );
-        focus.addEventListener("click", () => {
-          setFocus(this.save, region, focused ? null : champion.id);
-          this.persist();
-        });
-        collection.appendChild(focus);
-      }
       if (canUnlockWithShards(this.save, champion)) {
         const unlock = el("button", "meta-play", "UNLOCK WITH SHARDS");
         unlock.addEventListener("click", () => {
@@ -1044,20 +1158,179 @@ export class MetaScreen {
     return overlay;
   }
 
+  private renderRegionDossier(region: string): HTMLElement | null {
+    const pool = championsInRegion(this.characters, region);
+    if (pool.length === 0) return null;
+    const style = regionStyle(region);
+    const progress = regionProgressFor(this.save, region);
+    const lockedPool = pool.filter((champion) => !isUnlocked(this.save, champion.id));
+    const overlay = el("div", "meta-dossier");
+    this.applyRegionTheme(overlay, [region]);
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", `${region} chest dossier`);
+    overlay.tabIndex = -1;
+
+    const backdrop = el("div", "meta-dossier-backdrop");
+    backdrop.addEventListener("click", () => this.closeRegionDossier());
+    const panel = el("article", "meta-dossier-panel");
+    panel.addEventListener("click", (event) => event.stopPropagation());
+
+    const close = el("button", "meta-dossier-close", "\u00d7");
+    close.setAttribute("aria-label", "Close region chest dossier");
+    close.addEventListener("click", () => this.closeRegionDossier());
+
+    const hero = el("header", "meta-dossier-hero");
+    const art = el("div", "meta-dossier-art");
+    art.append(
+      this.crestStack([region], "meta-dossier-crest"),
+      el("div", "meta-dossier-art-label", "REGION CHEST"),
+    );
+    const heading = el("div", "meta-dossier-heading");
+    heading.append(
+      el("div", "meta-kicker", region === DARKIN_CHEST ? "BLOODBOUND VAULT" : "REGION DOSSIER"),
+      el("div", "meta-dossier-title", region === DARKIN_CHEST ? "DARKIN CHEST" : "REGION CHEST"),
+      el("h2", "meta-dossier-name", region),
+      this.regionChips([region]),
+    );
+    const roleRow = el("div", "meta-dossier-role-row");
+    roleRow.append(
+      this.chip(`${pool.length} CHAMPIONS`, "class"),
+      this.chip(`${lockedPool.length} LOCKED`, "rarity"),
+      this.chip(region === DARKIN_CHEST ? "ADDITIONAL POOL" : "REGIONAL POOL", "stage"),
+    );
+    heading.appendChild(roleRow);
+    hero.append(art, heading);
+
+    const body = el("div", "meta-dossier-body");
+    const profileColumn = el("div", "meta-dossier-column");
+    const summary = el("section", "meta-dossier-summary");
+    summary.append(el("div", "meta-kicker", "REGION PROFILE"), el("p", "", style.blurb));
+    profileColumn.appendChild(summary);
+
+    const record = el("section", "meta-region-dossier-record");
+    record.appendChild(el("div", "meta-kicker", "PULL RECORD"));
+    const recordGrid = el("div", "meta-region-dossier-facts");
+    const stat = (label: string, value: string): HTMLElement => {
+      const node = el("div", "meta-dossier-fact");
+      node.append(el("div", "meta-kicker", label), el("div", "meta-dossier-fact-value", value));
+      return node;
+    };
+    recordGrid.append(
+      stat("TOTAL PULLS", String(progress.pulls)),
+      stat("FULL CHAMPIONS", String(progress.pullsChampions)),
+      stat("SHARDS", String(progress.pullsShards)),
+      stat("GOLD EARNED", String(progress.pullsGold)),
+      stat("GUARANTEED EPIC+", String(progress.pullsGuaranteed)),
+      stat("KEYS SPENT", String(progress.pulls)),
+    );
+    record.appendChild(recordGrid);
+    if (progress.trackedPulls < progress.pulls) {
+      record.appendChild(
+        el(
+          "div",
+          "meta-note",
+          `Outcome detail is tracked for ${progress.trackedPulls} of ${progress.pulls} pulls since save v8.`,
+        ),
+      );
+    }
+    record.appendChild(
+      el("div", "meta-note", "Region run progress is tracked on the Achievements page."),
+    );
+    profileColumn.appendChild(record);
+
+    const poolSection = el("section", "meta-dossier-kit-block");
+    poolSection.appendChild(el("div", "meta-kicker", "CHEST POOL"));
+    const poolList = el("div", "meta-region-champions");
+    for (const champion of pool) {
+      const unlocked = isUnlocked(this.save, champion.id);
+      const shards = shardsFor(this.save, champion.id);
+      const needed = shardsRequired(champion);
+      const item = el("div", `meta-region-champion${unlocked ? " owned" : ""}`);
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      item.setAttribute("aria-label", `Open ${champion.name ?? champion.id} dossier`);
+      const openChampion = (): void => this.openDossier(champion.id);
+      item.addEventListener("click", openChampion);
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openChampion();
+        }
+      });
+      const dot = el("span", "meta-region-dot", champion.name?.charAt(0) ?? "?");
+      dot.style.color = hex(championColor(champion.id));
+      const copy = el("span", "meta-region-champion-copy");
+      copy.append(
+        el("span", "", champion.name ?? champion.id),
+        el(
+          "span",
+          "meta-region-champion-sub",
+          unlocked
+            ? "UNLOCKED"
+            : `${RARITY_LABELS[champion.rarity ?? "rare"]} - ${shards}/${needed} SHARDS`,
+        ),
+      );
+      item.append(dot, copy);
+      poolList.appendChild(item);
+    }
+    poolSection.appendChild(poolList);
+    profileColumn.appendChild(poolSection);
+
+    const collection = el("aside", "meta-dossier-collection");
+    collection.append(
+      el("div", "meta-kicker", "KEYRING"),
+      el("div", "meta-dossier-status", `${this.save.keys} KEYS READY`),
+    );
+
+    const actions = el("div", "meta-region-actions meta-region-dossier-actions");
+    const one = el("button", "meta-btn", "OPEN 1 - 1 KEY");
+    one.disabled = this.save.keys < 1;
+    one.addEventListener("click", () => this.openChests(region, 1));
+    const ten = el("button", "meta-play small", "OPEN 10 - 10 KEYS");
+    ten.disabled = this.save.keys < 10;
+    ten.addEventListener("click", () => this.openChests(region, 10));
+    actions.append(one, ten);
+    collection.appendChild(actions);
+    collection.append(
+      el(
+        "div",
+        "meta-region-note",
+        this.save.keys >= 10
+          ? `10-PULL GUARANTEES AN EPIC+ CHAMPION FROM ${region.toUpperCase()}`
+          : "EARN KEYS IN RUNS - 10-PULL GUARANTEES EPIC+",
+      ),
+      el(
+        "div",
+        "meta-note",
+        region === DARKIN_CHEST
+          ? "Darkin champions also remain available in their regional chest pools."
+          : "Champion and shard outcomes are weighted by rarity. Pulls are final once the chest is opened.",
+      ),
+    );
+
+    body.append(profileColumn, collection);
+    panel.append(close, hero, body);
+    overlay.append(backdrop, panel);
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeRegionDossier();
+      }
+    });
+    window.setTimeout(() => close.focus(), 0);
+    return overlay;
+  }
+
   private championCard(champion: CharacterDef): HTMLElement {
     const unlocked = isUnlocked(this.save, champion.id);
     const selected = this.save.selectedCharacter === champion.id;
     const regions = championRegions(champion);
-    const primaryRegion = regions[0] ?? "Runeterra";
-    const focusedRegion = !unlocked
-      ? regions.find((region) => focusFor(this.save, region) === champion.id)
-      : undefined;
-    const focused = focusedRegion !== undefined;
     const profile = champion.profile;
     const color = hex(championColor(champion.id));
     const card = el(
       "div",
-      `meta-champion-card${unlocked ? " unlocked" : " locked"}${selected ? " selected" : ""}${focused ? " focused" : ""}`,
+      `meta-champion-card${unlocked ? " unlocked" : " locked"}${selected ? " selected" : ""}`,
     );
     this.applyRegionTheme(card, regions);
     card.style.setProperty("--champ-color", color);
@@ -1102,7 +1375,7 @@ export class MetaScreen {
     );
     top.append(portrait, info, rarity);
     if (regions.length > 1) top.appendChild(el("span", "meta-cross-region", "CROSS-REGION"));
-    if (focused) top.appendChild(el("span", "meta-focus-mark", "\u25cf"));
+    if (isDarkinChampion(champion)) top.appendChild(el("span", "meta-darkin-mark", "DARKIN"));
     card.appendChild(top);
 
     card.appendChild(el("p", "meta-champion-desc", profile?.summary ?? champion.description ?? ""));
@@ -1149,21 +1422,8 @@ export class MetaScreen {
       card.appendChild(progress);
 
       const footer = el("div", "meta-champion-footer");
-      const focus = el(
-        "button",
-        `meta-btn small focus${focused ? " active" : ""}`,
-        focused
-          ? `FOCUSED ${focusedRegion?.toUpperCase() ?? primaryRegion.toUpperCase()}`
-          : "FOCUS",
-      );
-      focus.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setFocus(this.save, focusedRegion ?? primaryRegion, focused ? null : champion.id);
-        this.persist();
-      });
       footer.appendChild(el("span", "meta-locked-note", "GACHA ONLY"));
       footer.appendChild(el("span", "meta-open-hint", "DOSSIER"));
-      footer.appendChild(focus);
       if (canUnlockWithShards(this.save, champion)) {
         const unlock = el("button", "meta-btn small unlock", "UNLOCK");
         unlock.addEventListener("click", (event) => {
@@ -1227,13 +1487,12 @@ export class MetaScreen {
       const icon = el("div", "meta-upgrade-icon", p.name?.charAt(0) ?? "?");
       const main = el("div", "meta-upgrade-main");
       const title = el("div", "meta-upgrade-row-title");
+      const effect = Object.entries(powerUpRankStats(p))
+        .map(([stat, amount]) => `${percentStat(stat, amount)} ${statLabel(stat)}`)
+        .join(" + ");
       title.append(
         el("span", "", p.name ?? p.id),
-        el(
-          "span",
-          "meta-upgrade-effect",
-          `${percentStat(p.stat, p.perRank)} ${statLabel(p.stat)} / RANK`,
-        ),
+        el("span", "meta-upgrade-effect", `${effect || "NO STAT"} / RANK`),
       );
       const desc = el("div", "meta-upgrade-desc", p.description ?? "");
       const pips = el("div", "meta-rank-pips");
@@ -1267,36 +1526,167 @@ export class MetaScreen {
     const wrap = el("div", "meta-page");
     wrap.appendChild(
       this.sectionHead(
-        "REGION GACHA",
-        "CHESTS",
-        "Open 1 chest for one pull, or 10 for ten pulls with a guaranteed Epic+ champion. Champion and shard outcomes favor your region focus; spend shards to choose who unlocks first.",
+        "KEY-FORGED TREASURES",
+        "REGION CHESTS",
+        "Spend keys to open a region chest. Champion and shard outcomes are weighted by rarity; the 10-pull guarantees an Epic+ champion.",
       ),
     );
 
-    const odds = el("div", "meta-odds");
-    odds.append(
-      el("span", "meta-odds-title", "ODDS PER PULL"),
+    const hero = el("div", "meta-chest-hero");
+    const copy = el("div", "meta-chest-hero-copy");
+    copy.append(
+      el("div", "meta-chest-hero-kicker", "YOUR KEYRING"),
+      el(
+        "div",
+        "meta-chest-hero-title",
+        `${this.save.keys} ${this.save.keys === 1 ? "KEY" : "KEYS"}`,
+      ),
+      el(
+        "div",
+        "meta-chest-hero-sub",
+        "Earn keys from spawnable run chests, elite kills, and boss kills. One key opens one region chest; ten keys open ten.",
+      ),
+    );
+    const sources = el("div", "meta-chest-sources");
+    sources.append(
+      el("span", "meta-chest-source", "RUN CHESTS"),
+      el("span", "meta-chest-source", "ELITES"),
+      el("span", "meta-chest-source", "BOSSES"),
+    );
+    copy.appendChild(sources);
+    hero.appendChild(copy);
+    hero.appendChild(el("div", "meta-chest-hero-mark", "K"));
+    wrap.appendChild(hero);
+
+    const rates = el("details", "meta-chest-rates");
+    rates.appendChild(el("summary", "", "DROP RATES & GUARANTEES"));
+    const rateBody = el("div", "meta-chest-rates-body");
+    rateBody.append(
       el("span", "", `${Math.round(GACHA_ODDS.champion * 100)}% FULL CHAMPION`),
       el("span", "", `${Math.round(GACHA_ODDS.shards * 100)}% CHAMPION SHARDS`),
       el("span", "", `${Math.round(GACHA_ODDS.gold * 100)}% GOLD`),
-      el("span", "meta-odds-rarity", "RARITY WEIGHTS: 60 COMMON / 30 RARE / 9 EPIC / 1 LEGENDARY"),
-      el("span", "meta-odds-focus", "FOCUS: 50% CHAMPION/SHARD PREFERENCE"),
-      el("span", "meta-odds-guarantee", "10-PULL: EPIC+ GUARANTEED"),
+      el("span", "", "RARITY: 60 COMMON / 30 RARE / 9 EPIC / 1 LEGENDARY"),
+      el("span", "", "10-PULL: EPIC+ GUARANTEED"),
     );
-    wrap.appendChild(odds);
+    rates.appendChild(rateBody);
+    wrap.appendChild(rates);
 
-    if (this.gachaResults) {
-      wrap.appendChild(this.renderGachaResults());
-    }
-
-    const grid = el("div", "meta-region-grid");
-    for (const region of regionsOf(this.characters)) {
+    const chestRegions = [
+      ...(darkinChampions(this.characters).length > 0 ? [DARKIN_CHEST] : []),
+      ...regionsOf(this.characters),
+    ];
+    const chestData = chestRegions.map((region, index) => {
       const style = regionStyle(region);
       const pool = championsInRegion(this.characters, region);
-      const card = el("div", "meta-region-card");
+      const lockedPool = pool.filter((champion) => !isUnlocked(this.save, champion.id));
+      return { region, index, style, pool, lockedPool };
+    });
+
+    const chestFilters = el("div", "meta-filter-row");
+    const chestFilterOptions: Array<[string, string]> = [
+      ["ALL", "ALL CHESTS"],
+      ["REGIONAL", "REGIONAL"],
+      ["DARKIN", "DARKIN"],
+      ["INCOMPLETE", "INCOMPLETE POOLS"],
+    ];
+    for (const [value, label] of chestFilterOptions) {
+      const button = el(
+        "button",
+        `meta-filter${this.chestFilter === value ? " active" : ""}`,
+        label,
+      );
+      button.addEventListener("click", () => {
+        this.chestFilter = value;
+        this.render();
+      });
+      chestFilters.appendChild(button);
+    }
+    wrap.appendChild(chestFilters);
+
+    const chestSearchRow = el("div", "meta-search-row");
+    const chestSearch = el("input", "meta-search meta-chest-search");
+    chestSearch.type = "search";
+    chestSearch.placeholder = "Search region or champion...";
+    chestSearch.value = this.chestQuery;
+    chestSearch.addEventListener("input", () => {
+      this.chestQuery = chestSearch.value;
+      this.render();
+      this.focusSearch(".meta-chest-search");
+    });
+    chestSearchRow.appendChild(chestSearch);
+    chestSearchRow.appendChild(
+      this.sortControl<ChestSort>(
+        this.chestSort,
+        [
+          ["featured", "FEATURED"],
+          ["name", "NAME A-Z"],
+          ["pool", "POOL SIZE"],
+          ["locked", "MISSING CHAMPIONS"],
+          ["completion", "COMPLETION"],
+        ],
+        (sort) => {
+          this.chestSort = sort;
+          this.render();
+        },
+        "Sort chests",
+      ),
+    );
+    const chestCount = el("div", "meta-result-count");
+    chestSearchRow.appendChild(chestCount);
+    wrap.appendChild(chestSearchRow);
+
+    const query = this.chestQuery.trim().toLowerCase();
+    let visibleChests = chestData.filter(({ region, style, pool }) => {
+      if (this.chestFilter === "REGIONAL" && region === DARKIN_CHEST) return false;
+      if (this.chestFilter === "DARKIN" && region !== DARKIN_CHEST) return false;
+      if (
+        this.chestFilter === "INCOMPLETE" &&
+        pool.every((champion) => isUnlocked(this.save, champion.id))
+      ) {
+        return false;
+      }
+      if (!query) return true;
+      const haystack =
+        `${region} ${style.blurb} ${pool.map((champion) => champion.name ?? champion.id).join(" ")}`.toLowerCase();
+      return haystack.includes(query);
+    });
+    visibleChests = [...visibleChests].sort((a, b) => {
+      const byName = a.region.localeCompare(b.region);
+      switch (this.chestSort) {
+        case "name":
+          return byName;
+        case "pool":
+          return b.pool.length - a.pool.length || byName;
+        case "locked":
+          return b.lockedPool.length - a.lockedPool.length || byName;
+        case "completion": {
+          const aDone = a.pool.length - a.lockedPool.length;
+          const bDone = b.pool.length - b.lockedPool.length;
+          return bDone / Math.max(1, b.pool.length) - aDone / Math.max(1, a.pool.length) || byName;
+        }
+        default:
+          return a.index - b.index;
+      }
+    });
+    chestCount.textContent = `${visibleChests.length} CHEST${visibleChests.length === 1 ? "" : "S"}`;
+
+    const grid = el("div", "meta-region-grid");
+    for (const { region, style, pool, lockedPool } of visibleChests) {
+      const card = el("div", "meta-region-card meta-region-card-dossier");
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Open ${region} chest dossier`);
+      card.addEventListener("click", () => this.openRegionDossier(region));
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this.openRegionDossier(region);
+        }
+      });
       this.applyRegionTheme(card, [region]);
       card.style.setProperty("--region-color", style.color);
       card.style.setProperty("--region-accent", style.accent);
+
       const head = el("div", "meta-region-head");
       head.append(
         this.crestStack([region], "meta-region-crest-box"),
@@ -1305,40 +1695,25 @@ export class MetaScreen {
       );
       card.appendChild(head);
 
-      const lockedPool = pool.filter((champion) => !isUnlocked(this.save, champion.id));
-      const focusId = focusFor(this.save, region);
-      const focusRow = el("div", "meta-focus-row");
-      const focusLabel = el("span", "meta-focus-label", "FOCUS");
-      const focusSelect = el("select", "meta-focus-select");
-      const noFocus = el("option", "", "No focus");
-      noFocus.value = "";
-      focusSelect.appendChild(noFocus);
-      for (const champion of lockedPool) {
-        const option = el("option", "", champion.name ?? champion.id);
-        option.value = champion.id;
-        focusSelect.appendChild(option);
-      }
-      focusSelect.value = lockedPool.some((c) => c.id === focusId) ? (focusId ?? "") : "";
-      focusSelect.disabled = lockedPool.length === 0;
-      focusSelect.addEventListener("change", () => {
-        setFocus(this.save, region, focusSelect.value || null);
-        this.persist();
-      });
-      focusRow.append(focusLabel, focusSelect);
-      card.appendChild(focusRow);
+      const stats = el("div", "meta-region-stats");
+      stats.append(
+        el("span", "", `${pool.length} CHAMPIONS`),
+        el("span", "", `${lockedPool.length} LOCKED`),
+        el("span", "accent", "EPIC+ GUARANTEE"),
+      );
+      card.appendChild(stats);
 
+      const poolDetails = el("details", "meta-region-pool");
+      poolDetails.addEventListener("click", (event) => event.stopPropagation());
+      poolDetails.appendChild(el("summary", "", `VIEW POOL (${pool.length})`));
       const champions = el("div", "meta-region-champions");
       for (const champion of pool) {
         const unlocked = isUnlocked(this.save, champion.id);
         const shards = shardsFor(this.save, champion.id);
         const needed = shardsRequired(champion);
-        const focused = !unlocked && focusId === champion.id;
         const championRegionList = championRegions(champion);
         const otherRegions = championRegionList.filter((candidate) => candidate !== region);
-        const item = el(
-          "div",
-          `meta-region-champion${unlocked ? " owned" : ""}${focused ? " focused" : ""}`,
-        );
+        const item = el("div", `meta-region-champion${unlocked ? " owned" : ""}`);
         item.tabIndex = 0;
         item.setAttribute("role", "button");
         item.setAttribute("aria-label", `Open ${champion.name ?? champion.id} dossier`);
@@ -1351,45 +1726,55 @@ export class MetaScreen {
         });
         const dot = el("span", "meta-region-dot", champion.name?.charAt(0) ?? "?");
         dot.style.color = hex(championColor(champion.id));
-        const copy = el("span", "meta-region-champion-copy");
-        copy.append(
+        const itemCopy = el("span", "meta-region-champion-copy");
+        itemCopy.append(
           el("span", "", champion.name ?? champion.id),
           el(
             "span",
             "meta-region-champion-sub",
             unlocked
-              ? `UNLOCKED${otherRegions.length ? ` · ALSO ${otherRegions.join(" / ").toUpperCase()}` : ""}`
-              : `${RARITY_LABELS[champion.rarity ?? "rare"]} · ${shards}/${needed} SHARDS${otherRegions.length ? " · CROSS-REGION" : ""}`,
+              ? `UNLOCKED${otherRegions.length ? ` - ALSO ${otherRegions.join(" / ").toUpperCase()}` : ""}`
+              : `${RARITY_LABELS[champion.rarity ?? "rare"]} - ${shards}/${needed} SHARDS${otherRegions.length ? " - CROSS-REGION" : ""}`,
           ),
         );
-        item.append(dot, copy);
-        if (focused) item.appendChild(el("span", "meta-focus-mark", "●"));
+        item.append(dot, itemCopy);
         champions.appendChild(item);
       }
-      card.appendChild(champions);
+      poolDetails.appendChild(champions);
+      card.appendChild(poolDetails);
 
       const actions = el("div", "meta-region-actions");
-      const one = el("button", "meta-btn", "OPEN 1 · 1 CHEST");
-      one.disabled = this.save.chests < 1;
-      one.addEventListener("click", () => this.openChests(region, 1));
-      const ten = el("button", "meta-play small", "OPEN 10 · 10 CHESTS");
-      ten.disabled = this.save.chests < 10;
-      ten.addEventListener("click", () => this.openChests(region, 10));
+      const one = el("button", "meta-btn", "OPEN 1 - 1 KEY");
+      one.disabled = this.save.keys < 1;
+      one.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.openChests(region, 1);
+      });
+      const ten = el("button", "meta-play small", "OPEN 10 - 10 KEYS");
+      ten.disabled = this.save.keys < 10;
+      ten.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.openChests(region, 10);
+      });
       actions.append(one, ten);
       card.appendChild(actions);
       const guarantee = el("div", "meta-region-note");
-      guarantee.textContent = "10-PULL GUARANTEES AN EPIC+ CHAMPION FROM THIS REGION";
-      if (!this.save.chests || this.save.chests < 10) {
-        guarantee.textContent = "EARN CHESTS IN RUNS · 10-PULL GUARANTEES EPIC+";
-      }
+      guarantee.textContent =
+        this.save.keys >= 10
+          ? `10-PULL GUARANTEES AN EPIC+ CHAMPION FROM ${region.toUpperCase()}`
+          : "EARN KEYS IN RUNS - 10-PULL GUARANTEES EPIC+";
       card.appendChild(guarantee);
+      card.appendChild(el("div", "meta-region-dossier-hint", "OPEN DOSSIER"));
       grid.appendChild(card);
+    }
+    if (visibleChests.length === 0) {
+      grid.appendChild(el("div", "meta-empty", "No chests match those filters."));
     }
     wrap.appendChild(grid);
 
     const hint = el("div", "meta-note");
     hint.textContent =
-      "Shards are champion-specific. When a champion reaches their requirement, the Champions page shows UNLOCK — you choose the order.";
+      "Shards are champion-specific. When a champion reaches their requirement, the Champions page shows UNLOCK - you choose the order.";
     wrap.appendChild(hint);
     return wrap;
   }
@@ -1397,85 +1782,230 @@ export class MetaScreen {
   private openChests(region: string, count: 1 | 10): void {
     const drops = openRegionChests(this.save, region, this.characters, count);
     if (!drops) return;
-    this.gachaResults = { region, drops };
-    this.scrollTop = 0;
-    this.persist();
-  }
-
-  private renderGachaResults(): HTMLElement {
-    const results = this.gachaResults;
-    if (!results) return el("div");
-    const panel = el("div", "meta-gacha-results");
-    const head = el("div", "meta-gacha-head");
-    head.append(
-      el("div", "", `PULL RESULTS · ${results.region.toUpperCase()}`),
-      el("button", "meta-btn small ghost", "CLEAR"),
-    );
-    (head.lastElementChild as HTMLElement).addEventListener("click", () => {
-      this.gachaResults = null;
-      this.render();
+    const newlyUnlocked = checkAchievements(this.save, null, this.characters);
+    if (newlyUnlocked.length > 0) this.pendingToasts.push(...newlyUnlocked);
+    persistSave(this.save);
+    this.render();
+    this.chestOpening.show({
+      region,
+      drops,
+      characters: this.characters,
+      count,
+      keysRemaining: this.save.keys,
+      onClose: () => {
+        this.render();
+        this.showToasts();
+      },
     });
-    panel.appendChild(head);
-    const cards = el("div", "meta-gacha-grid");
-    for (const drop of results.drops) {
-      const champion = drop.championId
-        ? this.characters.find((c) => c.id === drop.championId)
-        : undefined;
-      const card = el(
-        "div",
-        `meta-gacha-card drop-${drop.kind}${drop.guaranteed ? " guaranteed" : ""}`,
-      );
-      const title =
-        drop.kind === "gold"
-          ? "GOLD"
-          : drop.kind === "champion"
-            ? (champion?.name ?? drop.championId ?? "CHAMPION")
-            : `${champion?.name ?? drop.championId ?? "CHAMPION"} SHARDS`;
-      card.appendChild(
-        el(
-          "div",
-          "meta-gacha-kind",
-          drop.guaranteed ? "GUARANTEED EPIC+" : drop.kind.toUpperCase(),
-        ),
-      );
-      card.appendChild(el("div", "meta-gacha-champion", title));
-      const amount =
-        drop.kind === "gold"
-          ? `+${drop.amount} GOLD`
-          : drop.kind === "champion"
-            ? "CHAMPION UNLOCKED"
-            : `+${drop.amount} SHARDS`;
-      card.appendChild(el("div", "meta-gacha-amount", amount));
-      if (drop.kind === "shards" && champion) {
-        const total = shardsFor(this.save, champion.id);
-        card.appendChild(
-          el("div", "meta-gacha-sub", `${total} / ${shardsRequired(champion)} TOTAL SHARDS`),
-        );
-      }
-      cards.appendChild(card);
-    }
-    panel.appendChild(cards);
-    return panel;
   }
-
-  // -------------------------------------------------------------------------
   // ACHIEVEMENTS
   // -------------------------------------------------------------------------
   private renderAchievements(): HTMLElement {
     const wrap = el("div", "meta-page");
     wrap.appendChild(
-      this.sectionHead("MILESTONES", "ACHIEVEMENTS", "Small proof that the Rift remembers you."),
+      this.sectionHead(
+        "MILESTONES & LORE",
+        "ACHIEVEMENTS",
+        "Combat, survival, loot, exploration, and the stories of every region. Region progress is earned by completing runs and opening that region's chests.",
+      ),
     );
-    const list = el("div", "meta-achievement-list");
-    for (const achievement of ACHIEVEMENTS) {
-      const done = this.save.achievements.includes(achievement.id);
-      const row = el("div", `meta-achievement${done ? " done" : ""}`);
-      row.append(
-        el("div", "meta-achievement-mark", done ? "★" : "☆"),
-        el("div", "meta-achievement-label", achievement.label),
-        el("div", "meta-achievement-state", done ? "COMPLETE" : "LOCKED"),
+    const doneCount = ACHIEVEMENTS.filter((a) => this.save.achievements.includes(a.id)).length;
+    const progressPct = ACHIEVEMENTS.length
+      ? Math.round((doneCount / ACHIEVEMENTS.length) * 100)
+      : 0;
+    const stats = el("div", "meta-achievement-stats");
+    stats.append(
+      el("span", "", `${doneCount} / ${ACHIEVEMENTS.length} COMPLETE`),
+      el("span", "", `${progressPct}% OF THE TALE`),
+      el("span", "", `LIFETIME BUSHES ${this.save.lifetimeBushesBroken}`),
+      el("span", "", `LIFETIME CHESTS ${this.save.lifetimeChestsOpened}`),
+    );
+    wrap.appendChild(stats);
+
+    const categories = [
+      "ALL",
+      "combat",
+      "survival",
+      "loot",
+      "exploration",
+      "collection",
+      "region",
+      "lore",
+    ];
+    const filters = el("div", "meta-achievement-filters");
+    for (const category of categories) {
+      const button = el(
+        "button",
+        `meta-filter${this.achievementCategory === category ? " active" : ""}`,
+        category === "ALL" ? "ALL" : category.toUpperCase(),
       );
+      button.addEventListener("click", () => {
+        this.achievementCategory = category;
+        this.render();
+      });
+      filters.appendChild(button);
+    }
+    wrap.appendChild(filters);
+
+    const regionRow = el("div", "meta-achievement-region-row");
+    const regionSelect = el("select", "meta-achievement-region-select");
+    const allOption = el("option", "", "ALL REGIONS");
+    allOption.value = "ALL";
+    regionSelect.appendChild(allOption);
+    const regions = [...new Set(ACHIEVEMENTS.map((a) => a.region).filter(Boolean))] as string[];
+    for (const region of regions) {
+      const option = el("option", "", region.toUpperCase());
+      option.value = region;
+      regionSelect.appendChild(option);
+    }
+    regionSelect.value = this.achievementRegion;
+    regionSelect.addEventListener("change", () => {
+      this.achievementRegion = regionSelect.value;
+      this.render();
+    });
+    regionRow.appendChild(regionSelect);
+    regionRow.appendChild(
+      el(
+        "span",
+        "meta-achievement-filter-copy",
+        "Each region has three tiers. Darkin is a lore chest pool, not a region.",
+      ),
+    );
+    wrap.appendChild(regionRow);
+
+    const achievementSearchRow = el("div", "meta-search-row");
+    const achievementSearch = el("input", "meta-search meta-achievement-search");
+    achievementSearch.type = "search";
+    achievementSearch.placeholder = "Search achievements...";
+    achievementSearch.value = this.achievementQuery;
+    achievementSearch.addEventListener("input", () => {
+      this.achievementQuery = achievementSearch.value;
+      this.render();
+      this.focusSearch(".meta-achievement-search");
+    });
+    achievementSearchRow.appendChild(achievementSearch);
+    achievementSearchRow.appendChild(
+      this.sortControl<AchievementSort>(
+        this.achievementSort,
+        [
+          ["default", "DEFAULT"],
+          ["incomplete", "INCOMPLETE FIRST"],
+          ["complete", "COMPLETE FIRST"],
+          ["progress", "PROGRESS"],
+          ["reward", "REWARD"],
+          ["name", "NAME A-Z"],
+        ],
+        (sort) => {
+          this.achievementSort = sort;
+          this.render();
+        },
+        "Sort achievements",
+      ),
+    );
+    const achievementCount = el("div", "meta-result-count");
+    achievementSearchRow.appendChild(achievementCount);
+    wrap.appendChild(achievementSearchRow);
+
+    const achievementRows = ACHIEVEMENTS.map((achievement) => {
+      const done = this.save.achievements.includes(achievement.id);
+      const current = achievementCurrent(this.save, achievement, this.characters);
+      const pct = achievement.target > 0 ? Math.min(1, current / achievement.target) : 0;
+      const rewardValue = (achievement.rewardGold ?? 0) + (achievement.rewardKeys ?? 0) * 100;
+      return { achievement, done, current, pct, rewardValue };
+    });
+    const achievementQuery = this.achievementQuery.trim().toLowerCase();
+    let achievementRowsFiltered = achievementRows.filter(({ achievement }) => {
+      if (this.achievementCategory !== "ALL" && achievement.category !== this.achievementCategory)
+        return false;
+      if (this.achievementRegion !== "ALL" && achievement.region !== this.achievementRegion)
+        return false;
+      if (!achievementQuery) return true;
+      const haystack =
+        `${achievement.label} ${achievement.description} ${achievement.category} ${achievement.region ?? ""}`.toLowerCase();
+      return haystack.includes(achievementQuery);
+    });
+    achievementRowsFiltered = [...achievementRowsFiltered].sort((a, b) => {
+      const byName = a.achievement.label.localeCompare(b.achievement.label);
+      switch (this.achievementSort) {
+        case "incomplete":
+          return Number(a.done) - Number(b.done) || b.pct - a.pct || byName;
+        case "complete":
+          return Number(b.done) - Number(a.done) || b.pct - a.pct || byName;
+        case "progress":
+          return b.pct - a.pct || byName;
+        case "reward":
+          return b.rewardValue - a.rewardValue || byName;
+        case "name":
+          return byName;
+        default:
+          return 0;
+      }
+    });
+    achievementCount.textContent = `${achievementRowsFiltered.length} GOAL${achievementRowsFiltered.length === 1 ? "" : "S"}`;
+
+    const list = el("div", "meta-achievement-list");
+    for (const { achievement, done, current, pct } of achievementRowsFiltered) {
+      const row = el(
+        "div",
+        `meta-achievement${done ? " done" : ""}${achievement.region ? " has-region" : ""}`,
+      );
+      if (achievement.region) {
+        const style = regionStyle(achievement.region);
+        row.style.setProperty("--region-primary", style.color);
+        row.style.setProperty("--region-accent", style.accent);
+      }
+      const mark = el("div", "meta-achievement-mark", done ? "\u2713" : "\u00b7");
+      const body = el("div", "meta-achievement-body");
+      const top = el("div", "meta-achievement-top");
+      if (achievement.region) {
+        const crest = crestMark([achievement.region], "xs", "meta-achievement-crest");
+        top.appendChild(crest);
+      }
+      const categoryLabel =
+        achievement.category === "region" && achievement.region
+          ? `${achievement.region.toUpperCase()} \u00b7 REGION`
+          : achievement.category.toUpperCase();
+      top.append(
+        el("div", "meta-achievement-label", achievement.label),
+        el("div", "meta-achievement-category", categoryLabel),
+        el(
+          "div",
+          "meta-achievement-state",
+          done ? "COMPLETE" : `${Math.min(current, achievement.target)} / ${achievement.target}`,
+        ),
+      );
+      const reward = [
+        achievement.rewardGold ? `+${achievement.rewardGold} GOLD` : "",
+        achievement.rewardKeys
+          ? `+${achievement.rewardKeys} ${achievement.rewardKeys === 1 ? "KEY" : "KEYS"}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("  -  ");
+      const progress = el("div", "meta-achievement-progress");
+      const track = el("div", "meta-achievement-progress-track");
+      const fill = el("div", "meta-achievement-progress-fill");
+      fill.style.width = `${Math.round(pct * 100)}%`;
+      track.appendChild(fill);
+      progress.appendChild(track);
+      progress.appendChild(
+        el(
+          "span",
+          "meta-achievement-progress-copy",
+          done ? "COMPLETE" : `${Math.min(current, achievement.target)} / ${achievement.target}`,
+        ),
+      );
+      body.append(
+        top,
+        el("div", "meta-achievement-desc", achievement.description),
+        progress,
+        el("div", "meta-achievement-reward", reward || "NO REWARD"),
+      );
+      row.append(mark, body);
       list.appendChild(row);
+    }
+    if (achievementRowsFiltered.length === 0) {
+      list.appendChild(el("div", "meta-note", "No achievements match those filters."));
     }
     wrap.appendChild(list);
     return wrap;
@@ -1554,7 +2084,7 @@ export class MetaScreen {
       el(
         "div",
         "meta-note",
-        "Press H anywhere to open the local admin panel (gold, chests, shards, unlock-all, max upgrades, reset).",
+        "Press H anywhere to open the local admin panel (gold, keys, shards, unlock-all, max upgrades, reset).",
       ),
     );
     return wrap;
@@ -1626,8 +2156,29 @@ export class MetaScreen {
     return CLASSES[(className ?? "mage") as keyof typeof CLASSES]?.label ?? "Mage";
   }
 
-  private focusChampionSearch(): void {
-    const input = this.root.querySelector<HTMLInputElement>(".meta-search");
+  private sortControl<T extends string>(
+    value: T,
+    options: ReadonlyArray<readonly [T, string]>,
+    onChange: (value: T) => void,
+    ariaLabel: string,
+  ): HTMLElement {
+    const label = el("label", "meta-sort-control");
+    label.appendChild(el("span", "meta-sort-label", "SORT"));
+    const select = el("select", "meta-sort-select");
+    select.setAttribute("aria-label", ariaLabel);
+    for (const [optionValue, optionLabel] of options) {
+      const option = el("option", "", optionLabel);
+      option.value = optionValue;
+      select.appendChild(option);
+    }
+    select.value = value;
+    select.addEventListener("change", () => onChange(select.value as T));
+    label.appendChild(select);
+    return label;
+  }
+
+  private focusSearch(selector: string): void {
+    const input = this.root.querySelector<HTMLInputElement>(selector);
     if (!input) return;
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);

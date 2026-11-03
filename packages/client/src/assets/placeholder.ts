@@ -24,6 +24,11 @@ export interface PlaceholderTextures {
   gem: Texture;
   projectile: Texture;
   ground: Texture;
+  bush: Texture;
+  chest: Texture;
+  key: Texture;
+  magnet: Texture;
+  bomb: Texture;
 }
 
 /** Seamless, non-grid floor fill used beneath the terrain walls/liquids. */
@@ -110,5 +115,77 @@ export function createPlaceholderTextures(): PlaceholderTextures {
     ctx.fillRect(0, PX - 1, PX, 1);
   });
 
-  return { player, enemy, gem, projectile, ground };
+  const bush = makeTexture(16, (ctx) => {
+    ctx.fillStyle = "#183b2b";
+    ctx.fillRect(2, 9, 12, 6);
+    ctx.fillRect(3, 6, 10, 4);
+    ctx.fillRect(5, 4, 6, 3);
+    ctx.fillStyle = "#2f7a4f";
+    ctx.fillRect(3, 8, 10, 4);
+    ctx.fillRect(5, 5, 6, 4);
+    ctx.fillStyle = "#65b96e";
+    ctx.fillRect(4, 7, 3, 2);
+    ctx.fillRect(9, 6, 3, 2);
+    ctx.fillStyle = "#9be28a";
+    ctx.fillRect(5, 5, 2, 1);
+    ctx.fillRect(10, 9, 1, 1);
+    ctx.fillStyle = "#0d2419";
+    ctx.fillRect(3, 14, 10, 1);
+  });
+
+  const chest = makeTexture(16, (ctx) => {
+    ctx.fillStyle = "#2a1a0c";
+    ctx.fillRect(2, 5, 12, 9);
+    ctx.fillStyle = "#6f4518";
+    ctx.fillRect(3, 6, 10, 7);
+    ctx.fillStyle = "#b77a22";
+    ctx.fillRect(3, 6, 10, 2);
+    ctx.fillRect(4, 11, 8, 1);
+    ctx.fillStyle = "#ffd66b";
+    ctx.fillRect(7, 8, 2, 3);
+    ctx.fillStyle = "#3a250f";
+    ctx.fillRect(2, 9, 1, 3);
+    ctx.fillRect(13, 9, 1, 3);
+    ctx.fillStyle = "#f2b84b";
+    ctx.fillRect(4, 4, 8, 1);
+    ctx.fillStyle = "#ffe9a8";
+    ctx.fillRect(5, 4, 3, 1);
+  });
+
+  const key = makeTexture(8, (ctx) => {
+    ctx.fillStyle = "#ffd66b";
+    ctx.fillRect(1, 2, 3, 3);
+    ctx.fillStyle = "#2a1a0c";
+    ctx.fillRect(2, 3, 1, 1);
+    ctx.fillStyle = "#f2b84b";
+    ctx.fillRect(4, 3, 3, 1);
+    ctx.fillRect(6, 4, 1, 1);
+    ctx.fillRect(5, 4, 1, 1);
+  });
+
+  const magnet = makeTexture(8, (ctx) => {
+    ctx.fillStyle = "#7fe8ff";
+    ctx.fillRect(1, 1, 2, 5);
+    ctx.fillRect(5, 1, 2, 5);
+    ctx.fillRect(1, 5, 6, 2);
+    ctx.fillStyle = "#e8fbff";
+    ctx.fillRect(2, 1, 1, 3);
+    ctx.fillRect(5, 1, 1, 3);
+    ctx.fillStyle = "#1a3042";
+    ctx.fillRect(3, 3, 2, 1);
+    ctx.fillRect(3, 5, 2, 1);
+  });
+
+  const bomb = makeTexture(8, (ctx) => {
+    ctx.fillStyle = "#321a12";
+    ctx.fillRect(2, 3, 4, 4);
+    ctx.fillRect(1, 4, 6, 2);
+    ctx.fillStyle = "#ff6b3d";
+    ctx.fillRect(3, 3, 2, 2);
+    ctx.fillStyle = "#ffd66b";
+    ctx.fillRect(5, 1, 1, 2);
+    ctx.fillRect(6, 0, 1, 1);
+  });
+
+  return { player, enemy, gem, projectile, ground, bush, chest, key, magnet, bomb };
 }

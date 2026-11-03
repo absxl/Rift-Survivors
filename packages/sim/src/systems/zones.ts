@@ -23,6 +23,7 @@ function zones(world: World): void {
     const radius = zones.field("radius")[slot];
     const damage = zones.field("damage")[slot];
 
+    world.damageBushesInCircle(zx, zy, radius, damage, zones.field("owner")[slot]);
     world.enemiesInCircle(zx, zy, radius, (enemySlot) => {
       if (!world.canHit(enemySlot)) return;
       const dx = world.stores.enemies.field("x")[enemySlot] - zx;

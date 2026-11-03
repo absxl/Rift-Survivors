@@ -17,6 +17,7 @@ import { MetaScreen } from "./meta-screen";
 import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
 import type { NetHost } from "./net-host";
 import { PauseMenu } from "./pause-menu";
+import { championRegions, isDarkinChampion } from "./regions";
 import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
 import { RunEndUI } from "./run-end";
 import {
@@ -123,6 +124,7 @@ async function main(): Promise<void> {
   const connectionLost = new ConnectionLost();
   let runEnded = false;
   let lastSnap: WorldSnapshot | null = null;
+  let activeNetHost: NetHost | null = null;
 
   // F3 diagnostics overlay (FPS + live entity counts) for the M13 perf pass.
   const debugOverlay = document.createElement("div");
@@ -149,6 +151,70 @@ async function main(): Promise<void> {
     debugOverlay.style.display = debugOverlay.style.display === "none" ? "block" : "none";
   });
 
+  const finishRun = (title = "DEFEAT", closeConnection = false): void => {
+    if (runEnded || !lastSnap) return;
+    runEnded = true;
+    pauseMenu.hide();
+    levelUp.hide();
+    inputSender = null;
+    activeChoice = null;
+    activeReroll = null;
+    activeSkip = null;
+    activeBanish = null;
+    if (closeConnection) {
+      if (currentMode === "solo") host.pause();
+      activeNetHost?.close();
+      activeNetHost = null;
+    }
+
+    const snap = lastSnap;
+    const playerStore = snap.stores.find((s) => s.kind === "player");
+    const idx = playerStore ? playerStore.slots.indexOf(localPlayerId) : -1;
+    const field = (name: string): number => {
+      if (idx < 0 || !playerStore) return 0;
+      return playerStore.fields[name]?.[idx] ?? 0;
+    };
+    const gold = Math.round(field("gold"));
+    const kills = field("kills");
+    const keysFound = field("keys");
+    const chestsOpened = field("chestsOpened");
+    const timeSec = Math.floor(snap.tick / 30);
+    const runCharacter = pack.characters.find((champion) => champion.id === currentCharacterId);
+    const runRegions = runCharacter ? championRegions(runCharacter) : ["Runeterra"];
+    const result = {
+      gold,
+      kills,
+      timeSec,
+      won: false,
+      keysFound,
+      chestsOpened,
+      bushesBroken: field("bushesBroken"),
+      elitesKilled: field("elitesKilled"),
+      bossesKilled: field("bossesKilled"),
+      downs: field("downs"),
+      coOp: currentMode === "coop",
+      characterId: currentCharacterId,
+      stageId: save.selectedStage,
+      primaryRegion: runRegions[0] ?? "Runeterra",
+      championRegions: runRegions,
+      isDarkin: runCharacter ? isDarkinChampion(runCharacter) : false,
+    };
+    const keysBefore = save.keys;
+    awardRun(save, result);
+    const newAchievements = checkAchievements(save, result, pack.characters);
+    const keysEarned = save.keys - keysBefore;
+    persistSave(save);
+    runEnd.show({
+      title,
+      time: formatTime(timeSec),
+      kills,
+      gold,
+      keys: keysEarned,
+      chestsOpened,
+      newAchievements,
+    });
+  };
+
   const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
     renderer.receive(snap, events);
     lastSnap = snap;
@@ -161,40 +227,43 @@ async function main(): Promise<void> {
       else if (e.type === "weapon-fire") sfx.play("fire");
       else if (e.type === "boss-rush") banner.show("BOSS RUSH");
       else if (e.type === "explosion") sfx.play("kill");
-      else if (e.type === "chest-found") {
+      else if (e.type === "bush-break") {
+        if (e.playerId === localPlayerId) sfx.play("pickup");
+      } else if (e.type === "key-found") {
         if (e.playerId === localPlayerId) {
-          banner.show("CHEST SAVED");
-          sfx.play("pickup");
+          banner.show("KEY FOUND");
+          sfx.play("chest");
+        }
+      } else if (e.type === "run-chest-spawn") {
+        banner.show("CHEST SPAWNED");
+      } else if (e.type === "run-chest-start") {
+        if (e.playerId === localPlayerId) banner.show("OPENING CHEST");
+      } else if (e.type === "run-chest-open") {
+        if (e.playerId === localPlayerId) {
+          banner.show(`CHEST +${e.xp} XP  +${e.gold} G${e.key ? "  +KEY" : ""}`);
+          sfx.play("chest");
+          renderer.addShake(2);
         }
       } else if (e.type === "nuke") {
         banner.show("NUKE");
         flashScreen();
         renderer.addShake(4);
         sfx.play("kill");
+      } else if (e.type === "magnet") {
+        if (e.playerId === localPlayerId) banner.show("MAGNET");
+        sfx.play("pickup");
+      } else if (e.type === "bomb") {
+        if (e.playerId === localPlayerId) banner.show("BOMB");
+        flashScreen();
+        renderer.addShake(5);
+        sfx.play("kill");
+      } else if (e.type === "frost") {
+        if (e.playerId === localPlayerId) banner.show("FROST");
+        renderer.addShake(1);
+        sfx.play("pickup");
       }
     }
-    if (snap.over && !runEnded) {
-      runEnded = true;
-      const playerStore = snap.stores.find((s) => s.kind === "player");
-      const idx = playerStore ? playerStore.slots.indexOf(localPlayerId) : -1;
-      const gold = idx >= 0 && playerStore ? Math.round(playerStore.fields.gold[idx]) : 0;
-      const kills = idx >= 0 && playerStore ? playerStore.fields.kills[idx] : 0;
-      const chestsFound = idx >= 0 && playerStore ? playerStore.fields.chests[idx] : 0;
-      const timeSec = Math.floor(snap.tick / 30);
-      const result = {
-        gold,
-        kills,
-        timeSec,
-        won: false,
-        chestsFound,
-        characterId: currentCharacterId,
-        stageId: save.selectedStage,
-      };
-      const chests = awardRun(save, result);
-      const newAchievements = checkAchievements(save, result);
-      persistSave(save);
-      runEnd.show({ time: formatTime(timeSec), kills, gold, chests, newAchievements });
-    }
+    if (snap.over && !runEnded) finishRun("DEFEAT");
   };
   const onOffer = (offer: Parameters<typeof levelUp.show>[0]): void => {
     // Use the latest authoritative stats for card stat previews, even if the
@@ -229,6 +298,8 @@ async function main(): Promise<void> {
 
   const startSolo = (characterId: string): void => {
     runEnded = false;
+    lastSnap = null;
+    activeNetHost = null;
     currentMode = "solo";
     currentCharacterId = characterId;
     localPlayerId = 0;
@@ -274,7 +345,10 @@ async function main(): Promise<void> {
   const lobby = new Lobby(serverUrl);
   lobby.onStart((netHost: NetHost, yourPlayerId: number) => {
     runEnded = false;
+    lastSnap = null;
+    activeNetHost = netHost;
     currentMode = "coop";
+    currentCharacterId = coopCharacterId;
     localPlayerId = yourPlayerId;
     renderer.setLocalPlayer(localPlayerId);
     renderer.resetPrediction();
@@ -337,7 +411,13 @@ async function main(): Promise<void> {
     if (currentMode === "solo") startSolo(currentCharacterId);
   });
   pauseMenu.onQuit(() => {
-    window.location.reload();
+    // Quitting is a loss, not a free exit: settle the current run and pay out
+    // the gold/keys that were earned before the pause.
+    if (!lastSnap) {
+      window.location.reload();
+      return;
+    }
+    finishRun("RUN ENDED", true);
   });
   pauseMenu.onSettingsChange((settings) => {
     save.settings.volume = settings.volume;

@@ -22,6 +22,25 @@ export interface BestRun {
   stageId: string;
 }
 
+/** Persistent per-region lore/travel counters and chest outcome records. */
+export interface RegionProgress {
+  runs: number;
+  seconds: number;
+  chestsOpened: number;
+  keysFound: number;
+  elitesKilled: number;
+  bossesKilled: number;
+  bushesBroken: number;
+  /** Region chest pulls, including full champion/shards/gold outcomes. */
+  pulls: number;
+  /** Pulls whose individual outcomes have been recorded (v8+). */
+  trackedPulls: number;
+  pullsChampions: number;
+  pullsShards: number;
+  pullsGold: number;
+  pullsGuaranteed: number;
+}
+
 export interface SaveData {
   version: number;
   /** Showdown-style local profile name; synced to the account later. */
@@ -35,22 +54,30 @@ export interface SaveData {
   championUpgrades: Record<string, Record<string, number>>;
   /** Per-champion shards collected from region chests. */
   championShards: Record<string, number>;
-  /** region -> champion id the player is focusing in that region's chests. */
-  championFocus: Record<string, string>;
   /** Content stage id used for the next solo/co-op run. */
   selectedStage: string;
   unlockedCharacters: string[];
-  /** Gacha chests earned but not yet opened. */
-  chests: number;
+  /** Keys spent to open region chests on the CHESTS page. */
+  keys: number;
   achievements: string[];
+  /** Best display progress per achievement id; goals are monotonic within a save. */
+  achievementProgress: Record<string, number>;
+  /** Region -> accumulated lore/travel counters. Darkin uses its own pool key. */
+  regionProgress: Record<string, RegionProgress>;
   totalKills: number;
+  /** Lifetime counters used by deeper achievement goals. */
+  lifetimeBushesBroken: number;
+  lifetimeChestsOpened: number;
+  lifetimeKeysFound: number;
+  lifetimeElitesKilled: number;
+  lifetimeBossesKilled: number;
   bestTimeSec: number;
   runsPlayed: number;
   bestRun: BestRun;
   settings: SaveSettings;
 }
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 8;
 const SAVE_KEY = "rift-survivors-save";
 
 export function defaultSave(firstCharacter: string, firstStage = "rift-field"): SaveData {
@@ -61,12 +88,18 @@ export function defaultSave(firstCharacter: string, firstStage = "rift-field"): 
     selectedCharacter: firstCharacter,
     championUpgrades: {},
     championShards: {},
-    championFocus: {},
     selectedStage: firstStage,
     unlockedCharacters: [firstCharacter],
-    chests: 0,
+    keys: 0,
     achievements: [],
+    achievementProgress: {},
+    regionProgress: {},
     totalKills: 0,
+    lifetimeBushesBroken: 0,
+    lifetimeChestsOpened: 0,
+    lifetimeKeysFound: 0,
+    lifetimeElitesKilled: 0,
+    lifetimeBossesKilled: 0,
     bestTimeSec: 0,
     runsPlayed: 0,
     bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
@@ -111,6 +144,10 @@ export function migrateSave(
   return migrate(parsed, firstCharacter, firstStage);
 }
 
+function nonNegative(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
 function migrate(parsed: Partial<SaveData>, firstCharacter: string, firstStage: string): SaveData {
   const base = defaultSave(firstCharacter, firstStage);
   const merged: SaveData = {
@@ -118,7 +155,8 @@ function migrate(parsed: Partial<SaveData>, firstCharacter: string, firstStage: 
     ...parsed,
     championUpgrades: { ...(parsed.championUpgrades ?? {}) },
     championShards: { ...(parsed.championShards ?? {}) },
-    championFocus: { ...(parsed.championFocus ?? {}) },
+    achievementProgress: { ...(parsed.achievementProgress ?? {}) },
+    regionProgress: { ...(parsed.regionProgress ?? {}) },
     selectedStage:
       typeof parsed.selectedStage === "string" && parsed.selectedStage
         ? parsed.selectedStage
@@ -133,7 +171,60 @@ function migrate(parsed: Partial<SaveData>, firstCharacter: string, firstStage: 
   if (typeof merged.profileName !== "string" || merged.profileName.length === 0) {
     merged.profileName = "Summoner";
   }
+  // v5 and earlier called this currency "chests". Preserve its value 1:1.
+  const legacy = parsed as Partial<SaveData> & { chests?: number };
+  const legacyChests = legacy.chests;
+  const rawKeys =
+    legacyChests !== undefined && (parsed.version ?? 0) < SAVE_VERSION
+      ? legacyChests
+      : (parsed.keys ?? legacyChests);
+  merged.keys = Number.isFinite(rawKeys) ? Math.max(0, Math.floor(rawKeys ?? 0)) : 0;
+  Reflect.deleteProperty(merged, "chests");
+  // Focus was removed from the chest economy; discard the old preference so
+  // legacy saves cannot accidentally imply a hidden pull bias.
+  Reflect.deleteProperty(merged, "championFocus");
   merged.runsPlayed = Number.isFinite(merged.runsPlayed) ? Math.max(0, merged.runsPlayed) : 0;
+  for (const key of [
+    "lifetimeBushesBroken",
+    "lifetimeChestsOpened",
+    "lifetimeKeysFound",
+    "lifetimeElitesKilled",
+    "lifetimeBossesKilled",
+  ] as const) {
+    const value = merged[key];
+    merged[key] = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  }
+  // v7 adds durable lore progress. Repair hostile/legacy values rather than
+  // trusting arbitrary object shapes from localStorage or cloud saves.
+  const progress: Record<string, number> = {};
+  for (const [id, value] of Object.entries(merged.achievementProgress ?? {})) {
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      progress[id] = Math.floor(value);
+    }
+  }
+  merged.achievementProgress = progress;
+  const regionProgress: Record<string, RegionProgress> = {};
+  for (const [region, raw] of Object.entries(merged.regionProgress ?? {})) {
+    if (!raw || typeof raw !== "object") continue;
+    const source = raw as Partial<RegionProgress>;
+    regionProgress[region] = {
+      runs: nonNegative(source.runs),
+      seconds: nonNegative(source.seconds),
+      chestsOpened: nonNegative(source.chestsOpened),
+      keysFound: nonNegative(source.keysFound),
+      elitesKilled: nonNegative(source.elitesKilled),
+      bossesKilled: nonNegative(source.bossesKilled),
+      bushesBroken: nonNegative(source.bushesBroken),
+      pulls: nonNegative(source.pulls),
+      trackedPulls: nonNegative(source.trackedPulls),
+      pullsChampions: nonNegative(source.pullsChampions),
+      pullsShards: nonNegative(source.pullsShards),
+      pullsGold: nonNegative(source.pullsGold),
+      pullsGuaranteed: nonNegative(source.pullsGuaranteed),
+    };
+  }
+  merged.regionProgress = regionProgress;
+
   merged.bestRun = {
     timeSec: Number.isFinite(merged.bestRun?.timeSec) ? merged.bestRun.timeSec : 0,
     kills: Number.isFinite(merged.bestRun?.kills) ? merged.bestRun.kills : 0,

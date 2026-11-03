@@ -2,6 +2,8 @@
 // region assignments come from content profiles.
 import type { CharacterDef } from "@rift/sim";
 
+export const DARKIN_CHEST = "Darkin";
+
 export const REGION_ORDER = [
   "Demacia",
   "Noxus",
@@ -25,7 +27,7 @@ export interface RegionStyle {
   blurb: string;
   /** Abstract CSS motif class, not an official symbol. */
   motif: string;
-  /** File under /public/regions. Official crests are used where available. */
+  /** Source file under /public/regions; PNGs resolve through normalized derivatives. */
   crest: string;
 }
 
@@ -128,6 +130,13 @@ const REGIONS: Record<string, RegionStyle> = {
     motif: "rift",
     crest: "void.png",
   },
+  [DARKIN_CHEST]: {
+    color: "#e26455",
+    accent: "#65151d",
+    blurb: "God-warriors bound in blade and blood, still dreaming of the sun they broke.",
+    motif: "blade",
+    crest: "darkin.svg",
+  },
 };
 
 const FALLBACK: RegionStyle = {
@@ -142,9 +151,16 @@ export function regionStyle(region: string): RegionStyle {
   return REGIONS[region] ?? FALLBACK;
 }
 
-/** Public URL for a region's golden crest. */
+/** Public URL for a region's golden crest. PNG crests are the normalized
+ * square transparent derivatives; SVG crests already use a square viewBox. */
 export function regionCrest(region: string): string {
-  return `/regions/${regionStyle(region).crest}`;
+  const crest = regionStyle(region).crest;
+  return crest.endsWith(".png") ? `/regions/normalized/${crest}` : `/regions/${crest}`;
+}
+
+/** Darkin is a lore faction/chest pool, not a region in REGION_ORDER. */
+export function isDarkinChampion(champion: CharacterDef): boolean {
+  return /\bdarkin\b/i.test(champion.profile?.species ?? "");
 }
 
 /** Every region a champion can be pulled from, with backwards compatibility. */

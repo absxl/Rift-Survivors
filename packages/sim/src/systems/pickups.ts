@@ -1,5 +1,5 @@
-// Floor pickups: heal, vacuum, nuke, freeze, chest, gold. Collected by the nearest
-// player on touch; effects apply to that player (or globally for nuke/freeze).
+// Floor pickups: heal, vacuum, nuke, frost, gold, key, magnet, bomb. Collected
+// by the nearest player on touch; effects apply to that player or the run.
 import type { Registries } from "../registry";
 import type { World } from "../world";
 
@@ -7,8 +7,10 @@ export const PICKUP_HEAL = 0;
 export const PICKUP_VACUUM = 1;
 export const PICKUP_NUKE = 2;
 export const PICKUP_FREEZE = 3;
-export const PICKUP_CHEST = 4;
 export const PICKUP_GOLD = 5;
+export const PICKUP_KEY = 6;
+export const PICKUP_MAGNET = 7;
+export const PICKUP_BOMB = 8;
 
 export function registerPickupSystem(reg: Registries): void {
   reg.systems.register("pickups", pickups);
@@ -34,6 +36,11 @@ function pickupValue(world: World, kind: number): number {
       return world.num("pickup.freezeTicks");
     case PICKUP_GOLD:
       return world.num("pickup.goldAmount");
+    case PICKUP_KEY:
+      return world.num("pickup.keyAmount");
+    case PICKUP_MAGNET:
+    case PICKUP_BOMB:
+      return 0;
     default:
       return 0;
   }
@@ -88,14 +95,67 @@ function applyPickup(world: World, playerId: number, kind: number, value: number
     });
     world.emit({ type: "nuke", playerId });
   } else if (kind === PICKUP_FREEZE) {
+    // Frost is a strong slow, not a global hard stop: the old implementation
+    // froze every enemy for four seconds and read as an AI freeze bug.
     enemies.forEachAlive((slot) => {
-      enemies.field("freezeTicks")[slot] = value;
+      enemies.field("slowTicks")[slot] = Math.max(enemies.field("slowTicks")[slot], value);
+    });
+    world.emit({
+      type: "frost",
+      playerId,
+      x: players.field("x")[playerId],
+      y: players.field("y")[playerId],
     });
   } else if (kind === PICKUP_GOLD) {
     players.field("gold")[playerId] += Math.round(value * world.playerStat(playerId, "greed", 1));
-  } else if (kind === PICKUP_CHEST) {
-    const next = players.field("chests")[playerId] + 1;
-    players.field("chests")[playerId] = next;
-    world.emit({ type: "chest-found", playerId, chests: next });
+  } else if (kind === PICKUP_KEY) {
+    const next = players.field("keys")[playerId] + Math.max(1, Math.floor(value));
+    players.field("keys")[playerId] = next;
+    world.emit({ type: "key-found", playerId, keys: next });
+  } else if (kind === PICKUP_MAGNET) {
+    // Pull all active loot to the opener. The normal gem/pickup systems collect
+    // it on the next tick; exclude other magnets so magnets cannot chain.
+    const px = players.field("x")[playerId];
+    const py = players.field("y")[playerId];
+    const gems = world.stores.gems;
+    gems.forEachAlive((slot) => {
+      gems.field("x")[slot] = px;
+      gems.field("y")[slot] = py;
+    });
+    world.stores.pickups.forEachAlive((slot) => {
+      if (world.stores.pickups.field("kind")[slot] !== PICKUP_MAGNET) {
+        world.stores.pickups.field("x")[slot] = px;
+        world.stores.pickups.field("y")[slot] = py;
+      }
+    });
+    world.emit({ type: "magnet", playerId, x: px, y: py });
+  } else if (kind === PICKUP_BOMB) {
+    // Global bomb: percentage damage keeps it useful without deleting bosses.
+    enemies.forEachAlive((slot) => {
+      const def = world.content.enemies[enemies.field("kind")[slot]];
+      const pct =
+        def?.category === "elite"
+          ? 0.07
+          : def?.category === "boss" || def?.category === "final-threat"
+            ? 0.03
+            : 0.12;
+      let damage = Math.max(1, enemies.field("maxHp")[slot] * pct);
+      const shield = enemies.field("shield")[slot];
+      if (shield > 0) {
+        const absorbed = Math.min(shield, damage);
+        enemies.field("shield")[slot] = shield - absorbed;
+        damage -= absorbed;
+      }
+      if (damage > 0) {
+        enemies.field("hp")[slot] = Math.max(0, enemies.field("hp")[slot] - damage);
+      }
+      enemies.field("lastHitBy")[slot] = playerId;
+    });
+    world.emit({
+      type: "bomb",
+      playerId,
+      x: players.field("x")[playerId],
+      y: players.field("y")[playerId],
+    });
   }
 }

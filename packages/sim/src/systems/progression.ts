@@ -146,7 +146,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     }
   }
 
-  // Evolutions are level-up cards now that chests no longer open in-run.
+  // Evolutions are level-up cards; region chests are meta rewards.
   for (const option of evolutionOptions(world, ownedWeapons, ownedPassiveIds)) {
     consider(option);
   }

@@ -2,6 +2,7 @@
 // mapped onto generic weapon behaviors. Names and flavor are placeholder data and
 // never copied from game text/art; the sim only sees ids and numbers.
 import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
+import { classUpgradeIds } from "../champions/classes";
 import { CHAMPION_PROFILES } from "../champions/profiles.generated";
 import { contentPackSchema } from "../schema";
 import { ROSTER_CHAMPIONS } from "./roster";
@@ -1265,6 +1266,7 @@ export function loadLolPack(): ContentPack {
               profile,
             }
           : {}),
+        upgradeIds: [...new Set([...(c.upgradeIds ?? []), ...classUpgradeIds(c.class)])],
         tags: [
           ...(c.tags ?? []),
           `role:${c.class ?? "mage"}`,

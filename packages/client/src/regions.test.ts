@@ -1,6 +1,6 @@
 import type { CharacterDef } from "@rift/sim";
 import { describe, expect, it } from "vitest";
-import { championRegions, regionCrest, regionTheme } from "./regions";
+import { championRegions, isDarkinChampion, regionCrest, regionTheme } from "./regions";
 
 const RIVEN: CharacterDef = {
   id: "riven",
@@ -35,9 +35,28 @@ describe("region themes", () => {
     expect(regionTheme(["Noxus", "Ionia"]).colors).toHaveLength(2);
   });
 
-  it("points every region at a public crest asset", () => {
-    expect(regionCrest("Demacia")).toBe("/regions/demacia.png");
-    expect(regionCrest("Ionia")).toBe("/regions/ionia.png");
+  it("points every region at a normalized public crest asset", () => {
+    expect(regionCrest("Demacia")).toBe("/regions/normalized/demacia.png");
+    expect(regionCrest("Ionia")).toBe("/regions/normalized/ionia.png");
     expect(regionCrest("Runeterra")).toBe("/regions/runeterra.svg");
+    expect(regionCrest("Darkin")).toBe("/regions/darkin.svg");
+  });
+
+  it("detects Darkin champions from verified profile species", () => {
+    const profile = RIVEN.profile;
+    if (!profile) throw new Error("Riven fixture profile missing");
+    expect(
+      isDarkinChampion({
+        ...RIVEN,
+        profile: { ...profile, species: "Darkin, God-Warrior, Human" },
+      }),
+    ).toBe(true);
+    expect(
+      isDarkinChampion({
+        ...RIVEN,
+        profile: { ...profile, species: "Human (Kayn) Darkin (Rhaast)" },
+      }),
+    ).toBe(true);
+    expect(isDarkinChampion(RIVEN)).toBe(false);
   });
 });

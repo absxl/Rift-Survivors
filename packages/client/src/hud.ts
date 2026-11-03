@@ -18,7 +18,6 @@ import { PRIMARY_LABELS, formatStats } from "./stats-format";
 
 interface SlotView {
   root: HTMLElement;
-  letter: HTMLElement;
   glyph: HTMLElement;
   level: HTMLElement;
   cooldown: HTMLElement;
@@ -31,8 +30,6 @@ interface SlotView {
   label: string;
   color: string;
 }
-
-const ABILITY_KEYS = ["Q", "W", "E", "R"];
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -56,7 +53,7 @@ export class Hud {
   private readonly killsEl: HTMLElement;
   private readonly stageEl: HTMLElement;
   private readonly goldEl: HTMLElement;
-  private readonly chestsEl: HTMLElement;
+  private readonly keysEl: HTMLElement;
   private readonly partyEl: HTMLElement;
   private readonly bossEl: HTMLElement;
   private readonly bossName: HTMLElement;
@@ -121,8 +118,8 @@ export class Hud {
     const currency = el("div", "hud-currency");
     this.stageEl = el("span", "hud-stage-name", "");
     this.goldEl = el("span", "hud-gold", "0 G");
-    this.chestsEl = el("span", "hud-chests", "0 CHESTS");
-    currency.append(this.stageEl, this.goldEl, this.chestsEl);
+    this.keysEl = el("span", "hud-keys", "0 KEYS");
+    currency.append(this.stageEl, this.goldEl, this.keysEl);
     topbar.appendChild(currency);
     this.root.appendChild(topbar);
 
@@ -163,15 +160,15 @@ export class Hud {
 
     const abilities = el("div", "hud-slots hud-abilities");
     for (let i = 0; i < 4; i++) {
-      this.abilitySlots.push(this.makeSlot(abilities, ABILITY_KEYS[i] ?? "", "weapon"));
+      this.abilitySlots.push(this.makeSlot(abilities, "weapon"));
     }
     const moves = el("div", "hud-slots hud-moves");
     for (let i = 0; i < 4; i++) {
-      this.moveSlots.push(this.makeSlot(moves, "M", "move"));
+      this.moveSlots.push(this.makeSlot(moves, "move"));
     }
     const items = el("div", "hud-items");
     for (let i = 0; i < 8; i++) {
-      this.itemSlots.push(this.makeSlot(items, "", "passive", true));
+      this.itemSlots.push(this.makeSlot(items, "passive", true));
     }
     hotbar.append(identity, abilities, moves, items);
     this.root.appendChild(hotbar);
@@ -229,7 +226,7 @@ export class Hud {
     const hp = pIdx >= 0 && playerStore ? (playerStore.fields.hp[pIdx] ?? 0) : 0;
     const maxHp = pIdx >= 0 && playerStore ? (playerStore.fields.maxHp[pIdx] ?? 100) : 100;
     const gold = pIdx >= 0 && playerStore ? (playerStore.fields.gold[pIdx] ?? 0) : 0;
-    const chests = pIdx >= 0 && playerStore ? (playerStore.fields.chests[pIdx] ?? 0) : 0;
+    const keys = pIdx >= 0 && playerStore ? (playerStore.fields.keys[pIdx] ?? 0) : 0;
     const ownKills = pIdx >= 0 && playerStore ? (playerStore.fields.kills[pIdx] ?? 0) : 0;
 
     // Team kills in co-op; individual kills in solo (docs: top bar vs Tab).
@@ -243,7 +240,7 @@ export class Hud {
     this.killsLabel.textContent = this.party.length > 1 ? "TEAM KILLS" : "KILLS";
     this.killsEl.textContent = String(Math.round(teamKills));
     this.goldEl.textContent = `${Math.round(gold)} G`;
-    this.chestsEl.textContent = `${Math.round(chests)} CHESTS`;
+    this.keysEl.textContent = `${Math.round(keys)} KEYS`;
 
     this.hpFill.style.width = `${Math.max(0, Math.min(1, maxHp > 0 ? hp / maxHp : 0)) * 100}%`;
     this.hpText.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
@@ -290,7 +287,6 @@ export class Hud {
 
   private makeSlot(
     parent: HTMLElement,
-    letter: string,
     kind: "weapon" | "move" | "passive",
     small = false,
   ): SlotView {
@@ -298,15 +294,13 @@ export class Hud {
       "div",
       `hud-slot hud-slot-${kind} hud-slot-empty${small ? " hud-slot-small" : ""}`,
     );
-    const letterEl = el("span", "hud-slot-letter", letter);
     const glyph = el("span", "hud-slot-glyph", "");
     const level = el("span", "hud-slot-level", "");
     const cooldown = el("div", "hud-slot-cooldown");
-    root.append(letterEl, glyph, level, cooldown);
+    root.append(glyph, level, cooldown);
     parent.appendChild(root);
     const view: SlotView = {
       root,
-      letter: letterEl,
       glyph,
       level,
       cooldown,
@@ -577,7 +571,7 @@ export class Hud {
       kills: pIdx >= 0 && playerStore ? (playerStore.fields.kills[pIdx] ?? 0) : 0,
       gold: pIdx >= 0 && playerStore ? (playerStore.fields.gold[pIdx] ?? 0) : 0,
       maxHp: pIdx >= 0 && playerStore ? (playerStore.fields.maxHp[pIdx] ?? 0) : 0,
-      chests: pIdx >= 0 && playerStore ? (playerStore.fields.chests[pIdx] ?? 0) : 0,
+      keys: pIdx >= 0 && playerStore ? (playerStore.fields.keys[pIdx] ?? 0) : 0,
     };
     const formatted = formatStats(stats, totals);
     const grid = el("div", "hud-stat-grid");

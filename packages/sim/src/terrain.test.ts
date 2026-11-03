@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CharacterDef, ContentPack, StageTerrain } from "./index";
-import { DEFAULT_RULESET, TerrainField, createWorld, step } from "./index";
+import { DEFAULT_RULESET, TILE_LIQUID, TILE_WALL, TerrainField, createWorld, step } from "./index";
 
 const WALLS: StageTerrain = {
   wallThreshold: 0,
@@ -93,6 +93,61 @@ describe("terrain", () => {
       }
     }
     expect(differences).toBeGreaterThan(0);
+  });
+
+  it("produces a noticeably denser, coherent field at production-like thresholds", () => {
+    const dense: StageTerrain = {
+      ...WALLS,
+      wallThreshold: 0.65,
+      liquidThreshold: 0.3,
+    };
+    const field = new TerrainField(dense, 123);
+    let walls = 0;
+    let liquids = 0;
+    let isolated = 0;
+    const area = 96 * 96;
+    for (let y = 4; y < 100; y++) {
+      for (let x = 4; x < 100; x++) {
+        const type = field.tileAt(x, y);
+        if (type === TILE_WALL) walls++;
+        if (type === TILE_LIQUID) liquids++;
+        if (type !== TILE_WALL && type !== TILE_LIQUID) continue;
+        let neighbors = 0;
+        for (let oy = -1; oy <= 1; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            if (ox === 0 && oy === 0) continue;
+            if (field.tileAt(x + ox, y + oy) === type) neighbors++;
+          }
+        }
+        if (neighbors === 0) isolated++;
+      }
+    }
+    expect(walls / area).toBeGreaterThan(0.1);
+    expect(liquids / area).toBeGreaterThan(0.05);
+    expect(walls / area).toBeLessThan(0.4);
+    expect(liquids / area).toBeLessThan(0.25);
+    expect(isolated).toBe(0);
+  });
+
+  it("cleans isolated solid and liquid tiles into coherent patches", () => {
+    const varied: StageTerrain = { ...WALLS, wallThreshold: 0.62, liquidThreshold: 0.22 };
+    const field = new TerrainField(varied, 77);
+    let isolated = 0;
+    for (let y = 2; y < 30; y++) {
+      for (let x = 2; x < 30; x++) {
+        const type = field.tileAt(x, y);
+        if (type !== TILE_WALL && type !== TILE_LIQUID) continue;
+        let neighbors = 0;
+        for (let oy = -1; oy <= 1; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            if (ox === 0 && oy === 0) continue;
+            if (field.tileAt(x + ox, y + oy) === type) neighbors++;
+          }
+        }
+        if (neighbors === 0) isolated++;
+      }
+    }
+    expect(isolated).toBe(0);
   });
 
   it("blocks walking characters at walls but lets levitate characters through", () => {

@@ -1,8 +1,11 @@
 # 14 - Implementation status
 
 Last updated: **2026-10-29**.
-Current batch: **D-033** (source-backed champion dossiers, multi-region chests, golden crests) on top of
-D-029/30/31/32.
+Current batch: **D-038** (search, filter, and sort controls for Champions, Chests, and Achievements) on
+top of D-037 (deeper meta/passive ranks, nine new permanent upgrades, eight hybrid passives, and denser
+terrain/bushes), D-036 (per-chest pull records and centered PLAY hero), D-035 (frost, chest utilities,
+enemy ability kits, Darkin chest, normalized crests, region achievements/dossiers, HUD/render fixes,
+focus removal), and earlier batches.
 Commits: `4f217ac` is the D-032 baseline; the D-033 batch is committed at `git log -1`.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
@@ -56,10 +59,10 @@ A League-client-inspired DOM hub with an always-visible brand/currency header an
 |---|---|
 | PROFILE | Showdown-style name, account/cloud status, lifetime stats, best run |
 | PLAY | Selected-champion hero, stage select, PLAY / CO-OP, lifetime strip |
-| CHAMPIONS | Searchable/filterable 173-champion collection with pagination, rarity/class/region filters, focus, shard progress, unlock/select |
+| CHAMPIONS | Searchable, filterable, sortable 173-champion collection with pagination, rarity/class/region filters, shard progress, unlock/select |
 | UPGRADES | The selected champion's own permanent upgrade tree, bought with gold |
-| CHESTS | Fourteen region-themed gacha cards with odds, focus, 1-pull/10-pull, results |
-| ACHIEVEMENTS | Four run milestones |
+| CHESTS | Searchable, filterable, sortable region cards with dossiers, a Darkin chest, key wallet, 1-pull/10-pull, full-screen animated reveal |
+| ACHIEVEMENTS | 67 filterable/sortable combat/survival/loot/exploration/collection/region/lore goals with progress and gold/key rewards |
 | SETTINGS | Sound, screen shake, damage numbers, movement rebinds, Reset Save |
 
 The old separate character-select popup is no longer used. PLAY and CO-OP use the champion selected on
@@ -76,12 +79,14 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
   unique signature moves. Unique champion moves are the deferred moves pass.
 - A level-up has 3 cards plus 1 guaranteed repeatable Training card.
 - Evolutions are level-up cards (maxed weapon + required passive).
-- Elite/boss chest pickups are saved for the meta gacha, not opened during the run.
+- Elite/boss key drops and timed spawnable run chests feed the meta key wallet. Run chests open in-run after a three-second hold.
 - A run ends on death; the final threat appears at 30:00 and the run switches to a boss rush when it dies
   (or after a 45 s fallback).
-- **Terrain:** the arena is now a deterministic tile field with walls, water/lava, and a clear spawn
-  island. Water slows ground units; lava/void adds damage. Projectiles stop on walls, ground enemies
-  route around them, and ground spawns avoid solid tiles.
+- **Terrain:** the arena is a deterministic tile field with walls, water/lava, breakable bushes, and a
+  clear spawn island. D-037 increases field density: Riftfield uses wall/liquid thresholds `0.65/0.30`
+  with `1.9x` bush clusters; Noxian Warfront uses `0.67/0.28` with `1.8x`. Water slows ground units;
+  lava/void adds damage. Projectiles stop on walls, ground enemies route around them, and ground spawns
+  avoid solid tiles. Bushes remain floor-only, deterministic, and outside the spawn safe zone.
 - **Levitate:** champion tags can include `levitate`; those champions cross terrain, ignore liquid slows
   and damage, and show a `LEVITATE` chip in collection/PLAY. Syndra, Anivia, Kayle, Morgana, Aurelion
   Sol, Yuumi, and five other floating champions currently have it.
@@ -90,7 +95,8 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
   Clicking a card opens the dossier; collection cards, PLAY, sidebar, upgrades, and chests use its theme.
 - **Multi-region chests:** a champion can belong to multiple chest regions through current affiliations
   plus documented origin. Examples: Riven Noxus/Ionia, Samira Noxus/Shurima, Kayn Ionia/Noxus, Aatrox
-  Shurima/Runeterra, Brand Runeterra/Freljord. Focus is per region; shards and unlocks stay global.
+  Shurima/Runeterra, Brand Runeterra/Freljord. Shards and unlocks stay global; the old per-region focus
+  preference was removed in D-035.
 - **Golden crests:** the 13 official Universe region crests are committed under the D-033 private
   fan-project exception; Runeterra uses an original golden world-rune. Multi-region portraits blend or
   overlap crests. No champion splash art is used.
@@ -206,16 +212,16 @@ Counts generated from `loadGamePack()`:
 | Standard weapons (non-move) | 25 |
 | Evolved weapons | 4 |
 | Signature/class moves | 14 (8 unique + 6 class placeholders) |
-| Passives | 18 |
+| Passives | 26 |
 | Enemies | 20 |
 | Minions / elites / bosses / final threats | 11 / 3 / 4 / 2 |
 | Champion profiles | 173 |
 | Multi-region champions | 49 (current + documented origin) |
-| Meta power-ups | 35 |
+| Meta power-ups | 44 |
 | Synergies | 5 |
 | Regions | 14 |
 | Stages | 2 |
-| Achievements | 4 |
+| Achievements | 67 |
 
 ### Champions
 
@@ -277,13 +283,17 @@ Void 9, Zaun 14, Piltover 10, Bilgewater 11, Shadow Isles 11, Ixtal 7.
   - Conflagration + Far-Sight Lens (area) -> Pyroclasm
 - The eight existing signature moves are also learnable by other champions through level-ups.
 
-### Passives (18)
+### Passives (26)
 
 Might, Wanderer's Boots, Heart of the Rift, Gathering Sigil, Far-Sight Lens, Flow State, Runic Plating,
 Lucky Charm, Scholar's Tome, Renewal Bloom, Coin Devotion, Warding Sigil, Aether Lens, Lasting Hex,
-Piercing Bolt, Kinetic Seal, Crimson Pact, Titan's Grip.
+Piercing Bolt, Kinetic Seal, Crimson Pact, Titan's Grip, Aegis Bloom, Hunter's Bracer, Sanguine Bloom,
+Midas Sigil, Torrent Charm, Storm Lens, Chronicle, Berserker's Mask.
 
-### Enemies (19)
+All passives use an eight-level track. Hybrid passives grant two related stats per level; existing
+rank-5/rank-3 passives preserve their final totals by scaling the per-level values.
+
+### Enemies (20)
 
 - Minions: Rift Crawler, Dartling, Weft Wisp, Ash Mote, Ironhide, Hex Weaver, Bloatspore, Spark Charger,
   Cinder Cultist, Noxian Warhound, Blood Acolyte.
@@ -308,16 +318,20 @@ Acolyte, Siege Ogre, Crimson Herald, and Dread Conqueror.
 - Stage selection is saved and sent by the co-op host; snapshots carry the stage id/name and terrain seed
   so every client renders the same palette, HUD label, and terrain.
 
-### Meta power-ups (35)
+### Meta power-ups (44)
 
 Eight basics (Raw Power, Vitality, Swiftness, Focused Casting, Far Reach, Attraction, Plating, Fortune),
-mage entries (Arcane Flow, Spell Velocity, Persistence), tank entries (Fortitude, Bulwark, Regeneration,
-Aegis), fighter entries (Battle Fury, Bloodlust, Second Wind), assassin entries (Deadly Precision,
-Shadow Step, Hunter's Instinct), marksman entries (Steady Aim, Piercing Rounds, Rapid Fire), support
-entries (Benevolence, Aura Mastery, Lasting Light), and one signature upgrade per existing champion
-(Radiance, Pyre, Foxfire, Runeweave, Transcendence, Tyranny, Kindling, Ascension).
+three common multi-stat relics (Gilded Crown, Windwalkers, Bastion Plate), mage entries (Arcane Flow,
+Spell Velocity, Persistence, Archmage's Thesis), tank entries (Fortitude, Bulwark, Regeneration, Aegis,
+Unbroken Wall), fighter entries (Battle Fury, Bloodlust, Second Wind, Warlord's Tempo), assassin entries
+(Deadly Precision, Shadow Step, Hunter's Instinct, Executioner's Mark), marksman entries (Steady Aim,
+Piercing Rounds, Rapid Fire, Deadeye Manual), support entries (Benevolence, Aura Mastery, Lasting Light,
+Choir of Light), and one signature upgrade per existing champion (Radiance, Pyre, Foxfire, Runeweave,
+Transcendence, Tyranny, Kindling, Ascension).
 
-Each existing champion has a curated tree; new champions build from common + class entries.
+Broad stat upgrades reach 10 ranks; class, signature, and multi-stat relics reach 6. Existing purchases
+keep their rank. Every champion tree contains eight common entries plus class entries (12-13 entries
+before curated signatures), and the UI renders multi-stat effects plus 10/6 rank pips.
 
 ### Synergies (5)
 
@@ -333,39 +347,41 @@ Ignite (fire count), Arcane Affinity (arcane count), Light Weaver (light count),
 - Tokens: **3 rerolls, 2 skips, 2 banishes** per run.
 - XP: explicit early table, then +7 XP/level after the table.
 - Elite/boss drops per D-029:
-  - Minions: 5% gold, 1% chest.
-  - Elites: guaranteed gold, 50% chest.
-  - Bosses/final threat: guaranteed chest + luck-scaled gold.
-- In-run chest pickups increment that player's run chest count; results add them to `save.chests`.
+  - Minions: 5% gold; no keys.
+  - Elites: guaranteed gold, luck-scaled 50% key.
+  - Bosses/final threat: guaranteed key + luck-scaled gold.
+- Timed run chests open in-run after a three-second nearby hold and grant XP/gold with a key chance. Elite/boss keys and run keys are added to `save.keys` at run end.
 - The final threat spawns at 30:00; boss rush starts on its death or after 45 s.
 
 ### Meta gold
 
 - Run gold is awarded to the local save at results.
 - Gold buys per-champion permanent upgrades; refunds return the last rank's cost.
-- Achievements award 25 gold once each.
+- Achievements award their listed gold/key rewards once each; region tiers and lore goals use larger
+  rewards.
 - Gacha gold drops are added to the same wallet.
 
 ## 6. Save data and gacha
 
-### Save v5
+### Save v8
 
 `packages/client/src/save/save.ts`, localStorage key `rift-survivors-save`, mirrored to the server
 account save when signed in.
 
 ```ts
 interface SaveData {
-  version: 5;
+  version: 8;
   profileName: string;             // Showdown-style local/account name
   gold: number;
   selectedCharacter: string;
   championUpgrades: Record<string, Record<string, number>>;
   championShards: Record<string, number>;
-  championFocus: Record<string, string>;  // region -> focused champion
   selectedStage: string;
   unlockedCharacters: string[];
-  chests: number;
+  keys: number;  // v6; v5 chests migrated 1:1
   achievements: string[];
+  achievementProgress: Record<string, number>;
+  regionProgress: Record<string, RegionProgress>;  // run + pull-record counters
   totalKills: number;
   bestTimeSec: number;
   runsPlayed: number;
@@ -378,10 +394,13 @@ Migrations:
 
 - v1 global `purchases` are moved onto the selected/first champion's tree.
 - `selectedCharacter` is initialized from the old selection or first unlocked champion.
-- v3 adds per-region `championFocus`.
+- v3 added per-region `championFocus` (removed by D-035; legacy values are stripped).
 - v4 adds `selectedStage`.
 - v5 adds `profileName`, `runsPlayed`, and `bestRun`.
-- `purchases` is removed.
+- v6 migrates old `chests` to `keys` 1:1.
+- v7 adds `regionProgress` and `achievementProgress`.
+- v8 adds per-region tracked pull counters: full champions, shards, gold, and guaranteed Epic+ outcomes.
+- `purchases` and `championFocus` are removed.
 
 ### Starter and unlocking
 
@@ -392,7 +411,8 @@ Migrations:
 ### Region gacha
 
 Fourteen region chests: Demacia, Noxus, Ionia, Shurima, Bandle City, Runeterra, Freljord, Piltover, Zaun,
-Bilgewater, Shadow Isles, Mount Targon, Ixtal, Void.
+Bilgewater, Shadow Isles, Mount Targon, Ixtal, Void. A dedicated Darkin chest is added as an additional
+pool; Darkin champions remain in their regional pools.
 
 Per pull (1 chest):
 
@@ -413,16 +433,15 @@ Per pull (1 chest):
   If all of the region's Epic+ champions are owned, the guarantee gives 5 Epic+ shards (or 200 gold if
   the region has no Epic+ definition at all).
 - Every region currently contains at least one Epic+ champion, so the guarantee is meaningful.
-- **Focus:** the player can select a focus champion per region; champion/shard outcomes have a 50%
-  preference for that locked champion. The focus is visible in Champions/Chests and saved in the account
-  save.
+- **No focus:** the old per-region 50% focus preference was removed in D-035. Chest outcomes use the
+  rarity-weighted pool only, and legacy focus values are stripped during migration.
 
 ### Per-champion upgrades
 
 - The Upgrades page always edits `save.selectedCharacter`.
 - The selected champion's content-defined `upgradeIds` control the tree.
-- Existing eight champions have curated trees; new champions use five common entries + their class
-  entries (8-9 entries total).
+- Existing eight champions have curated trees; all champions also merge in the eight common entries and
+  their class entries, including the D-037 class capstone (12-13 entries before curated signatures).
 - Cost/rank/refund are per champion; old global purchases do not carry to other champions.
 - `computeMetaBonuses` filters by the champion's tree and is used for solo runs and co-op messages.
 - Class trees: Mage (haste/area/duration), Tank (health/armor/regen/resist), Fighter (might/lifesteal/
@@ -490,14 +509,14 @@ is DOM so text stays crisp and CSS-styled.
 
 - Clicking any champion card opens a fixed dossier overlay instead of directly selecting them.
 - The dossier shows the official title, region chips, League role(s), difficulty, origin, residence,
-  faction, species, occupation, original summary, Rift Survivors kit, rarity, shards, per-region focus,
+  faction, species, occupation, original summary, Rift Survivors kit, rarity, shards,
   source links, and select/unlock actions.
-- Region theming uses the official golden Universe crests; multi-region champions layer 2-3 crests with
-  blended primary/secondary/tertiary colors. Runeterra uses an original golden world-rune.
+- Region theming uses normalized golden Universe crests; multi-region champions show one primary crest
+  with compact secondary-region badges and blended colors. Runeterra and Darkin use original sigils.
 - Collection cards have crest watermarks, title/region lines, cross-region badges, pointer-tracked light,
   and a dossier hint. PLAY and the sidebar use the same profile theme.
-- Chest pools include every associated region; cross-region champions are labelled in each pool. Focus is
-  independent per region. The dossier is keyboard/escape/backdrop closable and responsive at mobile widths.
+- Chest pools include every associated region; cross-region champions are labelled in each pool. The
+  dossier is keyboard/escape/backdrop closable and responsive at mobile widths.
 - Official crest source/licence notes and the private fan-project exception are in [`ASSETS.md`](../ASSETS.md)
   and [`06-ASSETS-AND-LEGAL.md`](06-ASSETS-AND-LEGAL.md).
 
@@ -535,11 +554,11 @@ Last full run (all green):
 - `biome check`: pass
 - `tsc --noEmit` for all packages: pass
 - tests:
-  - **99 sim** tests
+  - **113 sim** tests
   - **17 content** tests (+2 balance tests skipped by default)
-  - **28 client** tests
+  - **35 client** tests
   - **14 server** tests
-  - total **158 passing, 2 skipped**
+  - total **179 passing, 2 skipped**
 - Client and server production builds: pass.
 
 Coverage highlights:
@@ -547,21 +566,21 @@ Coverage highlights:
 - Sim: RNG, stores, modifiers, spatial hash, stats, co-op, per-player meta, separation, moves, evolutions,
   stages, drops, endgame, progression stress, determinism, bot/fitness, perf, deterministic terrain,
   wall collision, water slow, damaging liquid, levitate traversal, healer/shielder/summoner/fan
-  behaviours.
-- Content: schema/load, full 173 roster, class/starting weapon/move resolution, upgrade IDs, region/rarity
-  identity, source-backed profiles, corrected regions, multi-region membership, stage enemy/final pools,
-  terrain palettes/effects, Levitate assignments, flavor completeness, evolution recipes, enemy behaviors,
-  passives.
-- Client: gacha/shards/focus/guarantee, multi-region pool membership and focus, theme blending and crest
-  paths, v1->v5 save migration, per-champion upgrades, best-run/profile, ability/offer card math, boss bar,
-  loadout, stats formatting.
+  behaviours, dense-field coherence, and bush cluster density.
+- Content: schema/load, full 173 roster, class/starting weapon/move resolution, upgrade IDs and
+  rank/cost curves, multi-stat upgrades, region/rarity identity, source-backed profiles, corrected
+  regions, multi-region membership, stage enemy/final pools, terrain palettes/effects, Levitate
+  assignments, flavor completeness, evolution recipes, enemy behaviors, and 26 eight-level passives.
+- Client: gacha/shards/guarantee, multi-region pool membership, normalized crest identity, v1->v8 save
+  migration, per-champion upgrades, multi-stat meta bonuses, best-run/profile, ability/offer card math,
+  boss bar, loadout, and stats formatting.
 - Server: lobby/start/snapshot, protocol mismatch, 4-player jitter, room capacity, reconnect, deltas/resync,
   per-player meta, account dev login/session/save/nickname.
 
 ### Browser verification performed
 
 - Main menu sections: PROFILE, PLAY, CHAMPIONS, CHESTS, UPGRADES, SETTINGS.
-- 173-champion paginated collection, class/region/search controls, focus buttons.
+- 173-champion paginated collection, class/region/search controls, and dossiers.
 - Noxian Warfront stage selection and HUD stage label.
 - 10-pull result panel.
 - In-game HUD + party frames with two clients.
@@ -576,20 +595,34 @@ Coverage highlights:
   still needs a full human visual run.
 - D-033 profiles: 173 source-backed champion profiles, corrected region assignments, multi-region
   collection cards and chest pools, the Aatrox/Riven dossier with blended Shurima/Noxus/Ionia crests,
-  per-region focus controls, pointer-reactive cards, and the official golden crest set in Demacia/Noxus
-  chest cards. Mobile dossier layout verified at 390×844; full human feel/balance remains pending.
+  pointer-reactive cards, and the official golden crest set in Demacia/Noxus chest cards.
+- D-035 automated coverage: frost slow/render regression, magnet/bomb pickup effects, independent chest
+  rolls, enemy ability counts/determinism, Darkin pool/detection, region achievement catalog, save v7
+  migration, and focus-field removal. A human visual pass at 480x270/mobile is still pending for the new
+  crest badges, Darkin card, region dossier, and filled chest/melee geometry. Mobile dossier layout verified at 390×844; full human feel/balance remains pending.
 
-### Balance baseline (D-032, wall-aware bot)
+- D-036 automated coverage: deterministic pull-record counters for full champions, shards, gold, and
+  10-pull guarantees, plus save v7 -> v8 migration. A browser visual pass remains pending for the centered
+  PLAY medallion and the pull-record dossier.
+- D-037 automated coverage: 10/6 rank cost curves for all 44 upgrade definitions, multi-stat relic
+  aggregation, all 26 passives at eight levels, dense-field coherence, and 1.9x bush cluster density. A
+  browser visual pass is still pending for 10-pip upgrade rows and the denser Riftfield/Noxus fields.
+- D-038 UI implementation: Champions, Chests, and Achievements render search rows with sort controls,
+  result counts, empty states, and responsive wrapping. Browser interaction/visual verification is still
+  pending for the new control rows.
 
-| Seed | Survived | Level | Kills | Gold | Chests | Max alive | ms/tick |
+### Balance snapshot (D-037, wall-aware bot)
+
+| Seed | Survived | Level | Kills | Gold | Keys | Max alive | ms/tick |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 101 | 32:00 | 45 | 5,726 | 1,630 | 65 | 87 | 0.0992 |
-| 202 | 32:00 | 45 | 5,818 | 1,576 | 54 | 91 | 0.1130 |
-| 303 | 16:35 | 30 | 3,004 | 690 | 32 | 73 | 0.0881 |
+| 101 | 5:38 | 14 | 934 | 275 | 1 | 56 | 0.1376 |
+| 202 | 6:31 | 16 | 1,111 | 275 | 2 | 64 | 0.1218 |
+| 303 | 5:16 | 14 | 855 | 250 | 2 | 53 | 0.1140 |
 
-Terrain makes the no-dodge bot much more variable; seed 303 gets trapped/contact/projectile-pressured
-at 16:35 while 101 and 202 reach the cutoff. The bot avoids walls locally, but this remains a regression
-signal rather than a substitute for a human terrain run. Details are in `docs/BALANCE.md`.
+The no-dodge bot now dies around five to six and a half minutes. The `old pace` tuning variant also died
+at 5:42 on seed 101, so dense terrain is not the sole driver; enemy ability kits, swarm pressure, and the
+bot's lack of projectile dodging need a human balance pass. Density remains deterministic and the
+terrain-specific tests pass. Details are in `docs/BALANCE.md`.
 
 ## 9. Milestone status
 
@@ -606,7 +639,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 | M5 weapon library/champions | Done | 39 weapons/moves, 6 classes, 173 champions, statuses; unique moves deferred |
 | M6 chests/evolutions/pickups | Done (modified) | D-029 changed chests to saved meta currency; evolutions on level-up |
 | M7 full stage run | Done | 30-minute timeline, bosses, final threat, boss rush, results, bot; Noxus + procedural terrain/minion personalities added |
-| M8 meta/unlocks | Mostly done | Gold, per-champion upgrades, region gacha/focus, achievements, stage select; account/cloud save added |
+| M8 meta/unlocks | Mostly done | Gold, per-champion upgrades, region gacha, achievements, stage select; account/cloud save added |
 | M9 content/balance/juice | Done (bot pass) | 173 champions, class kits/placeholder moves, flavor, feedback/settings, bot balance; human feel pass still open |
 | M10 opt-in extras | Partial | Synergy engine + burn/slow reaction done; arcana/curses/shrines/keystones/mutators/dailies not |
 | M11 multiplayer server | Done | Protocol, rooms, snapshots/deltas, per-player stats, 4-player stress |
@@ -626,7 +659,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
   for the lobby name.
 - **Save conflicts are simple.** If a server save exists it wins on login; there is no merge UI.
 - **Gacha economy is fast.** 54-65 chests per surviving bot run at 1 chest/pull; tune chest drops/shard
-  amounts or use the larger roster/focus system after a human playtest.
+  amounts or use the larger roster/region system after a human playtest.
 - **Rarities/regions are provisional.** They are generated/curated data intended for a review pass.
 - **Unique champion moves are deferred.** New champions use class weapons and placeholder class moves.
 - **All stages are available.** No formal stage unlock/progression.
@@ -643,7 +676,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 - **Some profile summaries are factual templates.** Core champions have hand-written summaries; the rest
   use a concise, source-backed identity summary. A deeper prose/lore pass is optional.
 - **Multi-region pools duplicate champions by design.** A champion can be pulled from multiple chest
-  regions; focus and shard progress remain global. This makes the effective gacha pool larger and needs a
+  regions; shard progress remains global. This makes the effective gacha pool larger and needs a
   human economy check.
 - **UI strings are hardcoded English.** The minimal `t()` helper exists but the UI is not wired to locale
   files.
@@ -718,7 +751,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
   flavor and descriptions.
 - **Follow-up:** HUD tooltip positions from the actual hover event (not just pointer movement).
 - **D-031:** full 173-champion roster, six classes with class weapons/trees/placeholder moves, region
-  focus, Noxian Warfront second stage + stage select, save v5 profile/best-run data, server-side accounts
+  Noxian Warfront second stage + stage select, profile/best-run data, server-side accounts
   with Discord OAuth/dev login/cloud save, profile UI. Unique moves and friends/invite integration remain
   future work.
 - **D-032:** deterministic stage terrain (walls, water/lava, safe spawn island), shared client rendering,

@@ -10,7 +10,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 
 > **Current implementation snapshot:** see [`14-IMPLEMENTATION-STATUS.md`](14-IMPLEMENTATION-STATUS.md).
 > The checkboxes and notes below are the historical milestone plan; the current code includes the
-> D-029/D-030/D-031 batches (moves, per-champion trees, DOM HUD, region gacha/focus, admin panel,
+> D-029/D-030/D-031 batches (moves, per-champion trees, DOM HUD, region gacha, admin panel,
 > full 173-champion roster/classes, Noxian second stage, profiles and cloud accounts).
 
 ## D0 — Design interview (NO CODE)
@@ -84,7 +84,7 @@ The order is chosen to reach a **fun, playable classic-style vertical slice by M
 ## M8 — Meta progression & unlocks
 - [x] Persistent gold, permanent-upgrade shop with refunds, versioned save + migration hook
 - [x] Gacha (performance-earned chests → unlocks champions) + achievements
-- [x] Region gacha/focus, profile/cloud accounts
+- [x] Region gacha, profile/cloud accounts
 - [x] Second stage (Noxian Warfront), stage select
 
 ## M9 — Content, balance & feel

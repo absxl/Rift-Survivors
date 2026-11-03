@@ -25,6 +25,12 @@ champion dossier. No champion splash art, icons, models, audio, or other client 
 | `packages/client/public/regions/void.png` | `https://universe.leagueoflegends.com/images/void_crest_icon.png` | Official Void crest |
 | `packages/client/public/regions/zaun.png` | `https://universe.leagueoflegends.com/images/zaun_crest_icon.png` | Official Zaun crest |
 | `packages/client/public/regions/runeterra.svg` | Generated for Rift Survivors | Original golden world-rune fallback; no official Runeterra crest exists on the region page |
+| `packages/client/public/regions/darkin.svg` | Generated for Rift Survivors | Original crimson/gold Darkin war-sigil; no official Darkin region crest exists |
+
+The official PNGs are normalized into 256x256 transparent derivatives under
+`packages/client/public/regions/normalized/` by
+`packages/client/scripts/normalize-region-crests.ps1`. The derivatives only pad/fit the source marks for the
+primary-crest-plus-badges component; the source images and rights notice remain authoritative.
 
 **Usage note:** Riot Games retains all rights to the official crest artwork. The crests are not licensed for
 redistribution outside this private fan project. Replace them with original or licensed marks before making

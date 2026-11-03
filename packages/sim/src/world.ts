@@ -2,6 +2,7 @@
 // seeded RNG, the event queue, the modifier stack, the registries and the system
 // pipeline. Everything else is a module registered by id.
 
+import { BushField } from "./bush-field";
 import type { CharacterDef, ContentPack, StageDef, StatusApply, WeaponDef } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
@@ -11,6 +12,7 @@ import { type Registries, createRegistries } from "./registry";
 import { Rng, type RngState } from "./rng";
 import { type EntitySchema, EntityStore, type StoreSnapshot } from "./schema";
 import { SpatialHash } from "./spatial-hash";
+import { PICKUP_HEAL, dropPickup } from "./systems/pickups";
 import { applyOfferOption } from "./systems/progression";
 import { refreshSynergies } from "./systems/synergies";
 import { SPAWN_CLEARING_RADIUS, TerrainField, type TerrainSafeZone } from "./terrain";
@@ -86,7 +88,12 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "maxHp", type: "f32" },
     { name: "gold", type: "f32" },
     { name: "kills", type: "f32" },
-    { name: "chests", type: "u16" },
+    { name: "keys", type: "u16" },
+    { name: "chestsOpened", type: "u16" },
+    { name: "bushesBroken", type: "u16" },
+    { name: "elitesKilled", type: "u16" },
+    { name: "bossesKilled", type: "u16" },
+    { name: "downs", type: "u16" },
     { name: "downed", type: "u8" },
     { name: "reviveProgress", type: "f32" },
     { name: "envTick", type: "u8", network: false },
@@ -113,6 +120,16 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "lastHitBy", type: "u8" },
     { name: "shield", type: "f32" },
     { name: "fuseTicks", type: "u8" },
+    { name: "ability0", type: "u16" },
+    { name: "ability1", type: "u16" },
+    { name: "ability2", type: "u16" },
+    { name: "ability3", type: "u16" },
+    { name: "ability4", type: "u16" },
+    { name: "abilityCd0", type: "u16" },
+    { name: "abilityCd1", type: "u16" },
+    { name: "abilityCd2", type: "u16" },
+    { name: "abilityCd3", type: "u16" },
+    { name: "abilityCd4", type: "u16" },
     { name: "envTick", type: "u8", network: false },
   ],
 };
@@ -193,6 +210,44 @@ const PICKUP_SCHEMA: EntitySchema = {
   ],
 };
 
+const BUSH_SCHEMA: EntitySchema = {
+  kind: "bush",
+  capacity: 600,
+  fields: [
+    { name: "x", type: "f32" },
+    { name: "y", type: "f32" },
+    { name: "hp", type: "u8" },
+    { name: "tx", type: "i32" },
+    { name: "ty", type: "i32" },
+  ],
+};
+
+const CHEST_SCHEMA: EntitySchema = {
+  kind: "chest",
+  capacity: 8,
+  fields: [
+    { name: "x", type: "f32" },
+    { name: "y", type: "f32" },
+    { name: "openingTicks", type: "u16" },
+    { name: "opener", type: "u8" },
+  ],
+};
+
+const HAZARD_SCHEMA: EntitySchema = {
+  kind: "hazard",
+  capacity: 160,
+  fields: [
+    { name: "x", type: "f32" },
+    { name: "y", type: "f32" },
+    { name: "radius", type: "f32" },
+    { name: "damage", type: "f32" },
+    { name: "ticks", type: "u16" },
+    { name: "kind", type: "u8" },
+    { name: "angle", type: "f32" },
+    { name: "length", type: "f32" },
+  ],
+};
+
 export interface WorldStores {
   players: EntityStore;
   enemies: EntityStore;
@@ -202,6 +257,9 @@ export interface WorldStores {
   gems: EntityStore;
   zones: EntityStore;
   pickups: EntityStore;
+  bushes: EntityStore;
+  chests: EntityStore;
+  hazards: EntityStore;
 }
 
 export interface RunStats {
@@ -272,8 +330,14 @@ export class World {
   readonly character: CharacterDef | null;
   readonly stage: StageDef | null;
   readonly terrain: TerrainField;
+  readonly bushField: BushField;
   readonly terrainSeed: number;
   readonly pathfinder = new Pathfinder();
+  /** Loaded bush chunks -> allocated bush slots. Broken tiles stay in brokenBushes. */
+  readonly bushChunks = new Map<string, number[]>();
+  readonly brokenBushes = new Set<string>();
+  /** Next tick at which the run-chest director may spawn a chest. */
+  nextChestTick = 0;
 
   tick = 0;
   inputs: PlayerInput[] = [];
@@ -324,6 +388,12 @@ export class World {
       { x: fieldWidth / 2, y: fieldHeight / 2, radius: SPAWN_CLEARING_RADIUS },
     ];
     this.terrain = new TerrainField(this.stage?.terrain ?? null, this.terrainSeed, safe);
+    this.bushField = new BushField(
+      this.terrain,
+      this.terrainSeed,
+      this.stage?.terrain?.bushDensity ?? 1,
+    );
+    this.nextChestTick = Math.max(30, Math.floor(this.num("chest.firstSpawnSec") * 30));
     this.stores = {
       players: new EntityStore(PLAYER_SCHEMA),
       enemies: new EntityStore(ENEMY_SCHEMA),
@@ -333,6 +403,9 @@ export class World {
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
       pickups: new EntityStore(PICKUP_SCHEMA),
+      bushes: new EntityStore(BUSH_SCHEMA),
+      chests: new EntityStore(CHEST_SCHEMA),
+      hazards: new EntityStore(HAZARD_SCHEMA),
     };
     this.modifiers = new ModifierStack();
     this.spatialHash = new SpatialHash();
@@ -586,6 +659,80 @@ export class World {
     return this.weaponStat(def, level, "cooldown", owner);
   }
 
+  /**
+   * Shared auto-aim contract for every directional/placed weapon: prefer the
+   * nearest living enemy, then fall back to the player's movement facing.
+   */
+  aimFromPlayer(
+    playerId: number,
+    maxDist: number,
+  ): { x: number; y: number; dx: number; dy: number; dist: number; target: number } {
+    const players = this.stores.players;
+    const px = players.field("x")[playerId];
+    const py = players.field("y")[playerId];
+    const target = this.nearestEnemy(px, py, maxDist);
+    if (target >= 0) {
+      const tx = this.stores.enemies.field("x")[target];
+      const ty = this.stores.enemies.field("y")[target];
+      const dx = tx - px;
+      const dy = ty - py;
+      const dist = Math.hypot(dx, dy) || 1;
+      return { x: tx, y: ty, dx: dx / dist, dy: dy / dist, dist, target };
+    }
+    let fx = players.field("facingX")[playerId];
+    const fy = players.field("facingY")[playerId];
+    if (fx === 0 && fy === 0) fx = 1;
+    const dist = Math.hypot(fx, fy) || 1;
+    return {
+      x: px + (fx / dist) * maxDist,
+      y: py + (fy / dist) * maxDist,
+      dx: fx / dist,
+      dy: fy / dist,
+      dist,
+      target: -1,
+    };
+  }
+
+  /** Visit bushes whose center is inside a circle. */
+  bushesInCircle(x: number, y: number, radius: number, cb: (slot: number) => void): void {
+    const bushes = this.stores.bushes;
+    const r2 = radius * radius;
+    bushes.forEachAlive((slot) => {
+      const dx = bushes.field("x")[slot] - x;
+      const dy = bushes.field("y")[slot] - y;
+      if (dx * dx + dy * dy <= r2) cb(slot);
+    });
+  }
+
+  /** Damage/break bushes in an area. Jittered projectiles pass through. */
+  damageBushesInCircle(x: number, y: number, radius: number, amount: number, owner = 0): void {
+    if (amount <= 0) return;
+    this.bushesInCircle(x, y, radius, (slot) => this.damageBush(slot, amount, owner));
+  }
+
+  /** Damage one bush and drop its healing pickup when it breaks. */
+  damageBush(slot: number, amount: number, owner = 0): void {
+    const bushes = this.stores.bushes;
+    if (!bushes.isAlive(slot) || amount <= 0) return;
+    const hp = bushes.field("hp")[slot] - amount;
+    if (hp > 0) {
+      bushes.field("hp")[slot] = hp;
+      return;
+    }
+    const x = bushes.field("x")[slot];
+    const y = bushes.field("y")[slot];
+    const tx = bushes.field("tx")[slot];
+    const ty = bushes.field("ty")[slot];
+    this.brokenBushes.add(`${tx},${ty}`);
+    const players = this.stores.players;
+    if (owner >= 0 && owner < players.count) {
+      players.field("bushesBroken")[owner] += 1;
+    }
+    bushes.free(slot);
+    dropPickup(this, x, y, PICKUP_HEAL, this.num("pickup.bushHealAmount"));
+    this.emit({ type: "bush-break", playerId: owner, x, y });
+  }
+
   /** Nearest enemy slot within maxDist, or -1. */
   nearestEnemy(x: number, y: number, maxDist: number): number {
     let best = -1;
@@ -731,6 +878,9 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),
       world.stores.pickups.snapshot(),
+      world.stores.bushes.snapshot(),
+      world.stores.chests.snapshot(),
+      world.stores.hazards.snapshot(),
     ],
   };
 }

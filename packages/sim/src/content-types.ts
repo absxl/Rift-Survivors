@@ -74,10 +74,10 @@ export interface EnemyDef {
   xp: number;
   behavior: string; // registry id: "chase" | "weaver" | "charge" | "ranged" | ...
   params: Record<string, number | string>;
-  /** Elites/bosses drop a chest on death. */
-  dropsChest?: boolean;
-  /** Chance (0..1) to drop a chest for non-guaranteed enemies; luck scales it. */
-  chestChance?: number;
+  /** Elites/bosses guarantee a key on death. */
+  dropsKey?: boolean;
+  /** Chance (0..1) to drop a key for non-guaranteed enemies; luck scales it. */
+  keyChance?: number;
   /** Content-authored placeholder tint (0xRRGGBB); presentation only. */
   tint?: number;
   /** Relative spawn weight among its category (default 1). */
@@ -154,10 +154,12 @@ export interface PowerUpDef {
   id: string;
   name?: string;
   description?: string;
-  /** Stat key the rank adds to (e.g. "might", "maxHp"). */
-  stat: string;
-  /** Bonus added per rank. */
-  perRank: number;
+  /** Legacy single-stat shape; kept for existing content and saves. */
+  stat?: string;
+  /** Bonus added per rank for the legacy single-stat shape. */
+  perRank?: number;
+  /** Multi-stat relic shape. A single entry can grant several bonuses. */
+  stats?: Record<string, number>;
   maxRank: number;
   /** Gold cost for each rank (length = maxRank). */
   costs: number[];
@@ -203,6 +205,8 @@ export interface StageTerrain {
   liquidSlow: number;
   /** Damage per second while standing in a damaging liquid. */
   liquidDamage: number;
+  /** Multiplies deterministic bush-cluster density. Default 1. */
+  bushDensity?: number;
   colors: {
     floor: string;
     floorAlt: string;

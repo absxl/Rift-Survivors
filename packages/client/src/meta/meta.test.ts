@@ -2,12 +2,15 @@ import type { CharacterDef, PowerUpDef } from "@rift/sim";
 import { describe, expect, it } from "vitest";
 import type { SaveData } from "../save/save";
 import {
+  ACHIEVEMENTS,
   awardRun,
   buyPowerUp,
   championsInRegion,
+  checkAchievements,
   computeMetaBonuses,
   openRegionChests,
   rankOf,
+  regionProgressFor,
   regionsOf,
   shardsFor,
   shardsRequired,
@@ -16,18 +19,24 @@ import {
 
 function save(overrides: Partial<SaveData> = {}): SaveData {
   return {
-    version: 5,
+    version: 8,
     profileName: "Tester",
     gold: 0,
     selectedCharacter: "a",
     championUpgrades: {},
     championShards: {},
-    championFocus: {},
     selectedStage: "rift-field",
     unlockedCharacters: ["a"],
-    chests: 10,
+    keys: 10,
     achievements: [],
+    achievementProgress: {},
+    regionProgress: {},
     totalKills: 0,
+    lifetimeBushesBroken: 0,
+    lifetimeChestsOpened: 0,
+    lifetimeKeysFound: 0,
+    lifetimeElitesKilled: 0,
+    lifetimeBossesKilled: 0,
     bestTimeSec: 0,
     runsPlayed: 0,
     bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
@@ -96,6 +105,18 @@ describe("per-champion upgrades", () => {
     expect(computeMetaBonuses(data, [power], "b")).toEqual({});
     expect(data.gold).toBe(90);
   });
+
+  it("aggregates multi-stat relic upgrades", () => {
+    const relic: PowerUpDef = {
+      id: "relic",
+      stats: { might: 0.02, maxHp: 0.03 },
+      maxRank: 2,
+      costs: [10, 20],
+    };
+    const data = save({ gold: 30 });
+    data.championUpgrades.a = { relic: 2 };
+    expect(computeMetaBonuses(data, [relic], "a")).toEqual({ might: 0.04, maxHp: 0.06 });
+  });
 });
 
 describe("run rewards and profile", () => {
@@ -106,7 +127,7 @@ describe("run rewards and profile", () => {
       kills: 10,
       timeSec: 60,
       won: false,
-      chestsFound: 1,
+      keysFound: 1,
       characterId: "a",
       stageId: "rift-field",
     });
@@ -124,6 +145,34 @@ describe("run rewards and profile", () => {
     expect(data.bestRun.timeSec).toBe(60);
     expect(data.bestRun.characterId).toBe("a");
   });
+
+  it("tracks lifetime counters and pays achievement rewards", () => {
+    const data = save({ gold: 0, keys: 0, achievements: [] });
+    const result = {
+      gold: 25,
+      kills: 20,
+      timeSec: 300,
+      won: false,
+      keysFound: 8,
+      chestsOpened: 15,
+      bushesBroken: 100,
+      elitesKilled: 10,
+      bossesKilled: 1,
+      downs: 1,
+      characterId: "a",
+      stageId: "rift-field",
+    };
+    const keysEarned = awardRun(data, result);
+    const unlocked = checkAchievements(data, result);
+    expect(keysEarned).toBeGreaterThan(0);
+    expect(unlocked).toContain("BOSS BREAKER");
+    expect(unlocked).toContain("TREASURE HUNTER");
+    expect(unlocked).toContain("GROVE CLEARER");
+    expect(data.lifetimeBushesBroken).toBe(100);
+    expect(data.lifetimeChestsOpened).toBe(15);
+    expect(data.lifetimeBossesKilled).toBe(1);
+    expect(data.keys).toBeGreaterThan(keysEarned);
+  });
 });
 
 describe("region gacha", () => {
@@ -136,31 +185,49 @@ describe("region gacha", () => {
   });
 
   it("can pull a multi-region champion from either region", () => {
-    const noxus = save({ chests: 1, unlockedCharacters: [] });
+    const noxus = save({ keys: 1, unlockedCharacters: [] });
     expect(openRegionChests(noxus, "Noxus", [MULTI], 1, () => 0)?.[0].championId).toBe("multi");
-    const ionia = save({ chests: 1, unlockedCharacters: [] });
+    const ionia = save({ keys: 1, unlockedCharacters: [] });
     expect(openRegionChests(ionia, "Ionia", [MULTI], 1, () => 0)?.[0].championId).toBe("multi");
   });
 
   it("opens one chest and can unlock a champion on a low roll", () => {
-    const data = save({ chests: 1, unlockedCharacters: [] });
+    const data = save({ keys: 1, unlockedCharacters: [] });
     const drops = openRegionChests(data, "Test", CHARACTERS, 1, () => 0);
     expect(drops).toHaveLength(1);
     expect(drops?.[0].kind).toBe("champion");
     expect(drops?.[0].championId).toBe("a");
     expect(data.unlockedCharacters).toContain("a");
-    expect(data.chests).toBe(0);
+    expect(data.keys).toBe(0);
+    expect(regionProgressFor(data, "Test")).toMatchObject({
+      pulls: 1,
+      trackedPulls: 1,
+      pullsChampions: 1,
+      pullsShards: 0,
+      pullsGold: 0,
+      pullsGuaranteed: 0,
+    });
   });
 
-  it("prefers the focused champion when the player has set one", () => {
-    const data = save({ chests: 1, unlockedCharacters: [], championFocus: { Test: "b" } });
-    const drops = openRegionChests(data, "Test", CHARACTERS, 1, () => 0);
-    expect(drops?.[0].championId).toBe("b");
-    expect(data.unlockedCharacters).toContain("b");
+  it("records shard and gold outcomes per pull", () => {
+    const data = save({ keys: 2, unlockedCharacters: [] });
+    const rolls = [0.1, 0, 0, 0.99];
+    let roll = 0;
+    const rng = (): number => rolls[roll++] ?? 0;
+    openRegionChests(data, "Test", CHARACTERS, 1, rng);
+    openRegionChests(data, "Test", CHARACTERS, 1, rng);
+    expect(regionProgressFor(data, "Test")).toMatchObject({
+      pulls: 2,
+      trackedPulls: 2,
+      pullsChampions: 0,
+      pullsShards: 2,
+      pullsGold: 50,
+      pullsGuaranteed: 0,
+    });
   });
 
   it("a 10-pull guarantees an Epic+ champion", () => {
-    const data = save({ chests: 10, unlockedCharacters: [] });
+    const data = save({ keys: 10, unlockedCharacters: [] });
     // 0.99 pushes normal rolls to gold; the guarantee then must unlock the epic.
     const drops = openRegionChests(data, "Test", CHARACTERS, 10, () => 0.99);
     expect(drops).toHaveLength(10);
@@ -168,13 +235,69 @@ describe("region gacha", () => {
     expect(guaranteed.length).toBe(1);
     expect(guaranteed[0]?.championId).toBe("a");
     expect(data.unlockedCharacters).toContain("a");
-    expect(data.chests).toBe(0);
+    expect(data.keys).toBe(0);
+    expect(regionProgressFor(data, "Test")).toMatchObject({
+      pulls: 10,
+      trackedPulls: 10,
+      pullsChampions: 1,
+      pullsShards: 0,
+      pullsGold: 450,
+      pullsGuaranteed: 1,
+    });
   });
 
-  it("refuses a 10-pull without 10 chests", () => {
-    const data = save({ chests: 9 });
+  it("refuses a 10-pull without 10 keys", () => {
+    const data = save({ keys: 9 });
     expect(openRegionChests(data, "Test", CHARACTERS, 10)).toBeNull();
-    expect(data.chests).toBe(9);
+    expect(data.keys).toBe(9);
+  });
+
+  it("has a deep lore/region achievement catalog", () => {
+    expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(64);
+    expect(ACHIEVEMENTS.filter((achievement) => achievement.category === "region")).toHaveLength(
+      42,
+    );
+    expect(ACHIEVEMENTS.some((achievement) => achievement.region === "Demacia")).toBe(true);
+    expect(ACHIEVEMENTS.some((achievement) => achievement.id === "darkin-wake")).toBe(true);
+  });
+
+  it("keeps Darkin in a dedicated chest pool and records lore progress", () => {
+    const multiProfile = MULTI.profile;
+    if (!multiProfile) throw new Error("Multi fixture profile missing");
+    const darkin: CharacterDef = {
+      ...MULTI,
+      id: "darkin-test",
+      region: "Shurima",
+      profile: {
+        ...multiProfile,
+        regions: ["Shurima", "Runeterra"],
+        species: "Darkin, God-Warrior, Human",
+      },
+    };
+    const roster = [...CHARACTERS, darkin];
+    expect(championsInRegion(roster, "Darkin").map((champion) => champion.id)).toEqual([
+      "darkin-test",
+    ]);
+    expect(
+      championsInRegion(roster, "Shurima").some((champion) => champion.id === "darkin-test"),
+    ).toBe(true);
+
+    const data = save({ keys: 1, unlockedCharacters: [] });
+    const drops = openRegionChests(data, "Darkin", roster, 1, () => 0);
+    expect(drops?.[0].championId).toBe("darkin-test");
+    expect(regionProgressFor(data, "Darkin").pulls).toBe(1);
+
+    awardRun(data, {
+      gold: 0,
+      kills: 0,
+      timeSec: 120,
+      won: false,
+      primaryRegion: "Shurima",
+      championRegions: ["Shurima", "Runeterra"],
+      isDarkin: true,
+    });
+    expect(regionProgressFor(data, "Shurima").runs).toBe(1);
+    expect(regionProgressFor(data, "Darkin").runs).toBe(1);
   });
 
   it("spends shards only on the champion the player chooses", () => {

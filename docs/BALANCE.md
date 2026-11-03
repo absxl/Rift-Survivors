@@ -3,24 +3,27 @@
 Measured with the headless kiting bot on the **real content pack** (`loadGamePack()`), solo, champion
 `lux`, `DEFAULT_RULESET`. Numbers are a regression baseline, not a substitute for a human playtest.
 
-- Date: 2026-10-27
+- Baseline date: 2026-10-27; D-037 snapshot: 2026-10-29
 - Run command: `$env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance`
 - Seeds: 101, 202, 303
 - Reference: 30:00 final threat -> boss rush (fallback at 30:45); solo run ends on death.
 - Current pace: spawn 30/3, elite chests 90 s, patterns rotate every 15 s, gold 5, drops per D-029
-  (minions 5% gold + 1% chest, elites 100% gold + 50% chest, bosses guaranteed chest + luck gold),
+  (minions 5% gold, elites 100% gold + 50% key, bosses guaranteed key + luck gold),
   level-up = 3 item cards + 1 training card, XP table flattened after 10.
 - D-030 added **enemy separation**, **signature moves**, and a **10-slot ability loadout**
   (6 weapons + 4 moves) beside 6 passives.
 - D-031 added the **173-champion roster**, six class weapon/move pools, class trees, Noxian Warfront,
-  focus, profiles, and server accounts.
+  profiles, and server accounts. The per-region focus preference was removed in D-035.
 - D-032 added **procedural terrain** (walls, water/lava, collision, pathfinding) and **minion
   personalities** (runner, tank, fan, healer, shielder, summoner, bomber). The bot now steers around
   walls; it still does not dodge projectiles or run a human-style terrain route.
 - D-033 changed **champion meta/profiles**, not run combat. Multi-region champions now appear in multiple
   region chest pools (49 current+origin memberships); the in-run balance baseline below is unchanged, but
   the gacha economy needs a human check because effective pools overlap.
-- The previous visual reskin was scrapped; the League-client presentation remains.
+- D-034 adds coherent terrain cleanup, non-blocking breakable bushes, timed run chests with a three-second hold, key drops from elites/bosses, and save v6 keys. The in-run bot baseline below predates the new chest rewards.
+- D-035 adds enemy ability kits and frost/magnet/bomb utility. D-037 adds 10/6-rank meta relics, 26
+  eight-level passives, and noticeably denser terrain/bushes. The historical D-032 table is kept below;
+  the current D-037 snapshot is recorded separately.
 
 ## Enemy roster (20 types)
 
@@ -31,9 +34,13 @@ and rules overrides. Weighted/minute-gated spawns; ring / stream / swarm / wall 
 + radius visuals. A radius-squared soft separation system keeps bodies from stacking; bosses barely move.
 
 Terrain is stage content: Riftfield has water (30% slow) and Noxus has lava (25% slow + 5 damage/s).
-Ground spawns search for free floor; lava is avoided by pathfinding. Ground enemies
+D-037 uses denser production thresholds: Riftfield wall/liquid `0.65/0.30` and bush density `1.9`;
+Noxus `0.67/0.28` and `1.8`. The production-like test field measures above 10% walls and 5% liquid
+after cleanup. Ground spawns search for free floor; lava is avoided by pathfinding. Ground enemies
 use deterministic per-player BFS flow fields rebuilt every 12 ticks. Bosses, final threats, and units
 tagged `levitate` ignore terrain. A `levitate` champion ignores walls, liquid slows, and liquid damage.
+Breakable bushes are deterministic, floor-only, and outside the spawn safe zone; D-037 increases their
+cluster count rather than making each bush larger.
 
 ## Bot behaviour
 
@@ -43,7 +50,7 @@ tagged `levitate` ignore terrain. A `levitate` champion ignores walls, liquid sl
   and **ignores the training card** (score below item cards). A human can take training every level.
 - Does not dodge hostile projectiles or use reroll/skip/banish.
 
-## Baseline (current, D-032)
+## Historical baseline (D-032)
 
 | Seed | Survived | Level (picks) | Kills | Gold | Chests found | Gems / XP | Max alive | Boss rush | ms/tick |
 | ---- | -------- | ------------- | ----- | ---- | ------------ | --------- | --------- | --------- | ------- |
@@ -59,7 +66,22 @@ Player damage taken by source (hits):
 | 202  | 0  | 278 | 15 |
 | 303  | 6  | 84  | 6  |
 
-## Observations
+## Current snapshot (D-037)
+
+Measured after the D-037 dense-field and passive/meta changes on the same three seeds:
+
+| Seed | Survived | Level (picks) | Kills | Gold | Keys found | Gems / XP | Max alive | ms/tick |
+| ---- | -------- | ------------- | ----- | ---- | ---------- | --------- | --------- | ------- |
+| 101  | 5:38 | 14 (13) | 934  | 275 | 1 | 785 / 909  | 56 | 0.1376 |
+| 202  | 6:31 | 16 (15) | 1,111 | 275 | 2 | 884 / 1,128 | 64 | 0.1218 |
+| 303  | 5:16 | 14 (13) | 855  | 250 | 2 | 741 / 857  | 53 | 0.1140 |
+
+The `old pace` variant also died at 5:42 on seed 101, so this is not a terrain-density-only regression.
+The no-dodge bot is now under heavy pressure from enemy ability kits and swarm cadence; that needs a
+human pass before changing player or terrain numbers again. The D-032 table above remains the historical
+"long survival" reference.
+
+## Observations (D-032 snapshot)
 
 1. **Terrain raises variance.** Seed 303 dies at 16:35 after getting wall/contact/projectile pressure;
    101 and 202 still reach 32:00. A human can navigate the walls, but this needs a real run rather than
@@ -89,8 +111,8 @@ Player damage taken by source (hits):
   players miss why a champion is crossing a wall or ignoring lava.
 - **Boss patterns:** bosses still mostly chase or use simple ranged attacks; fan/summoner bosses are now
   available for a later pattern pass.
-- **Props and cover:** terrain currently has walls/liquids only. Destructible rocks/brush and line-of-sight
-  cover are deferred; they would make the terrain layer more PokeSurvivor-like.
+- **Props and cover:** breakable bushes are in (D-034/D-037). Destructible rocks and line-of-sight cover
+  remain deferred; they would add another tactical layer.
 - **Projectile pressure:** the dominant damage source on surviving seeds is still ranged/boss projectiles.
   If human runs feel too spikey, tune ranged/boss cadence before raising player stats.
 

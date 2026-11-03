@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, createWorld, step } from "./index";
 import type { ContentPack, EnemyDef, RulesetDef, World } from "./index";
-import { PICKUP_CHEST, PICKUP_GOLD, PICKUP_NUKE, dropPickup } from "./systems/pickups";
+import {
+  PICKUP_BOMB,
+  PICKUP_FREEZE,
+  PICKUP_GOLD,
+  PICKUP_KEY,
+  PICKUP_MAGNET,
+  PICKUP_NUKE,
+  dropPickup,
+} from "./systems/pickups";
 
 function enemy(overrides: Partial<EnemyDef> & Pick<EnemyDef, "id" | "category">): EnemyDef {
   return {
@@ -30,13 +38,13 @@ const MINION_PACK: ContentPack = {
 const ELITE_PACK: ContentPack = {
   ...MINION_PACK,
   id: "drops-elite",
-  enemies: [enemy({ id: "brute", category: "elite", hp: 40, chestChance: 0.5 })],
+  enemies: [enemy({ id: "brute", category: "elite", hp: 40, keyChance: 0.5 })],
 };
 
 const BOSS_PACK: ContentPack = {
   ...MINION_PACK,
   id: "drops-boss",
-  enemies: [enemy({ id: "baron", category: "boss", hp: 800, dropsChest: true })],
+  enemies: [enemy({ id: "baron", category: "boss", hp: 800, dropsKey: true })],
 };
 
 function quietRules(overrides: Record<string, number> = {}): RulesetDef {
@@ -51,6 +59,8 @@ function quietRules(overrides: Record<string, number> = {}): RulesetDef {
       "timeline.finalThreatSec": 1_000_000,
       "pickup.dropChance": 0,
       "pickup.nukeDropChance": 0,
+      "chest.firstSpawnSec": 1_000_000,
+      "chest.spawnIntervalSec": 1_000_000,
       ...overrides,
     },
   };
@@ -70,43 +80,43 @@ function killMany(world: World, kind: number, count: number, x = 5000, y = 5000)
   }
 }
 
-function countDrops(world: World): { gold: number; chests: number; goldValues: number[] } {
+function countDrops(world: World): { gold: number; keys: number; goldValues: number[] } {
   const pickups = world.stores.pickups;
   let gold = 0;
-  let chests = 0;
+  let keys = 0;
   const goldValues: number[] = [];
   pickups.forEachAlive((slot) => {
     const kind = pickups.field("kind")[slot];
     if (kind === PICKUP_GOLD) {
       gold++;
       goldValues.push(pickups.field("value")[slot]);
-    } else if (kind === PICKUP_CHEST) {
-      chests++;
+    } else if (kind === PICKUP_KEY) {
+      keys++;
     }
   });
-  return { gold, chests, goldValues };
+  return { gold, keys, goldValues };
 }
 
-function minionRun(luck: number, seed: number): { gold: number; chests: number } {
+function minionRun(luck: number, seed: number): { gold: number; keys: number } {
   const world = createWorld(quietRules(), { playerCount: 1, content: MINION_PACK }, seed);
   if (luck > 0) world.playerModifiers[0]?.add("luck", { op: "add", value: luck, source: "test" });
   killMany(world, 0, 1000);
   step(world, []);
-  const { gold, chests } = countDrops(world);
-  return { gold, chests };
+  const { gold, keys } = countDrops(world);
+  return { gold, keys };
 }
 
 describe("loot drops", () => {
-  it("luck increases minion gold and chest drops", () => {
+  it("luck increases minion gold but minions do not drop keys", () => {
     const low = minionRun(0, 11);
     const high = minionRun(1, 11);
     expect(low.gold).toBeGreaterThan(0);
-    expect(low.chests).toBeGreaterThan(0);
     expect(high.gold).toBeGreaterThan(low.gold);
-    expect(high.chests).toBeGreaterThan(low.chests);
+    expect(low.keys).toBe(0);
+    expect(high.keys).toBe(0);
   });
 
-  it("elites always drop gold and their chest chance scales with luck", () => {
+  it("elites always drop gold and their key chance scales with luck", () => {
     const world = createWorld(quietRules(), { playerCount: 1, content: ELITE_PACK }, 12);
     world.playerModifiers[0]?.add("luck", { op: "add", value: 1, source: "test" });
     killMany(world, 0, 10);
@@ -115,31 +125,75 @@ describe("loot drops", () => {
     expect(drops.gold).toBe(10);
     expect(drops.goldValues.every((v) => v === 10)).toBe(true);
     // 0.5 chance * (1 + luck 1) = guaranteed.
-    expect(drops.chests).toBe(10);
+    expect(drops.keys).toBe(10);
   });
 
-  it("bosses guarantee a chest and luck-scaled gold", () => {
+  it("bosses guarantee a key and luck-scaled gold", () => {
     const world = createWorld(quietRules(), { playerCount: 1, content: BOSS_PACK }, 13);
     world.playerModifiers[0]?.add("luck", { op: "add", value: 1, source: "test" });
     killMany(world, 0, 1);
     step(world, []);
     const drops = countDrops(world);
-    expect(drops.chests).toBe(1);
+    expect(drops.keys).toBe(1);
     expect(drops.gold).toBe(1);
     expect(drops.goldValues[0]).toBe(50);
   });
 
-  it("chest pickups are saved for the shop instead of opening an offer", () => {
+  it("key pickups add to the run key total", () => {
     const world = createWorld(quietRules(), { playerCount: 1, content: MINION_PACK }, 14);
     const players = world.stores.players;
     const px = players.field("x")[0];
     const py = players.field("y")[0];
-    dropPickup(world, px, py, PICKUP_CHEST);
+    dropPickup(world, px, py, PICKUP_KEY);
 
     const events = step(world, []);
-    expect(players.field("chests")[0]).toBe(1);
+    expect(players.field("keys")[0]).toBe(1);
     expect(world.pendingOffers().length).toBe(0);
-    expect(events.some((e) => e.type === "chest-found")).toBe(true);
+    expect(events.some((e) => e.type === "key-found")).toBe(true);
+  });
+
+  it("frost slows the swarm instead of hard-freezing it", () => {
+    const world = createWorld(quietRules(), { playerCount: 1, content: MINION_PACK }, 16);
+    const players = world.stores.players;
+    const enemies = world.stores.enemies;
+    const px = players.field("x")[0];
+    const py = players.field("y")[0];
+    const slot = enemies.alloc();
+    enemies.field("x")[slot] = px + 30;
+    enemies.field("y")[slot] = py;
+    enemies.field("hp")[slot] = 100;
+    enemies.field("maxHp")[slot] = 100;
+    enemies.field("kind")[slot] = 0;
+    dropPickup(world, px, py, PICKUP_FREEZE);
+
+    const events = step(world, []);
+    expect(events.some((e) => e.type === "frost")).toBe(true);
+    expect(enemies.field("freezeTicks")[slot]).toBe(0);
+    expect(enemies.field("slowTicks")[slot]).toBeGreaterThan(0);
+  });
+
+  it("magnets pull distant loot and bombs damage the whole map", () => {
+    const world = createWorld(quietRules(), { playerCount: 1, content: MINION_PACK }, 17);
+    const players = world.stores.players;
+    const enemies = world.stores.enemies;
+    const px = players.field("x")[0];
+    const py = players.field("y")[0];
+    const slot = enemies.alloc();
+    enemies.field("x")[slot] = px + 180;
+    enemies.field("y")[slot] = py;
+    enemies.field("hp")[slot] = 1000;
+    enemies.field("maxHp")[slot] = 1000;
+    enemies.field("kind")[slot] = 0;
+
+    dropPickup(world, px + 150, py, PICKUP_GOLD);
+    dropPickup(world, px + 150, py, PICKUP_BOMB);
+    dropPickup(world, px, py, PICKUP_MAGNET);
+    step(world, []);
+    // The magnet teleports both the bomb and the gold to the player; the next
+    // pickup pass resolves them.
+    step(world, []);
+    expect(players.field("gold")[0]).toBeGreaterThan(0);
+    expect(enemies.field("hp")[slot]).toBeLessThan(1000);
   });
 
   it("nuke pickups emit an event and damage the swarm", () => {

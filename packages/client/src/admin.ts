@@ -1,5 +1,5 @@
 // Hidden developer/admin panel (H). Deliberately local-only: grants gold,
-// chests, shards, unlocks and upgrade ranks for testing, plus Reset Save.
+// keys, shards, unlocks and upgrade ranks for testing, plus Reset Save.
 import type { CharacterDef, PowerUpDef } from "@rift/sim";
 import { upgradesForChampion } from "./meta/meta";
 import type { SaveData } from "./save/save";
@@ -33,8 +33,8 @@ export class AdminPanel {
     grid.className = "admin-grid";
     this.addButton(grid, "+1,000 GOLD", () => this.grantGold(1000));
     this.addButton(grid, "+10,000 GOLD", () => this.grantGold(10000));
-    this.addButton(grid, "+10 CHESTS", () => this.grantChests(10));
-    this.addButton(grid, "+100 CHESTS", () => this.grantChests(100));
+    this.addButton(grid, "+10 KEYS", () => this.grantKeys(10));
+    this.addButton(grid, "+100 KEYS", () => this.grantKeys(100));
     this.addButton(grid, "+10 SHARDS (SELECTED)", () => this.grantSelectedShards(10));
     this.addButton(grid, "+10 SHARDS (ALL)", () => this.grantAllShards(10));
     this.addButton(grid, "UNLOCK SELECTED", () => this.unlockSelected());
@@ -95,9 +95,9 @@ export class AdminPanel {
     this.changed(`+${amount} GOLD`);
   }
 
-  private grantChests(amount: number): void {
-    this.save.chests += amount;
-    this.changed(`+${amount} CHESTS`);
+  private grantKeys(amount: number): void {
+    this.save.keys += amount;
+    this.changed(`+${amount} KEYS`);
   }
 
   private grantSelectedShards(amount: number): void {

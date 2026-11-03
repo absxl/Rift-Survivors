@@ -58,12 +58,18 @@ describe("content packs", () => {
     expect(evolutions).toBeGreaterThanOrEqual(4);
   });
 
-  it("has the M8 power-up shop scope (>= 8)", () => {
+  it("has the expanded power-up shop scope and valid rank curves", () => {
     const game = loadGamePack();
-    expect(game.powerUps.length).toBeGreaterThanOrEqual(8);
+    expect(game.powerUps.length).toBeGreaterThanOrEqual(40);
     for (const p of game.powerUps) {
       expect(p.costs.length).toBe(p.maxRank);
+      expect(p.maxRank === 10 || p.maxRank === 6).toBe(true);
+      expect(p.stat || p.stats).toBeTruthy();
     }
+    const byId = new Map(game.powerUps.map((p) => [p.id, p]));
+    expect(byId.get("power")?.maxRank).toBe(10);
+    expect(byId.get("gilded-crown")?.maxRank).toBe(6);
+    expect(byId.get("archmages-thesis")?.maxRank).toBe(6);
   });
 
   it("ships the full roster across all six classes", () => {
@@ -92,7 +98,7 @@ describe("content packs", () => {
       expect(c.region, c.id).toBeTruthy();
       expect(c.class, c.id).toBeTruthy();
       expect(c.rarity, c.id).toBeTruthy();
-      expect(c.upgradeIds?.length ?? 0, c.id).toBeGreaterThanOrEqual(6);
+      expect(c.upgradeIds?.length ?? 0, c.id).toBeGreaterThanOrEqual(10);
       regions.add(c.region ?? "");
       const move = c.startingMove ? weaponIds.get(c.startingMove) : undefined;
       expect(move, c.id).toBeTruthy();
@@ -135,7 +141,8 @@ describe("content packs", () => {
 
   it("has the expanded stat passive roster", () => {
     const game = loadGamePack();
-    expect(game.passives.length).toBeGreaterThanOrEqual(18);
+    expect(game.passives.length).toBeGreaterThanOrEqual(26);
+    expect(game.passives.every((p) => p.maxLevel === 8)).toBe(true);
     const keys = new Set(game.passives.flatMap((p) => Object.keys(p.perLevel)));
     for (const key of [
       "growth",

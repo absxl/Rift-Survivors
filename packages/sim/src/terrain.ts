@@ -86,32 +86,98 @@ export class TerrainField {
     return false;
   }
 
+  /** True when a world position is inside the authored spawn clearing. */
+  isSafeZoneAt(x: number, y: number, extra = 0): boolean {
+    return this.inSafeZone(x, y, extra);
+  }
+
+  /** Raw noise type before the deterministic cellular cleanup passes. */
+  private rawTypeAt(tx: number, ty: number): number {
+    const terrain = this.settings;
+    if (!terrain) return TILE_FLOOR;
+    const wx = tx * TERRAIN_TILE + TERRAIN_TILE / 2;
+    const wy = ty * TERRAIN_TILE + TERRAIN_TILE / 2;
+    if (this.inSafeZone(wx, wy, 0)) return TILE_FLOOR;
+    // One transitional tile softens the boundary without making the visible
+    // screen a huge empty island.
+    const safeSoft = this.inSafeZone(wx, wy, TERRAIN_TILE) ? 0.08 : 0;
+    const wallNoise = fbm(tx / 9.5, ty / 9.5, this.seed + 101);
+    const liquidNoise = fbm(tx / 12.5, ty / 12.5, this.seed + 211);
+    if (wallNoise > terrain.wallThreshold + safeSoft) return TILE_WALL;
+    if (liquidNoise < terrain.liquidThreshold - safeSoft * 0.5) return TILE_LIQUID;
+    return TILE_FLOOR;
+  }
+
+  private countNeighbors(
+    grid: Uint8Array,
+    size: number,
+    i: number,
+    j: number,
+    type: number,
+  ): number {
+    let count = 0;
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        if (ox === 0 && oy === 0) continue;
+        const nx = i + ox;
+        const ny = j + oy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        if (grid[ny * size + nx] === type) count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Generate a chunk from raw noise plus two cellular cleanup passes. The
+   * margin makes the cleanup see neighbors across chunk boundaries, so the
+   * result is seamless while isolated wall/liquid tiles are removed.
+   */
   private generate(cx: number, cy: number): Uint8Array {
     const tiles = new Uint8Array(TERRAIN_CHUNK_TILES * TERRAIN_CHUNK_TILES);
     const terrain = this.settings;
     if (!terrain) return tiles;
+
+    const margin = 2;
+    const size = TERRAIN_CHUNK_TILES + margin * 2;
+    let grid = new Uint8Array(size * size);
+    for (let j = 0; j < size; j++) {
+      for (let i = 0; i < size; i++) {
+        const tx = cx * TERRAIN_CHUNK_TILES + i - margin;
+        const ty = cy * TERRAIN_CHUNK_TILES + j - margin;
+        grid[j * size + i] = this.rawTypeAt(tx, ty);
+      }
+    }
+
+    for (let pass = 0; pass < 2; pass++) {
+      const next = new Uint8Array(size * size);
+      for (let j = 0; j < size; j++) {
+        for (let i = 0; i < size; i++) {
+          const idx = j * size + i;
+          const type = grid[idx];
+          const wallCount = this.countNeighbors(grid, size, i, j, TILE_WALL);
+          const liquidCount = this.countNeighbors(grid, size, i, j, TILE_LIQUID);
+          if (type === TILE_WALL) {
+            next[idx] = wallCount >= 1 ? TILE_WALL : TILE_FLOOR;
+          } else if (type === TILE_LIQUID) {
+            next[idx] = liquidCount >= 1 ? TILE_LIQUID : TILE_FLOOR;
+          } else {
+            // Fill tiny holes inside a larger patch. This also makes the
+            // resulting silhouettes read as terrain rather than static.
+            next[idx] = wallCount >= 7 ? TILE_WALL : liquidCount >= 7 ? TILE_LIQUID : TILE_FLOOR;
+          }
+        }
+      }
+      grid = next;
+    }
+
     for (let j = 0; j < TERRAIN_CHUNK_TILES; j++) {
       for (let i = 0; i < TERRAIN_CHUNK_TILES; i++) {
-        const tx = cx * TERRAIN_CHUNK_TILES + i;
-        const ty = cy * TERRAIN_CHUNK_TILES + j;
-        const wx = tx * TERRAIN_TILE + TERRAIN_TILE / 2;
-        const wy = ty * TERRAIN_TILE + TERRAIN_TILE / 2;
-        // Spawn clearing fades into the wild over a few tiles.
-        if (this.inSafeZone(wx, wy, 0)) {
-          tiles[j * TERRAIN_CHUNK_TILES + i] = TILE_FLOOR;
-          continue;
-        }
-        // One transitional tile softens the boundary without making the visible
-        // screen a huge empty island.
-        const safeSoft = this.inSafeZone(wx, wy, TERRAIN_TILE) ? 0.08 : 0;
-        const wallNoise = fbm(tx / 9.5, ty / 9.5, this.seed + 101);
-        const liquidNoise = fbm(tx / 12.5, ty / 12.5, this.seed + 211);
-        let type = TILE_FLOOR;
-        if (wallNoise > terrain.wallThreshold + safeSoft) {
-          type = TILE_WALL;
-        } else if (liquidNoise < terrain.liquidThreshold - safeSoft * 0.5) {
-          type = TILE_LIQUID;
-        }
+        const wx = (cx * TERRAIN_CHUNK_TILES + i) * TERRAIN_TILE + TERRAIN_TILE / 2;
+        const wy = (cy * TERRAIN_CHUNK_TILES + j) * TERRAIN_TILE + TERRAIN_TILE / 2;
+        const type = this.inSafeZone(wx, wy, 0)
+          ? TILE_FLOOR
+          : grid[(j + margin) * size + (i + margin)];
         tiles[j * TERRAIN_CHUNK_TILES + i] = type;
       }
     }

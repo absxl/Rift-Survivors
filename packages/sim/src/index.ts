@@ -39,6 +39,17 @@ export {
   type StoreDelta,
 } from "./snapshot-delta";
 export { DEFAULT_RULESET, registerCoreSystems } from "./defaults";
+export { BushField } from "./bush-field";
+export {
+  PICKUP_BOMB,
+  PICKUP_FREEZE,
+  PICKUP_GOLD,
+  PICKUP_HEAL,
+  PICKUP_KEY,
+  PICKUP_MAGNET,
+  PICKUP_NUKE,
+  PICKUP_VACUUM,
+} from "./systems/pickups";
 export {
   TerrainField,
   TERRAIN_TILE,

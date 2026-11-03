@@ -41,7 +41,7 @@ export class PauseMenu {
     });
     this.root.appendChild(this.restartBtn);
 
-    this.root.appendChild(this.button("QUIT TO MENU", () => this.quitCb?.()));
+    this.root.appendChild(this.button("QUIT RUN (LOSS)", () => this.quitCb?.()));
 
     this.soundBtn = this.button("SOUND: ON", () => {
       this.settings.volume = this.settings.volume > 0 ? 0 : 0.22;

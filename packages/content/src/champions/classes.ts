@@ -23,7 +23,16 @@ export interface ClassDefinition {
 }
 
 /** Upgrades every champion can buy. */
-export const COMMON_UPGRADES = ["power", "vitality", "swiftness", "focus", "fortune"];
+export const COMMON_UPGRADES = [
+  "power",
+  "vitality",
+  "swiftness",
+  "focus",
+  "fortune",
+  "gilded-crown",
+  "windwalkers",
+  "bastion-plate",
+];
 
 export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   mage: {
@@ -43,7 +52,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
       "arcane-barrage",
     ],
     move: "arcane-bolt",
-    upgrades: ["arcane-flow", "velocity", "persistence"],
+    upgrades: ["arcane-flow", "velocity", "persistence", "archmages-thesis"],
     baseStats: { might: 0.08, cooldown: 0.05 },
     growth: { everyLevels: 3, mods: { might: 0.05 } },
   },
@@ -52,7 +61,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
     blurb: "A wall of health and armor that grinds the swarm down.",
     weapons: ["bulwark-sweep", "iron-aura"],
     move: "shockwave",
-    upgrades: ["fortitude", "bulwark", "regeneration", "aegis"],
+    upgrades: ["fortitude", "bulwark", "regeneration", "aegis", "unbroken-wall"],
     baseStats: { maxHp: 0.2, armor: 1 },
     growth: { everyLevels: 3, mods: { maxHp: 0.12 } },
   },
@@ -61,7 +70,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
     blurb: "Trades blows in the middle of the pack and heals through it.",
     weapons: ["cleaver", "war-boomerang"],
     move: "cleaving-strike",
-    upgrades: ["battle-fury", "bloodlust", "second-wind"],
+    upgrades: ["battle-fury", "bloodlust", "second-wind", "warlords-tempo"],
     baseStats: { might: 0.08, maxHp: 0.08 },
     growth: { everyLevels: 3, mods: { lifesteal: 0.01 } },
   },
@@ -70,7 +79,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
     blurb: "Fast, precise, and built to punish isolated targets.",
     weapons: ["shadow-daggers", "venom-dart"],
     move: "shadow-strike",
-    upgrades: ["deadly-precision", "shadow-step", "hunters-instinct"],
+    upgrades: ["deadly-precision", "shadow-step", "hunters-instinct", "executioners-mark"],
     baseStats: { moveSpeed: 0.1, might: 0.05 },
     growth: { everyLevels: 4, mods: { moveSpeed: 0.04, cooldown: 0.03 } },
   },
@@ -79,7 +88,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
     blurb: "Long-range pressure, fast casts, and piercing fire.",
     weapons: ["longbow", "piercing-arrow"],
     move: "piercing-shot",
-    upgrades: ["steady-aim", "piercing-rounds", "rapid-fire"],
+    upgrades: ["steady-aim", "piercing-rounds", "rapid-fire", "deadeye-manual"],
     baseStats: { cooldown: 0.08, projectileSpeed: 0.1 },
     growth: { everyLevels: 4, mods: { cooldown: 0.04 } },
   },
@@ -88,7 +97,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
     blurb: "Controls space with auras, duration, and steady recovery.",
     weapons: ["aegis-aura", "radiant-field"],
     move: "renewal-pulse",
-    upgrades: ["benevolence", "aura-mastery", "lasting-light"],
+    upgrades: ["benevolence", "aura-mastery", "lasting-light", "choir-of-light"],
     baseStats: { growth: 0.08, area: 0.05 },
     growth: { everyLevels: 3, mods: { regen: 0.1, duration: 0.03 } },
   },

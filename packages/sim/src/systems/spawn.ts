@@ -3,6 +3,7 @@
 // enemies that drift away from the nearest player.
 import type { Registries } from "../registry";
 import type { World } from "../world";
+import { assignEnemyAbilities } from "./enemy-abilities";
 
 const PATTERNS = ["ring", "stream", "swarm", "wall"] as const;
 type SpawnPattern = (typeof PATTERNS)[number];
@@ -59,7 +60,7 @@ function spawnDirector(world: World): void {
     }
   }
 
-  // Elites (drop chests).
+  // Elites (can drop keys).
   const eliteInterval = world.num("director.eliteInterval");
   if (world.tick % eliteInterval === 0 && world.tick > 0) {
     const eliteIndex = pickElite(world);
@@ -227,10 +228,14 @@ export function spawnEnemyAt(world: World, defIndex: number, x: number, y: numbe
   enemies.field("vx")[slot] = 0;
   enemies.field("vy")[slot] = 0;
   enemies.field("hitCooldown")[slot] = 0;
+  enemies.field("slowTicks")[slot] = 0;
+  enemies.field("burnTicks")[slot] = 0;
+  enemies.field("freezeTicks")[slot] = 0;
   enemies.field("lastHitBy")[slot] = 0;
   enemies.field("shield")[slot] = 0;
   enemies.field("fuseTicks")[slot] = 0;
   enemies.field("envTick")[slot] = 0;
+  assignEnemyAbilities(world, slot, def);
   return slot;
 }
 

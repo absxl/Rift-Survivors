@@ -17,12 +17,27 @@ export type SimEvent =
   | { type: "player-downed"; playerId: number }
   | { type: "player-revived"; playerId: number }
   | { type: "gem-pickup"; playerId: number; value: number }
-  | { type: "weapon-fire"; playerId: number; weaponId: number }
+  | { type: "weapon-fire"; playerId: number; weaponId: number; angle?: number }
   | { type: "offer"; offer: unknown }
   | { type: "boss-rush"; reason: "killed" | "timeout" }
   | { type: "explosion"; x: number; y: number; radius: number }
-  | { type: "chest-found"; playerId: number; chests: number }
+  | { type: "bush-break"; playerId: number; x: number; y: number }
+  | { type: "key-found"; playerId: number; keys: number }
+  | { type: "run-chest-spawn"; x: number; y: number }
+  | { type: "run-chest-start"; playerId: number; x: number; y: number }
+  | {
+      type: "run-chest-open";
+      playerId: number;
+      x: number;
+      y: number;
+      xp: number;
+      gold: number;
+      key: boolean;
+    }
   | { type: "nuke"; playerId: number }
+  | { type: "magnet"; playerId: number; x: number; y: number }
+  | { type: "bomb"; playerId: number; x: number; y: number }
+  | { type: "frost"; playerId: number; x: number; y: number }
   | { type: "enemy-heal"; x: number; y: number; radius: number; amount: number }
   | { type: "enemy-shield"; x: number; y: number; radius: number; amount: number }
   | { type: "run-end"; victory: boolean };

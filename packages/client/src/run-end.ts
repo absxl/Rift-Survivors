@@ -4,12 +4,15 @@ export interface RunEndStats {
   time: string;
   kills: number;
   gold: number;
-  chests: number;
+  keys: number;
+  chestsOpened: number;
+  title?: string;
   newAchievements: string[];
 }
 
 export class RunEndUI {
   private readonly root: HTMLElement;
+  private readonly title: HTMLElement;
   private readonly stats: HTMLElement;
   private continueCb: (() => void) | null = null;
 
@@ -18,10 +21,10 @@ export class RunEndUI {
     this.root.className = "run-end";
     this.root.style.display = "none";
 
-    const title = document.createElement("div");
-    title.className = "run-end-title";
-    title.textContent = "GAME OVER";
-    this.root.appendChild(title);
+    this.title = document.createElement("div");
+    this.title.className = "run-end-title";
+    this.title.textContent = "GAME OVER";
+    this.root.appendChild(this.title);
 
     this.stats = document.createElement("div");
     this.stats.className = "run-end-stats";
@@ -39,7 +42,9 @@ export class RunEndUI {
   }
 
   show(stats: RunEndStats): void {
-    let text = `TIME ${stats.time}   KILLS ${stats.kills}   GOLD +${stats.gold}   CHESTS +${stats.chests} (OPEN IN SHOP)`;
+    this.title.textContent = stats.title ?? "GAME OVER";
+    let text = `TIME ${stats.time}   KILLS ${stats.kills}   GOLD +${stats.gold}   KEYS +${stats.keys}`;
+    if (stats.chestsOpened > 0) text += `   CHESTS OPENED ${stats.chestsOpened}`;
     if (stats.newAchievements.length > 0) {
       text += `\nACHIEVEMENT: ${stats.newAchievements.join(", ")}`;
     }

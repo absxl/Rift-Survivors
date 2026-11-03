@@ -56,7 +56,7 @@ describe("stats formatting", () => {
         lifesteal: 0.02,
         knockback: 1.2,
       },
-      { kills: 42, gold: 15, chests: 3, maxHp: 150 },
+      { kills: 42, gold: 15, keys: 3, maxHp: 150 },
     );
     expect(rows.primary).toEqual([
       { label: "MIGHT", value: "+10%" },
@@ -79,7 +79,7 @@ describe("stats formatting", () => {
     expect(rows.secondary).toEqual([
       { label: "KILLS", value: "42" },
       { label: "GOLD", value: "15" },
-      { label: "CHESTS", value: "3" },
+      { label: "KEYS", value: "3" },
       { label: "MAX HP", value: "150" },
     ]);
   });
@@ -97,7 +97,7 @@ describe("stats formatting", () => {
     expect(percentBonus(Number.NaN)).toBe("+0%");
     const rows = formatStats(
       { ...BASE, armor: Number.NaN },
-      { kills: Number.NaN, gold: Number.NaN, chests: Number.NaN, maxHp: Number.NaN },
+      { kills: Number.NaN, gold: Number.NaN, keys: Number.NaN, maxHp: Number.NaN },
     );
     expect(rows.primary[5].value).toBe("0");
     expect(rows.secondary.map((r) => r.value)).toEqual(["0", "0", "0", "0"]);

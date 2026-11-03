@@ -10,7 +10,7 @@ export interface RunTotals {
   kills: number;
   gold: number;
   maxHp: number;
-  chests: number;
+  keys: number;
 }
 
 export const PRIMARY_LABELS = [
@@ -31,7 +31,7 @@ export const PRIMARY_LABELS = [
   "LIFESTEAL",
   "KNOCKBACK",
 ] as const;
-export const SECONDARY_LABELS = ["KILLS", "GOLD", "CHESTS", "MAX HP"] as const;
+export const SECONDARY_LABELS = ["KILLS", "GOLD", "KEYS", "MAX HP"] as const;
 
 /** "+12%" / "-5%" for a multiplier where 1 is base. */
 export function percentBonus(multiplier: number): string {
@@ -86,7 +86,7 @@ export function formatStats(
     secondary: [
       { label: SECONDARY_LABELS[0], value: whole(totals.kills) },
       { label: SECONDARY_LABELS[1], value: whole(totals.gold) },
-      { label: SECONDARY_LABELS[2], value: whole(totals.chests) },
+      { label: SECONDARY_LABELS[2], value: whole(totals.keys) },
       { label: SECONDARY_LABELS[3], value: whole(totals.maxHp) },
     ],
   };

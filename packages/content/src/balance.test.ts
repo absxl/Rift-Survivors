@@ -180,7 +180,7 @@ interface RunResult {
   levelUps: number;
   kills: number;
   gold: number;
-  chestsFound: number;
+  keysFound: number;
   gemsCollected: number;
   xpFromGems: number;
   maxEnemies: number;
@@ -259,7 +259,7 @@ function runSeed(
     levelUps,
     kills: world.stores.players.field("kills")[0],
     gold: world.stores.players.field("gold")[0],
-    chestsFound: world.stores.players.field("chests")[0],
+    keysFound: world.stores.players.field("keys")[0],
     gemsCollected,
     xpFromGems,
     maxEnemies,

@@ -207,8 +207,8 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
   - **Regions:** all canonical regions used by the roster (14 pools), keeping the current eight curated
     assignments and filling the rest from the generated roster table. Rarities are provisional and meant
     for a review pass.
-  - **Focus champion:** each region chest has a player-selected focus. Champion/shard outcomes have a
-    50% preference for a locked focus champion; the player can change focus per region.
+  - **Focus champion (superseded by D-035):** focus was originally a per-region 50% pull preference.
+    It has been removed; chest outcomes now use the rarity-weighted pool only.
   - **Second stage:** **Noxian Warfront** with its own enemy pool (Warhound, Blood Acolyte, Siege Ogre,
     Crimson Herald, Dread Conqueror), faster spawn rules, and a red/iron presentation palette. Both stages
     are currently selectable; a formal stage unlock/progression pass comes later.
@@ -270,11 +270,12 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
     (for example Riven Noxus/Ionia, Samira Noxus/Shurima, Kayn Ionia/Noxus, Aatrox Shurima/Runeterra, and
     Brand Runeterra/Freljord). Lost places that are not one of the 14 chest regions (Camavor, Blessed
     Isles, Icathia) remain visible as origin lore but do not create extra chests. Multi-region champions
-    appear in every associated region pool; focus remains per region; shards and unlocks remain global.
+    appear in every associated region pool; shards and unlocks remain global. Focus was removed by
+    D-035.
   - **Dossier UI:** clicking a champion opens a full dossier with a blended region crest, title, region
     chips, identity facts, original summary, verified source links, Rift Survivors kit, rarity, shards,
-    per-region focus, and select/unlock actions. Collection cards, PLAY hero, sidebar, upgrades header, and
-    chest cards use the same theme.
+    and select/unlock actions. Collection cards, PLAY hero, sidebar, upgrades header, and chest cards use
+    the same theme.
   - **Visual language:** official golden Universe region crests are committed under the explicit D-033
     exception (13 crests; Runeterra gets an original golden world-rune). Crests are split/overlapped for
     multi-region identities. No champion splash art or other Riot assets are used.
@@ -297,3 +298,113 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
 - Do co-op shared level-ups also share the card *choices*, or does each player pick their own card at the
   shared level-up? (resolve at M12)
 - Gacha drop rates / pity mechanics. (resolve at M8)
+
+### D-034 - Coherent terrain, breakable bushes, run chests, and the key economy
+- Date: 2026-10-29 - Status: decided (user)
+- Decision:
+  - Terrain keeps the same stage palette and collision model but gains deterministic cellular cleanup,
+    neighbor-aware autotiling, and isolated-tile removal so walls and liquids form readable patches.
+  - Bushes are deterministic, streamed, non-blocking destructible props. Weapon projectiles, sweeps,
+    auras, and ground zones can break them; breaking one always drops a healing pickup.
+  - Spawnable run chests appear on a timed cadence near the party. A player must stay within the chest
+    hold radius for three seconds; leaving, dying, or being downed cancels progress. Opening grants
+    party XP, personal gold, and a chance at a key.
+  - Elites have a luck-scaled key drop and bosses guarantee a key. Minions no longer drop chests.
+  - The meta currency formerly called `chests` is now `keys`: one key opens one region chest, ten keys
+    open a ten-pull. Save v6 migrates old chest balances 1:1.
+  - The CHESTS page is a compact key wallet plus region cards with hidden pool details. Opening uses a
+    full-screen, procedural chest reveal with rarity-colored cards, skip/reveal-all, and reduced-motion
+    fallbacks. No new Riot art is introduced.
+  - All directional/placed player weapons share a nearest-enemy auto-aim contract; player-centered auras
+    and orbits remain centered on the caster.
+  - Quitting from the pause menu is a loss: the run is settled immediately, including stats, gold, keys,
+    and lifetime counters.
+  - Achievements now cover combat, survival, loot, exploration, and collection goals, with gold/key
+    rewards and descriptions.
+- Consequences: save schema v6; new `bush` and `chest` stores; new chest/bush/key events; chest page
+  no longer shows a static pull-results grid. Balance still needs a human playtest.
+
+### D-035 - Frost, chest utilities, enemy kits, Darkin chest, and lore identity
+- Date: 2026-10-29 - Status: decided (user)
+- Decision:
+  - The global freeze pickup becomes **Frost**: a strong movement slow with a blue tint and screen
+    feedback. It never hard-stops the swarm; level-up/offer pauses remain intentional.
+  - Run chests roll independent utility drops: 35% magnet, 20% bomb. Magnet pulls all active gems and
+    pickups to the opener (excluding other magnets); bomb deals percentage damage to every enemy
+    (12% max HP normal, 7% elite, 3% boss/final-threat). Both use new pickup visuals and events.
+  - Some ranged minions spawn with one original enemy ability. Elites get two, bosses four, final
+    threats five. Ability archetypes are original (Arc Bolt, Split Volley, Rune Mine, Frost Ring,
+    Searing Beam, Meteor, Hex Shield, Warp Dash, Summon Swarm, Chain Spark), with deterministic
+    assignment, staggered cooldowns, and telegraphed hazards.
+  - **Focus is removed from the chest economy.** Chest pulls use rarity-weighted pools only; the
+    `championFocus` save field is stripped during migration and no focus controls are rendered.
+  - A dedicated **Darkin chest** is added to the CHESTS page for champions whose verified `species`
+    includes Darkin (Aatrox, Kayn, Naafiri, Varus, Zaahen). Darkin champions remain in their regional
+    pools. The chest uses an original crimson/gold sigil, not Riot art.
+  - Crest presentation is normalized: 256x256 transparent PNG derivatives, a single primary crest,
+    and compact secondary-region badges instead of overlapping full-size images.
+  - Region chest cards open a full dossier with region lore, record stats, pool, focus-free actions, and
+    the same reveal overlay. Region/lore achievements expand to 67 goals (42 regional tiers plus global
+    and Darkin lore), backed by save v7 `regionProgress` and `achievementProgress`.
+  - The HUD removes Q/W/E/R/M hotbar letters, the Tab scoreboard background becomes 82% opaque, elites
+    always show health bars, and chest progress rings/melee slashes use filled/segmented geometry to
+    remove stroked-arc artifacts.
+- Consequences: save v7 adds lore progress; a new `hazard` store and five enemy ability slots; new
+  magnet/bomb/frost events; normalized crest assets under `public/regions/normalized`; no focus field or
+  hidden pull bias.
+
+### D-036 - Per-chest pull records and the centered PLAY hero
+- Date: 2026-10-29 - Status: decided (user)
+- Decision:
+  - The individual region/Darkin chest dossier drops run statistics from its record block. It instead
+    shows a **PULL RECORD**: total pulls, full champions, shard total, gold earned, guaranteed Epic+
+    outcomes, and keys spent (derived from total pulls).
+  - Save v8 records per-region pull outcomes: tracked pulls, full champions, shards, gold, and
+    guarantees. Existing v7 `pulls` and lore counters are preserved; outcome counters start at zero for
+    legacy pulls, and the dossier shows a tracked-vs-total note when needed.
+  - Pull results are recorded after the complete 1-pull/10-pull roll set, including guarantee fallbacks.
+  - The PLAY hero becomes a centered champion stage: crest watermark and initial medallion share one
+    centered grid cell; title/name/chips sit beneath; kit and launch actions are centered below.
+  - The hero crest is explicitly centered with `inset:0; margin:auto` instead of relying on its absolute
+    static position. The old fixed 300px art column and off-center bottom-left label are removed.
+  - Responsive behavior keeps the medallion centered and reduces its size on mobile.
+- Consequences: save schema v8; new per-region pull counters in `RegionProgress`; no change to run
+  counters or achievement progress; the current crest + initial visual is retained (no new champion art).
+
+### D-037 - Deeper passive/meta tracks and denser terrain
+- Date: 2026-10-29 - Status: decided (user)
+- Decision:
+  - Permanent upgrade tracks are deeper: broad stat relics reach **10 ranks**, while class and signature
+    capstones reach **6 ranks**. Existing purchases keep their rank; the cost curves extend in place.
+  - `PowerUpDef` supports an optional multi-stat `stats` block alongside the legacy `stat`/`perRank`
+    shape. A single relic can now grant two related bonuses without duplicating entries.
+  - Nine passive-inspired meta upgrades are added: three common relics (Gilded Crown, Windwalkers,
+    Bastion Plate) and one capstone for each class (Archmage's Thesis, Unbroken Wall, Warlord's Tempo,
+    Executioner's Mark, Deadeye Manual, Choir of Light). The catalog is **44** upgrades; every champion
+    tree shows common + class entries, and curated champions keep their signature entries as well.
+  - The in-run passive catalog grows to **26** with eight hybrid passives: Aegis Bloom, Hunter's Bracer,
+    Sanguine Bloom, Midas Sigil, Torrent Charm, Storm Lens, Chronicle, and Berserker's Mask. Every passive
+    now has **8 levels**; existing rank-5/rank-3 final totals are preserved by scaling their per-level
+    values so the longer track is a granularity increase, not a free doubling.
+  - Terrain is intentionally denser while staying deterministic and safe around the spawn clearing.
+    Riftfield uses wall/liquid thresholds **0.65/0.30** and bush density **1.9**; Noxian Warfront uses
+    **0.67/0.28** and **1.8**. Walls and liquids still receive cellular cleanup and isolated-tile
+    removal, and bushes remain floor-only with a protected spawn zone.
+  - The upgrade UI renders multi-stat effects and 10/6 rank pips; rank pips wrap on narrow layouts.
+- Consequences: counts are now 44 meta power-ups and 26 passives; save schema is unchanged. Existing
+  meta ranks remain valid and new rank costs are content-driven. No new Riot art is introduced.
+
+### D-038 - Search, filter, and sort controls for collections
+- Date: 2026-10-29 - Status: decided (user)
+- Decision:
+  - **Champions** keep region, class, owned/locked, and text controls, and gain a rarity filter plus
+    sort modes for name, rarity, class, primary region, and unlock progress.
+  - **Chests** gain text search across region names, blurbs, and champion pools; filters for all,
+    regional, Darkin, and incomplete pools; and sort modes for featured order, name, pool size,
+    missing-champion count, and completion.
+  - **Achievements** keep category and region filters, and gain text search plus sort modes for default
+    order, incomplete first, complete first, progress, reward value, and name.
+  - Search, filter, and sort state is in-memory UI state. It resets only when the page is reloaded; run
+    saves and the save schema are untouched.
+- Consequences: collection pages expose a consistent search row with a sort control and result count;
+  no new art, content records, or persistence fields are required.

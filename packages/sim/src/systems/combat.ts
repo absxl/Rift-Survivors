@@ -82,6 +82,18 @@ function projectiles(world: World): void {
     }
     const hitRadius = 8;
 
+    // Bushes are soft props: player projectiles damage them but pass through,
+    // so auto-aim shots are never wasted on foliage. Hostile shots ignore them.
+    if (mode !== 5) {
+      world.damageBushesInCircle(
+        px,
+        py,
+        hitRadius,
+        projs.field("damage")[slot],
+        projs.field("owner")[slot],
+      );
+    }
+
     // Hostile enemy projectile: damage the nearest player on contact.
     if (mode === 5) {
       let target = -1;
@@ -169,6 +181,7 @@ export function damagePlayer(
 
   if (players.field("hp")[slot] > 0) return;
   players.field("hp")[slot] = 0;
+  players.field("downs")[slot] += 1;
   if (players.count <= 1) {
     world.over = true;
     world.emit({ type: "run-end", victory: false });

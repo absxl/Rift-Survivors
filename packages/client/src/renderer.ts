@@ -31,7 +31,9 @@ export const VIEW_H = 270;
 const MAX_DAMAGE = 96;
 const FLASH_FRAMES = 5;
 // Pickup kind → tint (heal, vacuum, nuke, freeze, chest, gold).
-const PICKUP_COLORS = [0x44ff66, 0x44ffff, 0xff8844, 0x4488ff, 0xffcc44, 0xffdd44];
+const PICKUP_COLORS = [
+  0x44ff66, 0x44ffff, 0xff8844, 0x4488ff, 0xffcc44, 0xffdd44, 0xffd66b, 0x7fe8ff, 0xff6b3d,
+];
 
 function getStore(s: WorldSnapshot, kind: string): StoreSnapshot | undefined {
   return s.stores.find((st) => st.kind === kind);
@@ -90,18 +92,24 @@ export class GameRenderer {
   private readonly playerHpBar: Graphics;
   private readonly playerSprites = new Map<number, Sprite>();
   private localPlayerId = 0;
+  private readonly bushLayer: Container;
   private readonly gemLayer: Container;
   private readonly pickupLayer: Container;
+  private readonly chestLayer: Container;
   private readonly projectileLayer: Container;
   private readonly enemyLayer: Container;
+  private readonly bushSprites = new Map<number, Sprite>();
   private readonly gemSprites = new Map<number, Sprite>();
   private readonly pickupSprites = new Map<number, Sprite>();
+  private readonly chestSprites = new Map<number, Sprite>();
+  private readonly chestGraphics: Graphics;
   private readonly projectileSprites = new Map<number, Sprite>();
   private readonly enemySprites = new Map<number, Sprite>();
   private readonly enemyFlash = new Map<number, number>();
   private readonly enemyBaseScale = new Map<number, number>();
   private readonly enemyHpBar: Graphics;
   private readonly zoneGraphics: Graphics;
+  private readonly hazardGraphics: Graphics;
   private readonly fxGraphics: Graphics;
   private readonly damage: DamageEntry[] = [];
   private readonly effects: FireEffect[] = [];
@@ -137,20 +145,28 @@ export class GameRenderer {
     this.terrainGraphics = new Graphics();
     this.stage.addChild(this.terrainGraphics);
 
+    this.bushLayer = new Container();
     this.gemLayer = new Container();
     this.pickupLayer = new Container();
+    this.chestLayer = new Container();
     this.projectileLayer = new Container();
     this.enemyLayer = new Container();
+    this.stage.addChild(this.bushLayer);
     this.stage.addChild(this.gemLayer);
     this.stage.addChild(this.pickupLayer);
+    this.stage.addChild(this.chestLayer);
     this.stage.addChild(this.projectileLayer);
     this.stage.addChild(this.enemyLayer);
 
+    this.chestGraphics = new Graphics();
+    this.chestLayer.addChild(this.chestGraphics);
     this.enemyHpBar = new Graphics();
     this.enemyLayer.addChild(this.enemyHpBar);
 
     this.zoneGraphics = new Graphics();
     this.gemLayer.addChild(this.zoneGraphics);
+    this.hazardGraphics = new Graphics();
+    this.gemLayer.addChild(this.hazardGraphics);
 
     this.fxGraphics = new Graphics();
     this.enemyLayer.addChild(this.fxGraphics);
@@ -310,7 +326,68 @@ export class GameRenderer {
         this.spawnDamage(e.x, e.y, e.amount);
         this.shake = Math.min(4, this.shake + 0.6);
       } else if (e.type === "weapon-fire") {
-        this.spawnFireEffect(e.weaponId);
+        this.spawnFireEffect(e.weaponId, e.angle);
+      } else if (e.type === "bush-break") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: 14,
+          life: 10,
+          maxLife: 10,
+          color: 0x69d98c,
+        });
+      } else if (e.type === "magnet") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: 72,
+          life: 20,
+          maxLife: 20,
+          color: 0x7fe8ff,
+        });
+      } else if (e.type === "bomb") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: 180,
+          life: 18,
+          maxLife: 18,
+          color: 0xff6b3d,
+        });
+        this.shake = Math.min(4, this.shake + 1.4);
+      } else if (e.type === "frost") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: 58,
+          life: 22,
+          maxLife: 22,
+          color: 0x8fdcff,
+        });
+      } else if (e.type === "run-chest-open") {
+        this.effects.push({
+          kind: "ring",
+          x: e.x,
+          y: e.y,
+          angle: 0,
+          arc: 0,
+          radius: e.key ? 42 : 28,
+          life: 18,
+          maxLife: 18,
+          color: e.key ? 0xffd86b : 0xffcc66,
+        });
       } else if (e.type === "explosion") {
         this.effects.push({
           kind: "ring",
@@ -353,14 +430,21 @@ export class GameRenderer {
 
     this.ground.tilePosition.set(-ox, -oy);
     this.drawTerrain(ox, oy);
+    this.bushLayer.position.set(-ox, -oy);
     this.gemLayer.position.set(-ox, -oy);
     this.pickupLayer.position.set(-ox, -oy);
+    this.chestLayer.position.set(-ox, -oy);
     this.projectileLayer.position.set(-ox, -oy);
     this.enemyLayer.position.set(-ox, -oy);
 
     this.drawZones();
+    this.drawHazards();
     this.drawEffects();
 
+    this.syncBushes(
+      getStore(this.curr, "bush"),
+      this.prev ? getStore(this.prev, "bush") : undefined,
+    );
     this.syncEntities(
       this.gemSprites,
       this.gemLayer,
@@ -371,6 +455,10 @@ export class GameRenderer {
     this.syncPickups(
       getStore(this.curr, "pickup"),
       this.prev ? getStore(this.prev, "pickup") : undefined,
+    );
+    this.syncChests(
+      getStore(this.curr, "chest"),
+      this.prev ? getStore(this.prev, "chest") : undefined,
     );
     const projectiles = getStore(this.curr, "projectile");
     this.syncEntities(
@@ -433,13 +521,25 @@ export class GameRenderer {
         const py = ty * TERRAIN_TILE - oy;
         const type = terrain.tileAt(tx, ty);
         if (type === TILE_WALL) {
-          this.terrainGraphics
-            .rect(px, py + 25, TERRAIN_TILE, 7)
-            .fill({ color: 0x000000, alpha: 0.24 });
-          this.terrainGraphics.rect(px, py, TERRAIN_TILE, 23).fill(wallTop);
-          this.terrainGraphics.rect(px, py, TERRAIN_TILE, 2).fill(wallTopAlt);
-          this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 9).fill(wallFace);
-          this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 1).fill(wallEdge);
+          const north = terrain.tileAt(tx, ty - 1) !== TILE_WALL;
+          const south = terrain.tileAt(tx, ty + 1) !== TILE_WALL;
+          const west = terrain.tileAt(tx - 1, ty) !== TILE_WALL;
+          const east = terrain.tileAt(tx + 1, ty) !== TILE_WALL;
+          if (south) {
+            this.terrainGraphics
+              .rect(px, py + 25, TERRAIN_TILE, 7)
+              .fill({ color: 0x000000, alpha: 0.24 });
+          }
+          this.terrainGraphics.rect(px, py, TERRAIN_TILE, TERRAIN_TILE).fill(wallTop);
+          if (north) this.terrainGraphics.rect(px, py, TERRAIN_TILE, 2).fill(wallTopAlt);
+          if (west) this.terrainGraphics.rect(px, py, 1, TERRAIN_TILE).fill(wallEdge);
+          if (east) {
+            this.terrainGraphics.rect(px + TERRAIN_TILE - 1, py, 1, TERRAIN_TILE).fill(wallEdge);
+          }
+          if (south) {
+            this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 9).fill(wallFace);
+            this.terrainGraphics.rect(px, py + 23, TERRAIN_TILE, 1).fill(wallEdge);
+          }
           if ((tx * 7 + ty * 13) % 5 === 0) {
             this.terrainGraphics
               .rect(px + 4, py + 5, 8, 2)
@@ -449,6 +549,10 @@ export class GameRenderer {
               .fill({ color: wallEdge, alpha: 0.6 });
           }
         } else if (type === TILE_LIQUID) {
+          const north = terrain.tileAt(tx, ty - 1) !== TILE_LIQUID;
+          const south = terrain.tileAt(tx, ty + 1) !== TILE_LIQUID;
+          const west = terrain.tileAt(tx - 1, ty) !== TILE_LIQUID;
+          const east = terrain.tileAt(tx + 1, ty) !== TILE_LIQUID;
           this.terrainGraphics.rect(px, py, TERRAIN_TILE, TERRAIN_TILE).fill(liquidDeep);
           this.terrainGraphics.rect(px, py, TERRAIN_TILE, TERRAIN_TILE).fill({
             color: liquid,
@@ -462,15 +566,25 @@ export class GameRenderer {
           this.terrainGraphics
             .rect(px + 16, py + 20 + (wave2 > 0 ? 2 : 0), 8, 1)
             .fill({ color: liquidAccent, alpha: 0.38 });
-          if (terrain.tileAt(tx, ty - 1) !== TILE_LIQUID) {
+          if (north) {
             this.terrainGraphics
               .rect(px, py, TERRAIN_TILE, 2)
               .fill({ color: liquidAccent, alpha: 0.72 });
           }
-          if (terrain.tileAt(tx, ty + 1) !== TILE_LIQUID) {
+          if (south) {
             this.terrainGraphics
               .rect(px, py + TERRAIN_TILE - 2, TERRAIN_TILE, 2)
               .fill({ color: liquidDeep, alpha: 0.9 });
+          }
+          if (west) {
+            this.terrainGraphics
+              .rect(px, py, 1, TERRAIN_TILE)
+              .fill({ color: liquidAccent, alpha: 0.35 });
+          }
+          if (east) {
+            this.terrainGraphics
+              .rect(px + TERRAIN_TILE - 1, py, 1, TERRAIN_TILE)
+              .fill({ color: liquidAccent, alpha: 0.35 });
           }
         } else {
           // The seamless ground texture already paints the floor. Keep only a
@@ -593,11 +707,13 @@ export class GameRenderer {
       const maxHp = store.fields.maxHp[i];
       const shield = store.fields.shield?.[i] ?? 0;
       const fuse = store.fields.fuseTicks?.[i] ?? 0;
-      if (hp >= maxHp && shield <= 0 && fuse <= 0) continue;
       const def = this.enemies[store.fields.kind[i]];
+      const isElite = def?.category === "elite";
+      // Elites keep an always-visible bar; everything else appears after damage.
+      if (!isElite && hp >= maxHp && shield <= 0 && fuse <= 0) continue;
       // Bosses/final threats use the HUD overlay bar instead.
       if (def?.category === "boss" || def?.category === "final-threat") continue;
-      const w = def ? Math.min(30, Math.max(12, def.radius * 2)) : 12;
+      const w = def ? Math.min(34, Math.max(12, def.radius * 2)) : 12;
       let x = store.fields.x[i];
       let y = store.fields.y[i];
       const pi = prevIndex.get(store.slots[i]);
@@ -606,8 +722,10 @@ export class GameRenderer {
         y = lerp(prev.fields.y[pi], y, a);
       }
       const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-      this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(0x000000);
-      this.enemyHpBar.rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1).fill(0xff4444);
+      this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(isElite ? 0x2a1a0c : 0x000000);
+      this.enemyHpBar
+        .rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1)
+        .fill(isElite ? 0xffb24d : 0xff4444);
       if (shield > 0) {
         this.enemyHpBar.circle(x, y - 4, Math.max(8, w * 0.35));
         this.enemyHpBar.stroke({ color: 0x7fc8ff, width: 1, alpha: 0.55 });
@@ -687,8 +805,9 @@ export class GameRenderer {
         }
         const def = this.enemies[store.fields.kind[i]];
         const baseScale = def ? Math.max(0.6, def.radius / 6) : 1;
+        const slowed = (store.fields.slowTicks?.[i] ?? 0) > 0;
         this.enemyBaseScale.set(slot, baseScale);
-        sprite.tint = def?.tint ?? 0xffffff;
+        sprite.tint = slowed ? 0x9fdcff : (def?.tint ?? 0xffffff);
         sprite.scale.set(baseScale);
 
         let x = store.fields.x[i];
@@ -732,6 +851,15 @@ export class GameRenderer {
           this.pickupSprites.set(slot, sprite);
           this.pickupLayer.addChild(sprite);
         }
+        const kind = store.fields.kind[i];
+        sprite.texture =
+          kind === 6
+            ? this.textures.key
+            : kind === 7
+              ? this.textures.magnet
+              : kind === 8
+                ? this.textures.bomb
+                : this.textures.gem;
         let x = store.fields.x[i];
         let y = store.fields.y[i];
         const pi = prevIndex.get(slot);
@@ -747,6 +875,125 @@ export class GameRenderer {
       if (!seen.has(slot)) {
         this.pickupLayer.removeChild(sprite);
         this.pickupSprites.delete(slot);
+      }
+    }
+  }
+
+  /** Bushes are soft props rendered behind pickups and actors. */
+  private syncBushes(store: StoreSnapshot | undefined, prevStore: StoreSnapshot | undefined): void {
+    const seen = new Set<number>();
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prevStore) {
+      for (let i = 0; i < prevStore.slots.length; i++) prevIndex.set(prevStore.slots[i], i);
+    }
+    if (store) {
+      for (let i = 0; i < store.slots.length; i++) {
+        const slot = store.slots[i];
+        seen.add(slot);
+        let sprite = this.bushSprites.get(slot);
+        if (!sprite) {
+          sprite = new Sprite(this.textures.bush);
+          sprite.anchor.set(0.5, 0.7);
+          this.bushSprites.set(slot, sprite);
+          this.bushLayer.addChild(sprite);
+        }
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const pi = prevIndex.get(slot);
+        if (pi !== undefined && prevStore) {
+          x = lerp(prevStore.fields.x[pi], x, a);
+          y = lerp(prevStore.fields.y[pi], y, a);
+        }
+        const sway = Math.sin(performance.now() / 700 + slot * 1.7) * 0.8;
+        sprite.position.set(x + sway, y);
+        sprite.scale.set(1.15);
+      }
+    }
+    for (const [slot, sprite] of this.bushSprites) {
+      if (!seen.has(slot)) {
+        this.bushLayer.removeChild(sprite);
+        this.bushSprites.delete(slot);
+      }
+    }
+  }
+
+  /** Run chests: golden chest + claim progress ring. */
+  private syncChests(store: StoreSnapshot | undefined, prevStore: StoreSnapshot | undefined): void {
+    const seen = new Set<number>();
+    const a = this.alpha();
+    const prevIndex = new Map<number, number>();
+    if (prevStore) {
+      for (let i = 0; i < prevStore.slots.length; i++) prevIndex.set(prevStore.slots[i], i);
+    }
+    this.chestGraphics.clear();
+    const now = performance.now();
+    if (store) {
+      for (let i = 0; i < store.slots.length; i++) {
+        const slot = store.slots[i];
+        seen.add(slot);
+        let sprite = this.chestSprites.get(slot);
+        if (!sprite) {
+          sprite = new Sprite(this.textures.chest);
+          sprite.anchor.set(0.5, 0.7);
+          this.chestSprites.set(slot, sprite);
+          this.chestLayer.addChild(sprite);
+        }
+        let x = store.fields.x[i];
+        let y = store.fields.y[i];
+        const pi = prevIndex.get(slot);
+        if (pi !== undefined && prevStore) {
+          x = lerp(prevStore.fields.x[pi], x, a);
+          y = lerp(prevStore.fields.y[pi], y, a);
+        }
+        const opening = (store.fields.openingTicks?.[i] ?? 0) > 0;
+        const bob = opening ? 0 : Math.sin(now / 280 + slot) * 1.2;
+        sprite.position.set(x, y + bob);
+        sprite.scale.set(opening ? 1.65 + Math.sin(now / 80) * 0.05 : 1.55);
+
+        const glow = opening ? 0.5 : 0.24 + Math.sin(now / 320 + slot) * 0.08;
+        this.chestGraphics.circle(x, y - 5, 18).fill({ color: 0xffd66b, alpha: glow });
+        // A dotted ring avoids the open arc endpoints and anti-aliasing seams
+        // produced by thin stroked Pixi arcs at this canvas resolution.
+        this.drawProgressDots(
+          this.chestGraphics,
+          x,
+          y - 5,
+          22,
+          opening ? Math.max(0, Math.min(1, 1 - (store.fields.openingTicks?.[i] ?? 0) / 90)) : 0,
+          opening ? 0xffffff : 0xffdf8a,
+          opening ? 0.9 : 0.28,
+        );
+      }
+    }
+    for (const [slot, sprite] of this.chestSprites) {
+      if (!seen.has(slot)) {
+        this.chestLayer.removeChild(sprite);
+        this.chestSprites.delete(slot);
+      }
+    }
+  }
+
+  /** Draw a segmented progress ring with filled pips (no stroked arc seams). */
+  private drawProgressDots(
+    graphics: Graphics,
+    x: number,
+    y: number,
+    radius: number,
+    pct: number,
+    color: number,
+    alpha: number,
+  ): void {
+    const total = 28;
+    const active = Math.ceil(Math.max(0, Math.min(1, pct)) * total);
+    for (let i = 0; i < total; i++) {
+      const angle = -Math.PI / 2 + (i / total) * Math.PI * 2;
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius;
+      if (i < active) {
+        graphics.circle(px, py, 1.5).fill({ color, alpha });
+      } else {
+        graphics.circle(px, py, 1.1).fill({ color: 0x1a2634, alpha: 0.5 });
       }
     }
   }
@@ -788,11 +1035,11 @@ export class GameRenderer {
   }
 
   /** Spawn a short visual for a weapon firing (arc for sweeps, ring for auras). */
-  private spawnFireEffect(weaponSlot: number): void {
+  private spawnFireEffect(weaponSlot: number, aimedAngle?: number): void {
     const def = this.weaponDefAt(weaponSlot);
     const p = this.playerPosition();
     if (!def || !p) return;
-    const angle = Math.atan2(p.fy, p.fx);
+    const angle = aimedAngle ?? Math.atan2(p.fy, p.fx);
     if (def.behavior === "sweep") {
       const arc = typeof def.params.arc === "number" ? def.params.arc : 1.2;
       this.effects.push({
@@ -846,17 +1093,112 @@ export class GameRenderer {
     }
   }
 
+  /** Filled ring segment; used for slashes and shockwaves. */
+  private drawAnnularSector(
+    graphics: Graphics,
+    x: number,
+    y: number,
+    inner: number,
+    outer: number,
+    start: number,
+    end: number,
+    color: number,
+    alpha: number,
+  ): void {
+    const steps = Math.max(8, Math.ceil(Math.abs(end - start) / 0.14));
+    graphics.moveTo(x + Math.cos(start) * outer, y + Math.sin(start) * outer);
+    for (let i = 1; i <= steps; i++) {
+      const angle = start + ((end - start) * i) / steps;
+      graphics.lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const angle = start + ((end - start) * i) / steps;
+      graphics.lineTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner);
+    }
+    graphics.closePath().fill({ color, alpha });
+  }
+
+  private drawAnnularRing(
+    graphics: Graphics,
+    x: number,
+    y: number,
+    inner: number,
+    outer: number,
+    color: number,
+    alpha: number,
+  ): void {
+    this.drawAnnularSector(graphics, x, y, inner, outer, 0, Math.PI * 2, color, alpha);
+  }
+
+  /** Enemy ability telegraphs (ground runes, beams, meteors). */
+  private drawHazards(): void {
+    this.hazardGraphics.clear();
+    const store = this.curr ? getStore(this.curr, "hazard") : undefined;
+    if (!store) return;
+    const pulse = 0.18 + (Math.sin(performance.now() / 95) + 1) * 0.045;
+    for (let i = 0; i < store.slots.length; i++) {
+      const x = store.fields.x[i];
+      const y = store.fields.y[i];
+      const radius = store.fields.radius[i];
+      const kind = store.fields.kind[i];
+      if (kind === 1) {
+        const angle = store.fields.angle[i];
+        const length = store.fields.length[i];
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const nx = -sin * radius;
+        const ny = cos * radius;
+        this.hazardGraphics
+          .moveTo(x + nx, y + ny)
+          .lineTo(x + cos * length + nx, y + sin * length + ny)
+          .lineTo(x + cos * length - nx, y + sin * length - ny)
+          .lineTo(x - nx, y - ny)
+          .closePath()
+          .fill({ color: 0xff4d3d, alpha: pulse });
+        this.hazardGraphics
+          .moveTo(x, y)
+          .lineTo(x + cos * length, y + sin * length)
+          .stroke({ color: 0xffbba0, width: 1, alpha: 0.45 });
+      } else {
+        this.hazardGraphics.circle(x, y, radius).fill({ color: 0xff4d3d, alpha: pulse });
+        this.hazardGraphics.circle(x, y, Math.max(4, radius - 4)).fill({
+          color: 0xffaa66,
+          alpha: pulse * 0.5,
+        });
+      }
+    }
+  }
+
   /** Transient weapon-fire visuals (arcs/rings). */
   private drawEffects(): void {
     this.fxGraphics.clear();
     for (const fx of this.effects) {
       const alpha = fx.life / fx.maxLife;
       if (fx.kind === "arc") {
-        this.fxGraphics.arc(fx.x, fx.y, fx.radius, fx.angle - fx.arc / 2, fx.angle + fx.arc / 2);
-        this.fxGraphics.stroke({ width: 2, color: fx.color, alpha });
+        // Fill an annular sector instead of stroking an arc. Stroked sub-pixel
+        // arcs are the source of the jagged debris around melee slashes.
+        this.drawAnnularSector(
+          this.fxGraphics,
+          fx.x,
+          fx.y,
+          fx.radius * 0.48,
+          fx.radius,
+          fx.angle - fx.arc / 2,
+          fx.angle + fx.arc / 2,
+          fx.color,
+          alpha * 0.38,
+        );
       } else {
-        this.fxGraphics.circle(fx.x, fx.y, fx.radius * (1 - alpha * 0.4));
-        this.fxGraphics.stroke({ width: 2, color: fx.color, alpha });
+        const radius = fx.radius * (1 - alpha * 0.4);
+        this.drawAnnularRing(
+          this.fxGraphics,
+          fx.x,
+          fx.y,
+          radius * 0.9,
+          radius,
+          fx.color,
+          alpha * 0.7,
+        );
       }
       fx.life -= 1;
     }

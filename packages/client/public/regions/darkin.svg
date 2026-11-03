@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Darkin war-sigil</title>
+  <defs>
+    <radialGradient id="darkin-ember" cx="50%" cy="38%" r="58%">
+      <stop offset="0" stop-color="#ffd88a" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#d84b3e" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#5b1016" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="darkin-blade" x1="128" y1="42" x2="128" y2="214" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe4a3"/>
+      <stop offset=".55" stop-color="#c94c3f"/>
+      <stop offset="1" stop-color="#621720"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="96" fill="url(#darkin-ember)" opacity=".35"/>
+  <circle cx="128" cy="128" r="92" stroke="#c94c3f" stroke-width="3" opacity=".75"/>
+  <circle cx="128" cy="128" r="78" stroke="#e7b76d" stroke-width="1.5" opacity=".55"/>
+  <path d="M128 40c16 25 21 46 21 69 0 18-7 31-21 42-14-11-21-24-21-42 0-23 5-44 21-69Z" fill="url(#darkin-blade)" stroke="#f3d69a" stroke-width="2"/>
+  <path d="M128 62v83" stroke="#2b1016" stroke-width="3" opacity=".55"/>
+  <path d="M86 119c14-3 29-3 42 0 13-3 28-3 42 0" stroke="#e7b76d" stroke-width="7" stroke-linecap="round"/>
+  <path d="M94 126c-12 9-20 20-24 34 15-7 25-8 37-6" stroke="#c94c3f" stroke-width="5" stroke-linecap="round"/>
+  <path d="M162 126c12 9 20 20 24 34-15-7-25-8-37-6" stroke="#c94c3f" stroke-width="5" stroke-linecap="round"/>
+  <path d="M112 86l-13-20M144 86l13-20M102 154l-19 11M154 154l19 11" stroke="#e7b76d" stroke-width="2" opacity=".7"/>
+  <circle cx="128" cy="128" r="10" fill="#2a0d13" stroke="#ffd88a" stroke-width="2"/>
+  <circle cx="128" cy="128" r="4" fill="#ffd88a"/>
+</svg>

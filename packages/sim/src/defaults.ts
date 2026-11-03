@@ -2,8 +2,11 @@
 // wires them into a pipeline; the real gameplay is driven by content data.
 import { registerEnemyBehaviors, registerWeaponBehaviors } from "./behaviors";
 import type { Registries } from "./registry";
+import { registerBushSystem } from "./systems/bushes";
+import { registerChestSystem } from "./systems/chests";
 import { damagePlayer, registerCombatSystems } from "./systems/combat";
 import { registerEnemySystems } from "./systems/enemy";
+import { registerEnemyAbilitySystem } from "./systems/enemy-abilities";
 import { registerGemSystem } from "./systems/gems";
 import { registerPickupSystem } from "./systems/pickups";
 import { registerProgression } from "./systems/progression";
@@ -17,12 +20,15 @@ import type { RulesetDef, World } from "./world";
 
 export function registerCoreSystems(reg: Registries): void {
   reg.systems.register("core-movement", coreMovement);
+  registerBushSystem(reg);
+  registerChestSystem(reg);
   reg.systems.register("pathing", (world) => world.pathfinder.update(world));
   registerEnemyBehaviors(reg);
   registerWeaponBehaviors(reg);
   registerSpatialHash(reg);
   registerSpawn(reg);
   registerEnemySystems(reg);
+  registerEnemyAbilitySystem(reg);
   registerCombatSystems(reg);
   registerZoneSystem(reg);
   registerGemSystem(reg);
@@ -100,9 +106,13 @@ export const DEFAULT_RULESET: RulesetDef = {
   schemaVersion: 1,
   pipeline: [
     "core-movement",
+    "bushes",
+    "chests",
     "pathing",
     "spawn-director",
     "enemy-ai",
+    "enemy-abilities",
+    "enemy-hazards",
     "separation",
     "spatial-hash",
     "weapons",
@@ -142,14 +152,29 @@ export const DEFAULT_RULESET: RulesetDef = {
     "pickup.magnetSpeed": 3,
     "pickup.dropChance": 0.04,
     "pickup.goldDropChance": 0.05,
-    "pickup.chestDropChance": 0.01,
     "pickup.nukeDropChance": 0.0025,
     "pickup.eliteGold": 10,
     "pickup.bossGold": 25,
     "pickup.healAmount": 30,
+    "pickup.bushHealAmount": 18,
     "pickup.nukeDamage": 50,
     "pickup.freezeTicks": 120,
+    "enemy.rangedAbilityChance": 0.35,
     "pickup.goldAmount": 5,
+    "pickup.keyAmount": 1,
+    "chest.firstSpawnSec": 25,
+    "chest.spawnIntervalSec": 55,
+    "chest.maxActive": 1,
+    "chest.openRadius": 24,
+    "chest.holdRadius": 38,
+    "chest.openTicks": 90,
+    "chest.xpBase": 18,
+    "chest.xpPerMin": 7,
+    "chest.goldBase": 14,
+    "chest.goldPerMin": 5,
+    "chest.keyChance": 0.35,
+    "chest.magnetChance": 0.35,
+    "chest.bombChance": 0.2,
     "loadout.weaponSlots": 6,
     "loadout.moveSlots": 4,
     "loadout.passiveSlots": 6,
