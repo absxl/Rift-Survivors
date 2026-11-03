@@ -6,6 +6,8 @@ import type { Keybinds } from "./save/save";
 export class Input {
   private readonly keys = new Set<string>();
   private keybinds: Keybinds = { up: "w", down: "s", left: "a", right: "d" };
+  private touchX = 0;
+  private touchY = 0;
 
   attach(): void {
     window.addEventListener("keydown", this.onKeyDown);
@@ -16,11 +18,29 @@ export class Input {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     this.keys.clear();
+    this.clearTouch();
   }
 
   /** Rebind movement keys from save settings (arrow keys always work too). */
   setKeybinds(keybinds: Keybinds): void {
     this.keybinds = { ...keybinds };
+  }
+
+  /** Virtual joystick vector, already normalized to the unit circle. */
+  setTouchVector(x: number, y: number): void {
+    const len = Math.hypot(x, y);
+    if (len <= 1) {
+      this.touchX = x;
+      this.touchY = y;
+    } else {
+      this.touchX = x / len;
+      this.touchY = y / len;
+    }
+  }
+
+  clearTouch(): void {
+    this.touchX = 0;
+    this.touchY = 0;
   }
 
   read(): PlayerInput {
@@ -33,8 +53,14 @@ export class Input {
     if (this.keys.has(kb.down) || this.keys.has("arrowdown")) y += 1;
 
     const gamepad = this.readGamepad();
-    x += gamepad.x;
-    y += gamepad.y;
+    x += gamepad.x + this.touchX;
+    y += gamepad.y + this.touchY;
+
+    const len = Math.hypot(x, y);
+    if (len > 1) {
+      x /= len;
+      y /= len;
+    }
     return { playerId: 0, moveX: x, moveY: y };
   }
 

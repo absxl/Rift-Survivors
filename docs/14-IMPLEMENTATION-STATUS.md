@@ -1,11 +1,12 @@
 # 14 - Implementation status
 
 Last updated: **2026-10-29**.
-Current batch: **D-039** (cheaper late-run XP, time-scaled enemy pressure, elite healthbar emphasis,
-droppable magnets, and official crest branding) on top of D-038 (search/filter/sort controls), D-037
-(deeper meta/passive ranks and denser terrain), D-036 (per-chest pull records and centered PLAY hero),
-D-035 (frost, chest utilities, enemy ability kits, Darkin chest, normalized crests, region
-achievements/dossiers, HUD/render fixes, focus removal), and earlier batches.
+Current batch: **D-040** (mobile touch joystick, pause/stats buttons, compact touch HUD, and phone-safe
+selection screens) on top of D-039 (late-run XP, time-scaled enemies, elite bars, magnet drops, crest
+branding), D-038 (search/filter/sort controls), D-037 (deeper meta/passive ranks and denser terrain), D-036
+(per-chest pull records and centered PLAY hero), D-035 (frost, chest utilities, enemy ability kits, Darkin
+chest, normalized crests, region achievements/dossiers, HUD/render fixes, focus removal), and earlier
+batches.
 Commits: `4f217ac` is the D-032 baseline; the D-033 batch is committed at `git log -1`.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
@@ -87,6 +88,9 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
 - **Elites:** always show a gold-framed health bar, including before taking damage.
 - **Magnet:** drops from normal minion consumable rolls and pulls all gems and floor pickups to the
   collector; other magnets are excluded so the effect cannot chain.
+- **Mobile:** touch devices show a left virtual joystick plus STATS/PAUSE buttons. The HUD keeps compact
+  HP/XP, the scoreboard is scrollable, and the level-up/chest cards use a safe-area-aware two-column grid.
+  `?touch=1` forces the mobile controls for desktop testing.
 - A run ends on death; the final threat appears at 30:00 and the run switches to a boss rush when it dies
   (or after a 45 s fallback).
 - **Terrain:** the arena is a deterministic tile field with walls, water/lava, breakable bushes, and a
@@ -620,6 +624,9 @@ Coverage highlights:
 - D-039 automated coverage: every minion category can receive an ability; enemy speed/damage multipliers
   are asserted at ten minutes; the revised XP table and post-table growth are covered; magnet loot
   teleport/damage tests remain green. Elite health bars are renderer-only and still need a browser pass.
+- D-040 implementation: touch input feeds the same normalization path as keyboard/gamepad; joystick and
+  action-rail DOM are wired; compact HUD/selection CSS uses safe-area insets and a scrollable two-column
+  card grid. Real-device portrait/landscape feel still needs a manual pass.
 
 ### Balance snapshot (D-039, wall-aware bot)
 
@@ -691,8 +698,8 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 - **UI strings are hardcoded English.** The minimal `t()` helper exists but the UI is not wired to locale
   files.
 - **D1 human playtest and sign-off are still pending.**
-- **No deployment.** Dockerfile exists; Discord credentials/domain/database are not configured. Cloudflare
-  requires a server port or Worker port; see docs/15.
+- **Solo deployment only.** The static client is deployed as a Cloudflare Worker at
+  `https://rift.carletti.work`; the co-op server and Discord/account hosting are not deployed.
 - **Party frames use the lobby snapshot.** They do not live-update lobby changes mid-run.
 - **10-pull guarantee is region-scoped.** If a region's Epic+ champions are already owned, the guarantee
   falls back to shards/gold.
@@ -705,7 +712,7 @@ The detailed history is in `docs/05-ROADMAP.md`; this is the current effective s
 - Binary network codec, input rewind, interest filtering, rate limiting, replays.
 - Full server-authoritative saves/meta for co-op (the account store exists; game-server validation is
   still client-trusted).
-- Cloudflare Workers/Durable Objects port and deployment.
+- Cloudflare Durable Objects/containers port for the co-op server (the solo client is deployed).
 - Real content packs beyond the core + LoL-inspired packs.
 - The old CharacterSelect/NameScreen classes are unused and can be removed.
 

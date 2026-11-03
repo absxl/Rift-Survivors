@@ -40,7 +40,9 @@ corepack pnpm install
 corepack pnpm --filter @rift/client dev
 ```
 
-Open **http://localhost:5173**.
+Open **http://localhost:5173**. There is also a WIP hosted test build at
+**https://rift.carletti.work**. To test the touch controls on a desktop browser, open
+`http://localhost:5173/?touch=1`.
 
 ### Optional co-op server
 
@@ -67,6 +69,7 @@ corepack pnpm --filter @rift/client dev -- --host
 | Input | Action |
 |---|---|
 | **WASD / arrow keys / gamepad** | Move |
+| **Mobile joystick + buttons** | Move, pause, and open stats; cards are tappable |
 | **Esc** | Pause |
 | **Tab** | Scoreboard |
 | **F3** | Diagnostics |
@@ -94,6 +97,8 @@ corepack pnpm --filter @rift/client dev -- --host
 - **Online co-op:** room-based play for up to four players, shared runs, per-player stats, and optional
   server accounts/cloud saves.
 - **Deterministic simulation:** seeded RNG, fixed-tick systems, save migrations, and a headless balance bot.
+- **Touch/mobile:** virtual joystick, pause/stats buttons, compact HP/XP HUD, and safe-area-aware
+  level-up/chest selection.
 
 ### Current state
 
@@ -105,15 +110,15 @@ corepack pnpm --filter @rift/client dev -- --host
 | Meta progression and collection | Playable |
 | Art | Procedural placeholders; original art wanted |
 | Balance | WIP; human playtesting still needed |
-| Public deployment | Not set up yet — the game is tested locally |
+| Public deployment | Cloudflare test build at `rift.carletti.work` |
 
 ### Known gaps
 
 - Unique champion moves currently cover the original eight champions; the rest use class placeholder moves.
 - The game ships with procedural placeholder art. Original art, UI polish, and animations are welcome.
 - Balance is still being tuned. The headless bot is not a substitute for a human run.
-- Mobile and small-screen layouts have had spot checks, but need more real-device testing.
-- There is no public hosted build or matchmaking. Co-op is local/LAN/hosted-server friendly.
+- Mobile touch controls are implemented; real-device portrait/landscape comfort still needs testing.
+- There is no public matchmaking. Co-op is local/LAN/hosted-server friendly.
 
 ---
 

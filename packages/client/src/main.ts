@@ -27,6 +27,7 @@ import {
   resolveSelectedCharacter,
   setSaveSink,
 } from "./save/save";
+import { TouchControls } from "./touch-controls";
 
 function formatTime(secs: number): string {
   const mm = Math.floor(secs / 60);
@@ -48,13 +49,24 @@ async function main(): Promise<void> {
   const root = document.getElementById("app");
   if (root) root.appendChild(app.canvas);
 
+  const touchCapable =
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia("(pointer: coarse)").matches ||
+    new URLSearchParams(window.location.search).has("touch");
+  if (touchCapable) document.body.classList.add("touch-mode");
+
   const fitCanvas = (): void => {
-    const scale = Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H);
+    const viewport = window.visualViewport;
+    const width = viewport?.width ?? window.innerWidth;
+    const height = viewport?.height ?? window.innerHeight;
+    const scale = Math.min(width / VIEW_W, height / VIEW_H);
     app.canvas.style.width = `${VIEW_W * scale}px`;
     app.canvas.style.height = `${VIEW_H * scale}px`;
     app.canvas.style.imageRendering = "pixelated";
   };
   window.addEventListener("resize", fitCanvas);
+  window.addEventListener("orientationchange", fitCanvas);
+  window.visualViewport?.addEventListener("resize", fitCanvas);
   fitCanvas();
 
   const pack = loadGamePack();
@@ -112,10 +124,17 @@ async function main(): Promise<void> {
   let currentCharacterId = save.selectedCharacter;
   let localPlayerId = 0;
 
+  let touchControls: TouchControls | null = null;
   const levelUp = new LevelUpUI(pack.weapons, pack.passives);
-  levelUp.onChoose((index) => activeChoice?.(index));
+  levelUp.onChoose((index) => {
+    touchControls?.setActive(true);
+    activeChoice?.(index);
+  });
   levelUp.onReroll(() => activeReroll?.());
-  levelUp.onSkip(() => activeSkip?.());
+  levelUp.onSkip(() => {
+    touchControls?.setActive(true);
+    activeSkip?.();
+  });
   levelUp.onBanish((index) => activeBanish?.(index));
 
   const runEnd = new RunEndUI();
@@ -156,6 +175,7 @@ async function main(): Promise<void> {
     runEnded = true;
     pauseMenu.hide();
     levelUp.hide();
+    touchControls?.setActive(false);
     inputSender = null;
     activeChoice = null;
     activeReroll = null;
@@ -268,6 +288,7 @@ async function main(): Promise<void> {
   const onOffer = (offer: Parameters<typeof levelUp.show>[0]): void => {
     // Use the latest authoritative stats for card stat previews, even if the
     // offer arrives in the same network envelope as the preceding snapshot.
+    touchControls?.setActive(false);
     levelUp.setStats(lastSnap?.playerStats[localPlayerId] ?? lastSnap?.playerStats[0] ?? null);
     levelUp.show(offer);
   };
@@ -322,6 +343,7 @@ async function main(): Promise<void> {
     activeSkip = () => host.skip();
     activeBanish = (i) => host.banishOption(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
+    touchControls?.setActive(true);
     host.start(
       characterId,
       computeMetaBonuses(
@@ -362,6 +384,7 @@ async function main(): Promise<void> {
       if (status === "reconnected") {
         connectionLost.hide();
         levelUp.hide();
+        touchControls?.setActive(true);
         renderer.resetPrediction();
       } else if (status === "lost") {
         connectionLost.show("CONNECTION LOST");
@@ -374,6 +397,7 @@ async function main(): Promise<void> {
     activeSkip = () => netHost.sendSkip();
     activeBanish = (i) => netHost.sendBanish(i);
     inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
+    touchControls?.setActive(true);
   });
   metaScreen.onCoop(() => {
     metaScreen.hide();
@@ -405,6 +429,7 @@ async function main(): Promise<void> {
 
   // Esc pause: solo freezes the sim; co-op keeps the authoritative server running.
   pauseMenu.onResume(() => {
+    touchControls?.setActive(true);
     if (currentMode === "solo") host.resume();
   });
   pauseMenu.onRestart(() => {
@@ -429,16 +454,30 @@ async function main(): Promise<void> {
     renderer.setDamageNumbers(settings.damageNumbers);
   });
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !inputSender || levelUp.visible) return;
-    e.preventDefault();
+  const togglePause = (): void => {
+    if (!inputSender || levelUp.visible) return;
     if (pauseMenu.visible) {
       pauseMenu.hide();
+      touchControls?.setActive(true);
       if (currentMode === "solo") host.resume();
     } else {
       pauseMenu.show(currentMode === "solo", save.settings);
+      touchControls?.setActive(false);
       if (currentMode === "solo") host.pause();
     }
+  };
+
+  if (touchCapable) {
+    touchControls = new TouchControls(input, {
+      onPause: togglePause,
+      onStats: () => hud.toggleStats(),
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !inputSender || levelUp.visible) return;
+    e.preventDefault();
+    togglePause();
   });
 
   window.addEventListener("keydown", (e) => {

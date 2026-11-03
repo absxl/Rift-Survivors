@@ -429,3 +429,22 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
 - Consequences: later levels arrive faster, enemy pressure ramps instead of jumping, and magnet is
   discoverable outside run chests. No save schema changes. Binary logo files live under
   `packages/client/public/brand/`; provenance is recorded in `ASSETS.md`.
+
+### D-040 - Mobile touch controls and compact selection layout
+- Date: 2026-11-03 - Status: decided (user)
+- Decision:
+  - Touch devices get a left-side virtual joystick that feeds the same normalized movement vector as
+    keyboard/gamepad. Combat remains fully automatic; no extra attack buttons are added.
+  - The mobile action rail exposes **STATS** and **PAUSE** buttons. Pause uses the same solo freeze/co-op
+    menu behavior as Esc. Controls hide during the menu and during level-up/chest offers, then return when
+    the run resumes.
+  - Touch-friendly HUD mode hides the desktop weapon/move/item slot rows and keeps a compact HP/XP identity
+    panel above the controls. The scoreboard becomes scrollable and uses two stat columns.
+  - The level-up/chest selection overlay uses safe-area padding and a compact two-column card grid with a
+    scrollable card area. Cards, descriptions, stats, and action buttons shrink on phones; the keyboard hint
+    is hidden. This keeps the selection inside the top/bottom safe areas instead of overflowing the screen.
+  - Meta screens get safe-area top/bottom padding and remain vertically scrollable on phones.
+  - Touch support is detected from coarse pointers / touch points; `?touch=1` forces it for desktop testing.
+- Consequences: mobile play needs no desktop keyboard or gamepad. The canvas keeps its 16:9 pixel-perfect
+  contain layout, so portrait phones get a smaller playfield; real-device testing is still required for
+  hand comfort and button reach.
