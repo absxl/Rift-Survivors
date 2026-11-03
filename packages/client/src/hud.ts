@@ -13,6 +13,7 @@ import type {
 } from "@rift/sim";
 import { abilityInfo, passiveInfo } from "./ability-info";
 import { championSpriteDataURL } from "./assets/champion-sprites";
+import { abilityIconURL } from "./assets/icons";
 import { championColor } from "./champion-colors";
 import { pickBossBar } from "./hud-boss";
 import { type LoadoutEntry, ownedIndices } from "./loadout";
@@ -361,7 +362,17 @@ export class Hud {
         : def.tags?.includes("damage:light")
           ? "#ffe066"
           : "#6fb8ff";
-      slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
+      slot.glyph.textContent = "";
+      const icon = abilityIconURL(def);
+      if (icon) {
+        slot.glyph.style.backgroundImage = `url(${icon})`;
+        slot.glyph.style.backgroundSize = "contain";
+        slot.glyph.style.imageRendering = "pixelated";
+        slot.glyph.style.backgroundRepeat = "no-repeat";
+        slot.glyph.style.backgroundPosition = "center";
+      } else {
+        slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
+      }
       slot.level.textContent = String(entry.level);
       slot.root.classList.remove("hud-slot-empty");
       slot.root.style.borderColor = slot.color;

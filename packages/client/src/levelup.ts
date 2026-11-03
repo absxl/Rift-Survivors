@@ -2,6 +2,7 @@
 // hotkeys never collide with movement (picks 1-4, R reroll, X skip, B banish).
 import type { AbilityDef, Offer, PassiveDef, RunStats } from "@rift/sim";
 import { offerCardInfo } from "./ability-info";
+import { abilityIconURL } from "./assets/icons";
 
 export class LevelUpUI {
   private readonly root: HTMLElement;
@@ -94,7 +95,21 @@ export class LevelUpUI {
       top.className = "levelup-card-top";
       const icon = document.createElement("div");
       icon.className = "levelup-icon";
-      icon.textContent = info.title.charAt(0).toUpperCase();
+      // Generated icon art when the option maps to a def; letter otherwise.
+      const def =
+        option.ref.type === "ability"
+          ? this.abilities.find((d) => d.id === option.ref.id)
+          : undefined;
+      const iconURL = def ? abilityIconURL(def) : "";
+      if (iconURL) {
+        icon.style.backgroundImage = `url(${iconURL})`;
+        icon.style.backgroundSize = "contain";
+        icon.style.imageRendering = "pixelated";
+        icon.style.backgroundRepeat = "no-repeat";
+        icon.style.backgroundPosition = "center";
+      } else {
+        icon.textContent = info.title.charAt(0).toUpperCase();
+      }
       const meta = document.createElement("div");
       meta.className = "levelup-meta";
       const badge = document.createElement("div");

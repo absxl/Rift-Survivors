@@ -1,6 +1,7 @@
 // In-game shop overlay (docs/10 D-047): a League-style shop with tier tabs,
 // gold readout, combine and sell actions. The game keeps running while open.
 import type { ItemDef, WorldSnapshot } from "@rift/sim";
+import { itemIconURL } from "./assets/icons";
 
 export interface ShopCallbacks {
   onBuy: (itemId: string) => void;
@@ -231,6 +232,10 @@ export class ShopUI {
     card.style.setProperty("--tier-color", TIER_COLORS[def.tier]);
 
     const top = el("div", "shop-card-top");
+    const icon = el("img", "shop-card-icon") as HTMLImageElement;
+    icon.src = itemIconURL(def);
+    icon.alt = "";
+    top.appendChild(icon);
     top.appendChild(el("div", "shop-card-name", def.name));
     top.appendChild(el("div", "shop-card-cost", `${def.cost} G`));
     card.appendChild(top);
