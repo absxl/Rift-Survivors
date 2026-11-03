@@ -696,7 +696,10 @@ export class World {
       const area = value * this.playerStat(owner, "area", 1);
       return Number.isFinite(area) ? Math.max(1, Math.min(2000, area)) : value;
     }
-    const cooldown = value / this.playerStat(owner, "cooldown", 1);
+    // Global pacing rule: real-game cooldowns are tuned by data, this rule
+    // keeps survivor pacing without touching every def (docs/10 D-052).
+    const pacing = this.num("ability.pacingHaste");
+    const cooldown = value / (this.playerStat(owner, "cooldown", 1) * pacing);
     return Number.isFinite(cooldown) ? Math.max(1, cooldown) : value;
   }
 

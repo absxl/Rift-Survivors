@@ -8,9 +8,18 @@ export interface Keybinds {
 }
 
 export interface SaveSettings {
+  /** Master volume 0..1 (scales everything). */
   volume: number;
+  /** Music volume 0..1 (procedural soundtrack). */
+  music: number;
+  /** Sound-effect volume 0..1. */
+  sfx: number;
   shake: boolean;
   damageNumbers: boolean;
+  /** Show the F3-style perf overlay without the hotkey. */
+  showFps: boolean;
+  /** Shop toggle key (B by default; rebindable). */
+  shopKey: string;
   keybinds: Keybinds;
 }
 
@@ -77,7 +86,7 @@ export interface SaveData {
   settings: SaveSettings;
 }
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 const SAVE_KEY = "rift-survivors-save";
 
 export function defaultSave(firstCharacter: string, firstStage = "rift-field"): SaveData {

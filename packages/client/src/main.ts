@@ -348,6 +348,13 @@ async function main(): Promise<void> {
     input.setKeybinds(settings.keybinds);
   });
 
+  /** Stage intro card: name + lore line when a run begins (D-051). */
+  const showStageIntro = (stageId?: string): void => {
+    const stage = (pack.stages ?? []).find((s) => s.id === stageId);
+    if (!stage) return;
+    banner.show(`${stage.name} — ${stage.description}`, 4200);
+  };
+
   const startSolo = (characterId: string): void => {
     runEnded = false;
     lastSnap = null;
@@ -379,6 +386,7 @@ async function main(): Promise<void> {
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
     shopSender = (msg) => host.sendShop(msg);
     shop.setLocalPlayer(0);
+    showStageIntro(save.selectedStage);
     touchControls?.setActive(true);
     host.start(
       characterId,
@@ -437,6 +445,7 @@ async function main(): Promise<void> {
     inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
     shopSender = (msg) => netHost.sendShop(msg);
     shop.setLocalPlayer(yourPlayerId);
+    showStageIntro(save.selectedStage);
     touchControls?.setActive(true);
   });
   metaScreen.onCoop(() => {

@@ -32,9 +32,9 @@ const corePack: ContentPack = {
       radius: 6,
       xp: 2,
       behavior: "ranged",
-      params: { preferredRange: 150, period: 110, range: 240 },
+      params: { preferredRange: 150, period: 140, range: 240 },
       tint: 0xffffff,
-      spawnWeight: 0.8,
+      spawnWeight: 0.55,
     },
     {
       id: "cannon-minion",
@@ -120,9 +120,9 @@ const corePack: ContentPack = {
       radius: 6,
       xp: 2,
       behavior: "fan",
-      params: { preferredRange: 170, period: 120, amount: 4, spread: 0.7 },
+      params: { preferredRange: 170, period: 140, amount: 4, spread: 0.7 },
       tint: 0xffffff,
-      spawnWeight: 0.4,
+      spawnWeight: 0.3,
       minMinute: 3,
     },
     {
