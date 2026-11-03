@@ -12,6 +12,7 @@ import type {
   WorldSnapshot,
 } from "@rift/sim";
 import { abilityInfo, passiveInfo } from "./ability-info";
+import { championSpriteDataURL } from "./assets/champion-sprites";
 import { championColor } from "./champion-colors";
 import { pickBossBar } from "./hud-boss";
 import { type LoadoutEntry, ownedIndices } from "./loadout";
@@ -202,8 +203,19 @@ export class Hud {
   setChampion(id: string): void {
     this.championId = id;
     const def = this.characters.find((c) => c.id === id);
-    this.portraitGlyph.textContent = (def?.name ?? id ?? "?").charAt(0).toUpperCase();
-    this.portraitEl.style.background = colorHex(championColor(id));
+    this.portraitGlyph.textContent = "";
+    // Original pixel sprite as the portrait; class informs the silhouette.
+    const url = championSpriteDataURL(id, def?.class);
+    if (url) {
+      this.portraitEl.style.backgroundImage = `url(${url})`;
+      this.portraitEl.style.backgroundSize = "contain";
+      this.portraitEl.style.imageRendering = "pixelated";
+      this.portraitEl.style.backgroundRepeat = "no-repeat";
+      this.portraitEl.style.backgroundPosition = "center";
+    } else {
+      this.portraitEl.style.backgroundImage = "";
+      this.portraitGlyph.textContent = (def?.name ?? id ?? "?").charAt(0).toUpperCase();
+    }
   }
 
   /** Lobby roster for party frames; names/colors come from the lobby. */

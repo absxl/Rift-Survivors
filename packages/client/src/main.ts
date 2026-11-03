@@ -369,6 +369,9 @@ async function main(): Promise<void> {
         ready: true,
       },
     ]);
+    renderer.setPartyChampions([
+      { id: 0, characterId, class: pack.characters.find((c) => c.id === characterId)?.class },
+    ]);
     activeChoice = (i) => host.sendChoice(i);
     activeReroll = () => host.reroll();
     activeSkip = () => host.skip();
@@ -458,6 +461,13 @@ async function main(): Promise<void> {
   lobby.onBack(() => metaScreen.show());
   lobby.onPlayers((players) => {
     hud.setParty(players);
+    renderer.setPartyChampions(
+      players.map((p) => ({
+        id: p.id,
+        characterId: p.characterId,
+        class: pack.characters.find((c) => c.id === p.characterId)?.class,
+      })),
+    );
   });
 
   runEnd.onContinue(() => {

@@ -18,6 +18,7 @@ import {
 // renders projectiles, hit flashes and pooled damage numbers from sim events.
 import { Container, Graphics, Sprite, TilingSprite } from "pixi.js";
 import type { Texture } from "pixi.js";
+import { championSprite } from "./assets/champion-sprites";
 import { renderPixelTextSprite } from "./assets/pixel-font";
 import {
   type PlaceholderTextures,
@@ -91,6 +92,7 @@ export class GameRenderer {
   private readonly playerLayer: Container;
   private readonly playerHpBar: Graphics;
   private readonly playerSprites = new Map<number, Sprite>();
+  private readonly championTextures = new Map<number, Texture>();
   private localPlayerId = 0;
   private readonly bushLayer: Container;
   private readonly gemLayer: Container;
@@ -643,7 +645,7 @@ export class GameRenderer {
         seen.add(slot);
         let sprite = this.playerSprites.get(slot);
         if (!sprite) {
-          sprite = new Sprite(this.textures.player);
+          sprite = new Sprite(this.championTextures.get(slot) ?? this.textures.player);
           sprite.anchor.set(0.5, 0.5);
           this.playerSprites.set(slot, sprite);
           this.playerLayer.addChild(sprite);
@@ -1027,6 +1029,15 @@ export class GameRenderer {
   }
 
   /** Set the local player's champion tint. */
+  /** Assign champion pixel sprites per player slot (co-op aware). */
+  setPartyChampions(members: { id: number; characterId?: string; class?: string }[]): void {
+    this.championTextures.clear();
+    for (const member of members) {
+      const texture = championSprite(member.characterId, member.class);
+      if (texture) this.championTextures.set(member.id, texture);
+    }
+  }
+
   setChampionColor(color: number): void {
     this.championColor = color;
   }
