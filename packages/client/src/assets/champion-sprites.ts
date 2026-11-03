@@ -59,15 +59,24 @@ const artTextures = new Map<string, Texture>();
  * Preload the official-art icon sprites referenced by the run/party roster.
  * Call once at boot before the first run; misses fall back to template art.
  */
-export async function preloadChampionArt(characterIds: string[]): Promise<void> {
+export async function preloadChampionArt(
+  characterIds: string[],
+  equippedSkins: Record<string, number> = {},
+): Promise<void> {
   const jobs: Promise<void>[] = [];
+  const load = (key: string, file: string): Promise<void> => {
+    if (artTextures.has(key)) return Promise.resolve();
+    return Assets.load(file).then((texture: Texture) => {
+      artTextures.set(key, texture);
+    });
+  };
   for (const id of characterIds) {
-    if (!CHAMPION_ART[id]?.icon || artTextures.has(`champ:${id}:default`)) continue;
-    jobs.push(
-      Assets.load(`art/icon/${id}.png`).then((texture: Texture) => {
-        artTextures.set(`champ:${id}:default`, texture);
-      }),
-    );
+    if (!CHAMPION_ART[id]?.icon) continue;
+    jobs.push(load(`champ:${id}:default`, `art/icon/${id}.png`));
+    const skin = equippedSkins[id];
+    if (skin !== undefined && CHAMPION_ART[id]?.skins.includes(skin)) {
+      jobs.push(load(`champ:${id}:${skin}`, `art/icon/${id}_${skin}.png`));
+    }
   }
   await Promise.allSettled(jobs);
 }

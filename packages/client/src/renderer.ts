@@ -1033,10 +1033,12 @@ export class GameRenderer {
 
   /** Set the local player's champion tint. */
   /** Assign champion pixel sprites per player slot (co-op aware). */
-  setPartyChampions(members: { id: number; characterId?: string; class?: string }[]): void {
+  setPartyChampions(
+    members: { id: number; characterId?: string; class?: string; skinNum?: number }[],
+  ): void {
     this.championTextures.clear();
     for (const member of members) {
-      const texture = championSprite(member.characterId, member.class);
+      const texture = championSprite(member.characterId, member.class, member.skinNum);
       if (texture) this.championTextures.set(member.id, texture);
     }
   }

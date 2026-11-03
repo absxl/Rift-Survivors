@@ -73,15 +73,18 @@ async function main(): Promise<void> {
   fitCanvas();
 
   const pack = loadGamePack();
-
-  // Official-art icon sprites for the whole roster (fallbacks cover misses).
-  await preloadChampionArt(pack.characters.map((c) => c.id));
   // Content-driven free starter. Ahri is Common, so every region still has at
   // least one gacha target (Demacia/Lux included).
   const firstCharacter =
     pack.characters.find((c) => c.starter)?.id ?? pack.characters[0]?.id ?? "ahri";
   const firstStage = pack.stages?.[0]?.id ?? "rift-field";
   let save = loadSave(firstCharacter, firstStage);
+
+  // Official-art icon sprites for the whole roster (fallbacks cover misses).
+  await preloadChampionArt(
+    pack.characters.map((c) => c.id),
+    save.equippedSkin,
+  );
   if (!pack.stages?.some((stage) => stage.id === save.selectedStage)) {
     save.selectedStage = firstStage;
   }
