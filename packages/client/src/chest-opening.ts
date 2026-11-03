@@ -1,6 +1,7 @@
 // Full-screen region-chest reveal. Rewards are already committed by the time
 // this opens, so closing/skipping the animation can never duplicate a pull.
 import type { CharacterDef } from "@rift/sim";
+import { championCardURL } from "./assets/champion-sprites";
 import { championColor } from "./champion-colors";
 import { crestMark } from "./crest-identity";
 import { type GachaDrop, RARITY_LABELS, rarityRank } from "./meta/meta";
@@ -173,6 +174,19 @@ export class ChestOpeningUI {
     card.style.setProperty("--card-color", color);
     card.style.setProperty("--rarity-rank", String(rank));
 
+    // Splash-art drop card: every reveal shows real champion art (D-056).
+    const splash = champion ? championCardURL(champion.id) : "";
+    if (splash) {
+      const art = el("div", "chest-opening-card-splash");
+      art.style.backgroundImage = `url(${splash})`;
+      card.prepend(art);
+    }
+    if (rank >= 2) {
+      // Epic+ beams: rarity light shafts behind the card art.
+      card.appendChild(el("div", "chest-opening-card-beams"));
+      card.classList.add("is-epic");
+    }
+
     const kind = drop.guaranteed
       ? `GUARANTEED ${RARITY_LABELS[rarity]}`
       : drop.kind === "champion"
@@ -183,10 +197,12 @@ export class ChestOpeningUI {
     card.appendChild(el("div", "chest-opening-card-kind", kind));
 
     const art = el("div", "chest-opening-card-art");
-    const glyph = el("span", "chest-opening-card-glyph", champion?.name?.charAt(0) ?? "?");
-    art.appendChild(glyph);
-    if (champion) {
-      art.appendChild(crestMark(championRegions(champion), "xs", "chest-opening-card-crest"));
+    if (!splash) {
+      const glyph = el("span", "chest-opening-card-glyph", champion?.name?.charAt(0) ?? "?");
+      art.appendChild(glyph);
+      if (champion) {
+        art.appendChild(crestMark(championRegions(champion), "xs", "chest-opening-card-crest"));
+      }
     }
     card.appendChild(art);
 

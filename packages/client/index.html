@@ -4185,6 +4185,308 @@
 .shop-empty { color: var(--rift-muted); font-size: 12px; padding: 18px; grid-column: 1 / -1; }
 .shop-hint { font-size: 11px; color: var(--rift-muted); text-align: center; opacity: 0.8; }
 body.touch-mode .shop { width: 96vw; max-height: 76vh; }
+
+/* ---- Game shell: boot + title (D-056) ----------------------------------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: radial-gradient(ellipse at 50% 40%, #101a2c 0%, #070b12 70%);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.boot.boot-out { opacity: 0; transform: scale(1.05); pointer-events: none; }
+.boot-crest {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 18px rgba(215, 181, 109, 0.45));
+  animation: boot-float 3.2s ease-in-out infinite;
+}
+@keyframes boot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.boot-logo {
+  font-size: 30px;
+  letter-spacing: 0.42em;
+  color: var(--rift-gold-bright);
+  text-shadow: 0 0 22px rgba(215, 181, 109, 0.55);
+  background: linear-gradient(100deg, #d7b56d 20%, #fff3cf 40%, #d7b56d 60%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: boot-shimmer 2.6s linear infinite;
+}
+@keyframes boot-shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+.boot-bar { width: 240px; height: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.boot-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--rift-gold), var(--rift-gold-bright));
+  transition: width 1.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.boot-bar-fill.full { width: 100%; }
+.boot-start {
+  background: transparent;
+  border: 1px solid var(--rift-gold);
+  color: var(--rift-gold-bright);
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  padding: 10px 26px;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.boot-start:hover {
+  background: rgba(215, 181, 109, 0.15);
+  box-shadow: 0 0 24px rgba(215, 181, 109, 0.35);
+}
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #070b12;
+  cursor: pointer;
+  transition: opacity 0.9s ease, transform 0.9s ease;
+}
+.title-screen.hidden { opacity: 0; pointer-events: none; }
+.title-screen.title-in { opacity: 1; }
+.title-screen.title-out { opacity: 0; transform: scale(1.08); pointer-events: none; }
+.title-splash {
+  position: absolute;
+  inset: -60px;
+  background-size: cover;
+  background-position: center 22%;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: scale(1.12);
+  transition: opacity 1.6s ease, transform 6s linear;
+}
+.title-splash.active {
+  opacity: 0.55;
+  transform: scale(1);
+}
+.title-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(7, 11, 18, 0.88) 100%);
+}
+.title-logo {
+  position: relative;
+  font-size: 44px;
+  letter-spacing: 0.4em;
+  color: var(--rift-gold-bright);
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.9), 0 0 34px rgba(215, 181, 109, 0.5);
+}
+.title-sub {
+  position: absolute;
+  bottom: 12vh;
+  font-size: 13px;
+  letter-spacing: 0.34em;
+  color: var(--rift-gold);
+  animation: title-pulse 1.8s ease-in-out infinite;
+}
+@keyframes title-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-crest, .boot-logo, .title-sub { animation: none; }
+  .title-splash { transition: opacity 0.4s ease; transform: none; }
+}
+
+/* ---- Hub animations (D-056) ---------------------------------------------- */
+.meta-page-enter { animation: page-in 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.meta-page-enter > * { animation: child-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.meta-page-enter > *:nth-child(1) { animation-delay: 0.03s; }
+.meta-page-enter > *:nth-child(2) { animation-delay: 0.07s; }
+.meta-page-enter > *:nth-child(3) { animation-delay: 0.11s; }
+.meta-page-enter > *:nth-child(4) { animation-delay: 0.15s; }
+.meta-page-enter > *:nth-child(5) { animation-delay: 0.19s; }
+.meta-page-enter > *:nth-child(n + 6) { animation-delay: 0.23s; }
+@keyframes child-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.meta-currency-value { display: inline-block; }
+@media (prefers-reduced-motion: reduce) {
+  .meta-page-enter, .meta-page-enter > * { animation: none; }
+}
+
+/* ---- Gacha champion cards (D-056) ---------------------------------------- */
+.meta-champion-card { position: relative; overflow: hidden; }
+.meta-card-art {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 18%;
+  image-rendering: pixelated;
+  opacity: 0.5;
+  transform: scale(1.06);
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease;
+  pointer-events: none;
+}
+.meta-champion-card:hover .meta-card-art {
+  transform: scale(1.12);
+  opacity: 0.72;
+}
+.meta-card-art-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7, 11, 18, 0.1) 0%, rgba(7, 11, 18, 0.82) 58%, rgba(7, 11, 18, 0.96) 100%);
+  pointer-events: none;
+}
+.meta-champion-card > *:not(.meta-card-art):not(.meta-card-art-shade):not(.meta-shard-liquid) {
+  position: relative;
+  z-index: 2;
+}
+.meta-champion-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+/* Shard liquid fill: rises from the card bottom by unlock progress. */
+.meta-shard-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(15, 118, 227, 0.02), rgba(15, 118, 227, 0.32));
+  clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
+  animation: liquid-wobble 5s ease-in-out infinite;
+}
+.meta-shard-liquid::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 8px;
+  background: linear-gradient(90deg, transparent, rgba(10, 200, 185, 0.65), transparent);
+  filter: blur(1px);
+}
+@keyframes liquid-wobble {
+  0%, 100% { clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0); }
+  50% { clip-path: inset(calc(100% - var(--fill, 0%) + 1.5%) 0 0 0); }
+}
+.meta-champion-card {
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease;
+  transform-style: preserve-3d;
+}
+.meta-champion-card:hover {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(215, 181, 109, 0.4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .meta-card-art, .meta-champion-card, .meta-shard-liquid { transition: none; animation: none; transform: none; }
+}
+
+/* ---- Dossier card visualizer (D-056) ------------------------------------- */
+.meta-dossier-art { position: relative; overflow: hidden; min-height: 180px; }
+.meta-dossier-splash {
+  position: absolute;
+  inset: -14px;
+  background-size: cover;
+  background-position: center 20%;
+  image-rendering: pixelated;
+  opacity: 0.85;
+  animation: dossier-pan 14s ease-in-out infinite alternate;
+}
+@keyframes dossier-pan {
+  from { transform: scale(1.04) translateY(0); }
+  to { transform: scale(1.1) translateY(-8px); }
+}
+.meta-dossier-splash-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7, 11, 18, 0.15), rgba(7, 11, 18, 0.9));
+}
+.meta-dossier-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7));
+  animation: sprite-float 3.4s ease-in-out infinite;
+}
+@keyframes sprite-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meta-dossier-splash, .meta-dossier-sprite { animation: none; }
+}
+
+/* ---- Gacha drop card art (D-056) ----------------------------------------- */
+.chest-opening-card { position: relative; overflow: hidden; }
+.chest-opening-card-splash {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 18%;
+  image-rendering: pixelated;
+  opacity: 0.62;
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+.chest-opening-card-revealed .chest-opening-card-splash {
+  opacity: 0.9;
+  transform: scale(1.04);
+}
+.chest-opening-card > *:not(.chest-opening-card-splash):not(.chest-opening-card-beams) {
+  position: relative;
+  z-index: 2;
+}
+.chest-opening-card-beams {
+  position: absolute;
+  inset: -30%;
+  z-index: 1;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 12deg,
+    rgba(215, 181, 109, 0.22) 15deg,
+    transparent 18deg 42deg,
+    rgba(10, 200, 185, 0.16) 45deg,
+    transparent 48deg 96deg,
+    rgba(215, 181, 109, 0.22) 99deg,
+    transparent 102deg 150deg,
+    rgba(224, 107, 95, 0.16) 153deg,
+    transparent 156deg 360deg
+  );
+  animation: beams-spin 9s linear infinite;
+  opacity: 0;
+}
+.chest-opening-card-revealed.is-epic .chest-opening-card-beams { opacity: 1; }
+@keyframes beams-spin {
+  to { transform: rotate(360deg); }
+}
+.chest-opening-card.is-epic {
+  box-shadow: 0 0 0 1px rgba(215, 181, 109, 0.55), 0 0 26px rgba(215, 181, 109, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chest-opening-card-beams { animation: none; opacity: 0.6; }
+  .chest-opening-card-splash { transition: none; }
+}
 </style>
   </head>
   <body>

@@ -1,5 +1,7 @@
-// Champion sprite registry: id + class → rasterized pixel texture (D-048).
-import type { Texture } from "pixi.js";
+// Champion sprite registry: id (+skin) → official-art pixel texture (D-054),
+// falling back to the D-048 template raster while art loads or on miss.
+import { Assets, type Texture } from "pixi.js";
+import { CHAMPION_ART } from "./art-manifest.generated";
 import type { ChampionSpriteStyle } from "./champion-palettes-a-m";
 import { PALETTES_A_M } from "./champion-palettes-a-m";
 import { PALETTES_N_Z } from "./champion-palettes-n-z";
@@ -50,12 +52,59 @@ function darken(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
+/** Loaded official-art textures: `champ:{id}:{skinNum|default}` → Texture. */
+const artTextures = new Map<string, Texture>();
+
 /**
- * Texture for a champion. Falls back through: authored palette → class
- * template → generic. Unknown ids keep a sensible look.
+ * Preload the official-art icon sprites referenced by the run/party roster.
+ * Call once at boot before the first run; misses fall back to template art.
  */
-export function championSprite(characterId: string | undefined, className?: string): Texture {
+export async function preloadChampionArt(characterIds: string[]): Promise<void> {
+  const jobs: Promise<void>[] = [];
+  for (const id of characterIds) {
+    if (!CHAMPION_ART[id]?.icon || artTextures.has(`champ:${id}:default`)) continue;
+    jobs.push(
+      Assets.load(`art/icon/${id}.png`).then((texture: Texture) => {
+        artTextures.set(`champ:${id}:default`, texture);
+      }),
+    );
+  }
+  await Promise.allSettled(jobs);
+}
+
+/** Public URL of a champion/skin icon for DOM surfaces, or "" on miss. */
+export function championIconURL(characterId: string | undefined, skinNum?: number): string {
   const id = characterId ?? "";
+  if (!id) return "";
+  if (skinNum !== undefined) {
+    return CHAMPION_ART[id]?.skins.includes(skinNum) ? `art/icon/${id}_${skinNum}.png` : "";
+  }
+  return CHAMPION_ART[id]?.icon ? `art/icon/${id}.png` : "";
+}
+
+/** Public URL of a pixelated splash card for DOM surfaces, or "" on miss. */
+export function championCardURL(characterId: string | undefined, skinNum?: number): string {
+  const id = characterId ?? "";
+  if (!id) return "";
+  if (skinNum !== undefined) {
+    return CHAMPION_ART[id]?.skins.includes(skinNum) ? `art/card/${id}_${skinNum}.png` : "";
+  }
+  return CHAMPION_ART[id]?.card ? `art/card/${id}.png` : "";
+}
+
+/**
+ * Texture for a champion (optionally a skin). Official art first; falls back
+ * through: authored palette → class template → generic.
+ */
+export function championSprite(
+  characterId: string | undefined,
+  className?: string,
+  skinNum?: number,
+): Texture {
+  const id = characterId ?? "";
+  const artKey = skinNum === undefined ? `champ:${id}:default` : `champ:${id}:${skinNum}`;
+  const art = artTextures.get(artKey);
+  if (art) return art;
   const style = STYLES[id] ?? FALLBACK;
   const templateId = style.template ?? CLASS_TEMPLATE[className ?? ""] ?? "fighter";
   const template = TEMPLATES[templateId];
@@ -65,8 +114,10 @@ export function championSprite(characterId: string | undefined, className?: stri
   });
 }
 
-/** Data-URL portrait for DOM surfaces (HUD portrait, party frames). */
+/** Data-URL portrait for DOM surfaces that need pixel data instead of a URL. */
 export function championSpriteDataURL(characterId: string | undefined, className?: string): string {
+  const url = championIconURL(characterId);
+  if (url) return url;
   const id = characterId ?? "";
   const style = STYLES[id] ?? FALLBACK;
   const templateId = style.template ?? CLASS_TEMPLATE[className ?? ""] ?? "fighter";

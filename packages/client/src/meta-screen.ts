@@ -5,6 +5,7 @@ import { CLASSES } from "@rift/content";
 import type { AbilityDef, CharacterDef, PowerUpDef, StageDef } from "@rift/sim";
 import { abilityName, statLabel } from "./ability-info";
 import type { AccountClient } from "./account";
+import { championCardURL, championIconURL } from "./assets/champion-sprites";
 import { championColor } from "./champion-colors";
 import { ChestOpeningUI } from "./chest-opening";
 import { crestMark } from "./crest-identity";
@@ -121,6 +122,25 @@ export class MetaScreen {
   private pendingToasts: string[] = [];
   private toastTimer: number | null = null;
 
+  /** Animate a numeric label from its previous value to `value` (D-056). */
+  private countUp(node: HTMLElement, value: number, suffix: string): void {
+    const from = node.dataset.value !== undefined ? Number(node.dataset.value) : value;
+    node.dataset.value = String(value);
+    if (from === value || from < 0) {
+      node.textContent = `${Math.round(value)} ${suffix}`;
+      return;
+    }
+    const start = performance.now();
+    const duration = 500;
+    const step = (): void => {
+      const t = Math.min(1, (performance.now() - start) / duration);
+      const eased = 1 - (1 - t) * (1 - t);
+      node.textContent = `${Math.round(from + (value - from) * eased)} ${suffix}`;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
   constructor(
     private readonly save: SaveData,
     private readonly powerUps: PowerUpDef[],
@@ -214,6 +234,9 @@ export class MetaScreen {
     this.section = section;
     this.scrollTop = 0;
     this.render();
+    // Page transition: the freshly mounted content slides up with a stagger.
+    const page = this.root.querySelector(".meta-page, .meta-settings-card")?.parentElement;
+    page?.classList.add("meta-page-enter");
   }
 
   private openDossier(championId: string): void {
@@ -345,9 +368,13 @@ export class MetaScreen {
     const selected = this.selected();
     const currency = el("div", "meta-currency");
     const gold = el("div", "meta-currency-pill");
-    gold.append(el("span", "meta-currency-icon", "⬡"), el("span", "", `${this.save.gold} GOLD`));
+    const goldValue = el("span", "meta-currency-value");
+    this.countUp(goldValue, this.save.gold, "GOLD");
+    gold.append(el("span", "meta-currency-icon", "⬡"), goldValue);
     const keys = el("div", "meta-currency-pill accent");
-    keys.append(el("span", "meta-currency-icon", "◆"), el("span", "", `${this.save.keys} KEYS`));
+    const keysValue = el("span", "meta-currency-value");
+    this.countUp(keysValue, this.save.keys, "KEYS");
+    keys.append(el("span", "meta-currency-icon", "◆"), keysValue);
     currency.append(gold, keys);
     if (selected) {
       const hero = el("div", "meta-topbar-champion");
@@ -1008,10 +1035,24 @@ export class MetaScreen {
 
     const hero = el("header", "meta-dossier-hero");
     const art = el("div", "meta-dossier-art");
-    art.append(
-      this.crestStack(regions, "meta-dossier-crest"),
-      el("div", "meta-dossier-art-label", regions[0] ?? "Runeterra"),
-    );
+    // Card visualizer: splash art hero with the pixel sprite in front (D-056).
+    const splash = championCardURL(champion.id);
+    if (splash) {
+      const splashLayer = el("div", "meta-dossier-splash");
+      splashLayer.style.backgroundImage = `url(${splash})`;
+      art.appendChild(splashLayer);
+      art.appendChild(el("div", "meta-dossier-splash-shade"));
+      const spriteURL = championIconURL(champion.id);
+      if (spriteURL) {
+        const sprite = el("img", "meta-dossier-sprite") as HTMLImageElement;
+        sprite.src = spriteURL;
+        sprite.alt = "";
+        art.appendChild(sprite);
+      }
+    } else {
+      art.appendChild(this.crestStack(regions, "meta-dossier-crest"));
+    }
+    art.append(el("div", "meta-dossier-art-label", regions[0] ?? "Runeterra"));
     const heading = el("div", "meta-dossier-heading");
     heading.append(
       el("div", "meta-kicker", "CHAMPION DOSSIER"),
@@ -1340,6 +1381,15 @@ export class MetaScreen {
     );
     this.applyRegionTheme(card, regions);
     card.style.setProperty("--champ-color", color);
+    // Gacha-style card: official splash art behind the content (D-056).
+    const cardArt = championCardURL(champion.id);
+    if (cardArt) {
+      const artLayer = el("div", "meta-card-art");
+      artLayer.style.backgroundImage = `url(${cardArt})`;
+      card.prepend(artLayer);
+      const artShade = el("div", "meta-card-art-shade");
+      card.appendChild(artShade);
+    }
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.setAttribute(
@@ -1367,7 +1417,16 @@ export class MetaScreen {
 
     const top = el("div", "meta-champion-top");
     const portrait = el("div", "meta-champion-portrait");
-    portrait.append(el("span", "meta-champion-initial", champion.name?.charAt(0) ?? "?"));
+    const iconURL = championIconURL(champion.id);
+    if (iconURL) {
+      const portraitImg = el("img", "meta-champion-icon") as HTMLImageElement;
+      portraitImg.src = iconURL;
+      portraitImg.alt = "";
+      portraitImg.style.imageRendering = "pixelated";
+      portrait.appendChild(portraitImg);
+    } else {
+      portrait.append(el("span", "meta-champion-initial", champion.name?.charAt(0) ?? "?"));
+    }
     const info = el("div", "meta-champion-info");
     info.append(
       el("div", "meta-champion-name", champion.name ?? champion.id),
@@ -1412,6 +1471,10 @@ export class MetaScreen {
     } else {
       const required = shardsRequired(champion);
       const shards = shardsFor(this.save, champion.id);
+      // Shard liquid: the card fills from the bottom by unlock progress.
+      const liquid = el("div", "meta-shard-liquid");
+      liquid.style.setProperty("--fill", `${Math.min(100, (shards / required) * 100)}%`);
+      card.appendChild(liquid);
       const progress = el("div", "meta-shard-progress");
       const bar = el("div", "meta-shard-bar");
       const fill = el("div", "meta-shard-fill");

@@ -4,6 +4,7 @@ import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
 import { AccountClient } from "./account";
 import { AdminPanel } from "./admin";
+import { preloadChampionArt } from "./assets/champion-sprites";
 import { Music, Sfx } from "./audio";
 import { Banner } from "./banner";
 import { championColor } from "./champion-colors";
@@ -14,6 +15,7 @@ import { Input } from "./input";
 import { LevelUpUI } from "./levelup";
 import { Lobby } from "./lobby";
 import { MetaScreen } from "./meta-screen";
+import { GameShell } from "./meta/boot";
 import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
 import type { NetHost } from "./net-host";
 import { PauseMenu } from "./pause-menu";
@@ -71,6 +73,9 @@ async function main(): Promise<void> {
   fitCanvas();
 
   const pack = loadGamePack();
+
+  // Official-art icon sprites for the whole roster (fallbacks cover misses).
+  await preloadChampionArt(pack.characters.map((c) => c.id));
   // Content-driven free starter. Ahri is Common, so every region still has at
   // least one gacha target (Demacia/Lux included).
   const firstCharacter =
@@ -564,6 +569,19 @@ async function main(): Promise<void> {
     renderer.setLocalInput(i.moveX, i.moveY);
     inputSender(i.moveX, i.moveY);
   }, 1000 / 30);
+
+  // Game shell: boot + title over the hub (D-056). The hub renders beneath;
+  // the title dissolves into it on first input.
+  const shell = new GameShell({
+    onAudioUnlock: () => sfx.unlock(),
+    onStart: () => shell.dismissTitle(),
+    splashIds:
+      save.unlockedCharacters.length > 0
+        ? save.unlockedCharacters
+        : ["ahri", "lux", "darius", "jinx"],
+  });
+  shell.play();
+  shell.dismissBoot();
 
   app.ticker.add(() => {
     try {
