@@ -272,6 +272,10 @@ export interface RunStats {
   might: number;
   /** Cooldown divisor: >1 means faster attacks (shown as Haste). */
   cooldown: number;
+  /** Flat spell power; abilities with an `ap` ratio scale on it. */
+  abilityPower: number;
+  /** Flat attack power; abilities with an `ad` ratio scale on it. */
+  attackDamage: number;
   area: number;
   moveSpeed: number;
   /** Effective movement speed in pixels/tick (for client prediction). */
@@ -602,6 +606,8 @@ export class World {
     return {
       might: this.playerStat(playerId, "might", 1),
       cooldown: this.playerStat(playerId, "cooldown", 1),
+      abilityPower: this.playerStat(playerId, "abilityPower", 0),
+      attackDamage: this.playerStat(playerId, "attackDamage", 0),
       area: this.playerStat(playerId, "area", 1),
       moveSpeed: this.playerStat(playerId, "moveSpeed", 1),
       moveSpeedPx: this.num("core.moveSpeed") * this.playerStat(playerId, "moveSpeed", 1),
@@ -664,7 +670,11 @@ export class World {
       if (delta !== undefined) value += delta;
     }
     if (key === "damage") {
-      const damage = value * this.playerStat(owner, "might", 1);
+      let damage = value * this.playerStat(owner, "might", 1);
+      // Real-game style ratios: flat AP/AD converted by the ability's scale.
+      const scale = def.scale;
+      if (scale?.ap) damage *= 1 + this.playerStat(owner, "abilityPower", 0) * scale.ap;
+      if (scale?.ad) damage *= 1 + this.playerStat(owner, "attackDamage", 0) * scale.ad;
       return Number.isFinite(damage) ? Math.max(0, damage) : value;
     }
     if (key === "area") {

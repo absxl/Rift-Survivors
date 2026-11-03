@@ -21,6 +21,8 @@ export interface AbilityInfo {
 export const STAT_LABELS: Record<string, string> = {
   might: "MIGHT",
   cooldown: "HASTE",
+  abilityPower: "ABILITY POWER",
+  attackDamage: "ATTACK DAMAGE",
   area: "AREA",
   moveSpeed: "MOVE SPEED",
   magnet: "MAGNET",
@@ -117,8 +119,13 @@ function abilityStatsAt(def: AbilityDef, level: number): AbilityStatsAtLevel {
 
 function effective(def: AbilityDef, level: number, stats?: RunStats): AbilityStatsAtLevel {
   const s = abilityStatsAt(def, level);
+  // Mirrors the sim's abilityStat damage path exactly (world.ts), including
+  // the real-game AP/AD ratios, so card numbers can never drift from combat.
+  let damage = s.damage * (stats?.might ?? 1);
+  if (def.scale?.ap) damage *= 1 + (stats?.abilityPower ?? 0) * def.scale.ap;
+  if (def.scale?.ad) damage *= 1 + (stats?.attackDamage ?? 0) * def.scale.ad;
   return {
-    damage: Math.round(s.damage * (stats?.might ?? 1) * 10) / 10,
+    damage: Math.round(damage * 10) / 10,
     cooldown: Math.max(0.1, Math.round((s.cooldown / (stats?.cooldown ?? 1) / 30) * 100) / 100),
     area: Math.round(s.area * (stats?.area ?? 1)),
     amount: s.amount,
@@ -142,6 +149,12 @@ export function abilityInfo(def: AbilityDef, level: number, stats?: RunStats): A
       { label: "CAST TIME", value: `${s.cooldown.toFixed(2)}S` },
       { label: "AREA", value: `${s.area}` },
       { label: "PROJECTILES", value: `${s.amount}` },
+      ...(def.scale?.ap
+        ? [{ label: "AP RATIO", value: `${Math.round(def.scale.ap * 100)}%` }]
+        : []),
+      ...(def.scale?.ad
+        ? [{ label: "AD RATIO", value: `${Math.round(def.scale.ad * 100)}%` }]
+        : []),
       ...(s.pierce > 0 ? [{ label: "PIERCE", value: `${s.pierce}` }] : []),
       ...(s.knockback > 0 ? [{ label: "KNOCKBACK", value: `${s.knockback}` }] : []),
     ],

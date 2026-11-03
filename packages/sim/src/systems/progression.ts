@@ -24,6 +24,8 @@ const TRAININGS: { key: string; amount: number }[] = [
   { key: "pierce", amount: 1 },
   { key: "knockback", amount: 0.1 },
   { key: "lifesteal", amount: 0.01 },
+  { key: "abilityPower", amount: 6 },
+  { key: "attackDamage", amount: 6 },
 ];
 
 export function registerProgression(reg: Registries): void {

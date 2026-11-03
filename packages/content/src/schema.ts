@@ -54,6 +54,7 @@ const abilityDefSchema: z.ZodType<AbilityDef> = z.object({
   base: abilityStatsSchema,
   levels: z.array(z.object({ delta: statDeltaSchema })),
   damageType: z.enum(["physical", "magic", "true"]).optional(),
+  scale: z.object({ ap: z.number().optional(), ad: z.number().optional() }).optional(),
   status: z.object({ id: z.enum(["burn", "slow"]), ticks: z.number().int().positive() }).optional(),
   isEvolved: z.boolean().optional(),
   evolution: z.object({ requiresPassive: z.string(), evolvesTo: z.string() }).optional(),

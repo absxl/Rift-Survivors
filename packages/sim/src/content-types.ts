@@ -38,6 +38,13 @@ export interface StatDelta {
   lifetime?: number;
 }
 
+/** Real-game style scaling ratios: effective damage gains `stat × ratio` as a
+ * multiplier (e.g. `{ ap: 0.66 }` → 100 AP makes the ability 1.66× stronger). */
+export interface AbilityScale {
+  ap?: number;
+  ad?: number;
+}
+
 export interface AbilityDef {
   id: string;
   /** Display name (placeholder flavor; never used by sim logic). */
@@ -46,13 +53,14 @@ export interface AbilityDef {
   description?: string;
   /** Namespaced tags used by synergies/modifiers (e.g. "damage:fire"). */
   tags?: string[];
-  /** True for champion signature moves: separate slot pool, never evolved. */
   behavior: string; // registry id: "sweep" | "shoot-nearest" | ...
   params: Record<string, number | string | boolean>;
   maxLevel: number;
   base: AbilityStats;
   levels: { delta: StatDelta }[]; // length = maxLevel - 1
   damageType?: DamageType;
+  /** Real-game AP/AD ratios (from the wiki); missing entries do not scale. */
+  scale?: AbilityScale;
   status?: StatusApply;
   /** Evolved forms are never offered in level-up pools. */
   isEvolved?: boolean;
