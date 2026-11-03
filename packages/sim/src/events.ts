@@ -23,6 +23,7 @@ export type SimEvent =
   | { type: "explosion"; x: number; y: number; radius: number }
   | { type: "bush-break"; playerId: number; x: number; y: number }
   | { type: "key-found"; playerId: number; keys: number }
+  | { type: "essence-found"; playerId: number; essence: number }
   | { type: "run-chest-spawn"; x: number; y: number }
   | { type: "run-chest-start"; playerId: number; x: number; y: number }
   | {

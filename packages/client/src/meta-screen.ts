@@ -2,6 +2,7 @@
 // ACHIEVEMENTS / SETTINGS. Champions are gacha-only; the Upgrades section
 // upgrades the currently selected champion's own tree.
 import { CLASSES } from "@rift/content";
+import { CHAMPION_SKINS } from "@rift/content";
 import type { AbilityDef, CharacterDef, PowerUpDef, StageDef } from "@rift/sim";
 import { abilityName, statLabel } from "./ability-info";
 import type { AccountClient } from "./account";
@@ -13,12 +14,15 @@ import {
   ACHIEVEMENTS,
   GACHA_ODDS,
   RARITY_LABELS,
+  SKIN_COST,
   achievementCurrent,
   buyPowerUp,
+  buySkin,
   canUnlockWithShards,
   championsInRegion,
   checkAchievements,
   darkinChampions,
+  equipSkin,
   isUnlocked,
   nextCost,
   openRegionChests,
@@ -1151,6 +1155,57 @@ export class MetaScreen {
       collection.appendChild(progress);
     }
     collection.appendChild(this.regionChips(regions));
+
+    // Skins carousel: obtainable skins, Blue Essence purchase + equip (D-055).
+    const skinData = CHAMPION_SKINS[champion.id];
+    if (skinData && skinData.obtainable.length > 0) {
+      const skinsBlock = el("div", "meta-skins");
+      skinsBlock.appendChild(
+        el("div", "meta-kicker", `SKINS · ${this.save.blueEssence} BLUE ESSENCE`),
+      );
+      const ownedSkins = this.save.ownedSkins[champion.id] ?? [];
+      const equipped = this.save.equippedSkin[champion.id];
+      for (const skin of skinData.obtainable) {
+        const owned = ownedSkins.includes(skin.num);
+        const isEquipped = equipped === skin.num;
+        const row = el("div", "meta-skin-row holo");
+        const thumbURL = championIconURL(champion.id, skin.num);
+        if (thumbURL) {
+          const thumb = el("img", "meta-skin-thumb") as HTMLImageElement;
+          thumb.src = thumbURL;
+          thumb.alt = "";
+          row.appendChild(thumb);
+        }
+        const info = el("div", "meta-skin-info");
+        info.append(
+          el("div", "meta-skin-name", skin.name),
+          el(
+            "div",
+            "meta-skin-state",
+            isEquipped ? "EQUIPPED" : owned ? "OWNED" : `${SKIN_COST} BLUE ESSENCE`,
+          ),
+        );
+        row.appendChild(info);
+        const action = el(
+          "button",
+          "meta-btn small",
+          isEquipped ? "EQUIPPED" : owned ? "EQUIP" : "BUY",
+        );
+        action.disabled = isEquipped || (!owned && this.save.blueEssence < SKIN_COST);
+        action.addEventListener("click", () => {
+          if (owned) {
+            equipSkin(this.save, champion.id, skin.num);
+          } else if (buySkin(this.save, champion.id, skin.num).ok) {
+            equipSkin(this.save, champion.id, skin.num);
+          }
+          this.persist();
+          this.render();
+        });
+        row.appendChild(action);
+        skinsBlock.appendChild(row);
+      }
+      collection.appendChild(skinsBlock);
+    }
 
     if (unlocked) {
       const select = el("button", "meta-play", selected ? "SELECTED" : "SELECT");

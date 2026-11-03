@@ -11,6 +11,8 @@ export const PICKUP_GOLD = 5;
 export const PICKUP_KEY = 6;
 export const PICKUP_MAGNET = 7;
 export const PICKUP_BOMB = 8;
+/** Blue Essence crystal: bosses only (docs/10 D-055). */
+export const PICKUP_ESSENCE = 9;
 
 export function registerPickupSystem(reg: Registries): void {
   reg.systems.register("pickups", pickups);
@@ -41,6 +43,8 @@ function pickupValue(world: World, kind: number): number {
     case PICKUP_MAGNET:
     case PICKUP_BOMB:
       return 0;
+    case PICKUP_ESSENCE:
+      return 1;
     default:
       return 0;
   }
@@ -124,6 +128,10 @@ function applyPickup(world: World, playerId: number, kind: number, value: number
     const next = players.field("keys")[playerId] + Math.max(1, Math.floor(value));
     players.field("keys")[playerId] = next;
     world.emit({ type: "key-found", playerId, keys: next });
+  } else if (kind === PICKUP_ESSENCE) {
+    const next = players.field("essence")[playerId] + Math.max(1, Math.floor(value));
+    players.field("essence")[playerId] = next;
+    world.emit({ type: "essence-found", playerId, essence: next });
   } else if (kind === PICKUP_MAGNET) {
     // Pull all active loot to the opener. The normal gem/pickup systems collect
     // it on the next tick; exclude other magnets so magnets cannot chain.

@@ -4,6 +4,7 @@ import type { Registries } from "../registry";
 import type { World } from "../world";
 import { damagePlayer } from "./combat";
 import {
+  PICKUP_ESSENCE,
   PICKUP_FREEZE,
   PICKUP_GOLD,
   PICKUP_HEAL,
@@ -107,6 +108,12 @@ function deaths(world: World): void {
       // Bosses/final threats guarantee a key and a luck-scaled gold drop.
       dropPickup(world, x, y, PICKUP_GOLD, Math.round(world.num("pickup.bossGold") * luckMult));
       dropPickup(world, x, y, PICKUP_KEY);
+      // Blue Essence: bosses are the only source (D-055). Final threats pay 4x.
+      const essenceAmount =
+        def.category === "final-threat" ? 10 + world.rng.int(0, 2) : 2 + world.rng.int(0, 1);
+      for (let e = 0; e < essenceAmount; e++) {
+        dropPickup(world, x, y, PICKUP_ESSENCE, 1);
+      }
       if (killerValid) players.field("bossesKilled")[killer] += 1;
     } else {
       // Minions: independent gold rolls, plus consumables and a rare nuke.

@@ -6,6 +6,8 @@ export interface RunEndStats {
   gold: number;
   keys: number;
   chestsOpened: number;
+  /** Blue Essence collected this run (bosses only). */
+  essence?: number;
   title?: string;
   newAchievements: string[];
 }
@@ -45,6 +47,8 @@ export class RunEndUI {
     this.title.textContent = stats.title ?? "GAME OVER";
     let text = `TIME ${stats.time}   KILLS ${stats.kills}   GOLD +${stats.gold}   KEYS +${stats.keys}`;
     if (stats.chestsOpened > 0) text += `   CHESTS OPENED ${stats.chestsOpened}`;
+    if (stats.essence !== undefined && stats.essence > 0)
+      text += `   BLUE ESSENCE +${stats.essence}`;
     if (stats.newAchievements.length > 0) {
       text += `\nACHIEVEMENT: ${stats.newAchievements.join(", ")}`;
     }

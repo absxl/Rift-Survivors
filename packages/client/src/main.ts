@@ -238,6 +238,7 @@ async function main(): Promise<void> {
     const gold = Math.round(field("gold"));
     const kills = field("kills");
     const keysFound = field("keys");
+    const essenceFound = field("essence");
     const chestsOpened = field("chestsOpened");
     const timeSec = Math.floor(snap.tick / 30);
     const runCharacter = pack.characters.find((champion) => champion.id === currentCharacterId);
@@ -264,6 +265,8 @@ async function main(): Promise<void> {
     awardRun(save, result);
     const newAchievements = checkAchievements(save, result, pack.characters);
     const keysEarned = save.keys - keysBefore;
+    // Blue Essence settles here: unspent run essence becomes the skin currency.
+    save.blueEssence += essenceFound;
     persistSave(save);
     runEnd.show({
       title,
@@ -273,6 +276,7 @@ async function main(): Promise<void> {
       keys: keysEarned,
       chestsOpened,
       newAchievements,
+      essence: essenceFound,
     });
   };
 

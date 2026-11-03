@@ -1,13 +1,17 @@
+import { CHAMPION_SKINS } from "@rift/content";
 import type { CharacterDef, PowerUpDef } from "@rift/sim";
 import { describe, expect, it } from "vitest";
 import type { SaveData } from "../save/save";
 import {
   ACHIEVEMENTS,
+  SKIN_COST,
   awardRun,
   buyPowerUp,
+  buySkin,
   championsInRegion,
   checkAchievements,
   computeMetaBonuses,
+  equipSkin,
   openRegionChests,
   rankOf,
   regionProgressFor,
@@ -28,6 +32,9 @@ function save(overrides: Partial<SaveData> = {}): SaveData {
     selectedStage: "rift-field",
     unlockedCharacters: ["a"],
     keys: 10,
+    blueEssence: 0,
+    ownedSkins: {},
+    equippedSkin: {},
     achievements: [],
     achievementProgress: {},
     regionProgress: {},
@@ -314,5 +321,33 @@ describe("region gacha", () => {
     expect(data.unlockedCharacters).toContain("b");
     expect(data.unlockedCharacters).not.toContain("a");
     expect(shardsFor(data, "b")).toBe(0);
+  });
+});
+
+describe("skins and Blue Essence", () => {
+  it("buys an obtainable skin with Blue Essence and equips it", () => {
+    const s = save({ blueEssence: SKIN_COST });
+    s.unlockedCharacters.push("ahri");
+    const data = CHAMPION_SKINS.ahri;
+    const skin = data.obtainable[0];
+    expect(buySkin(s, "ahri", skin.num)).toEqual({ ok: true });
+    expect(s.ownedSkins.ahri).toContain(skin.num);
+    expect(s.blueEssence).toBe(0);
+    equipSkin(s, "ahri", skin.num);
+    expect(s.equippedSkin.ahri).toBe(skin.num);
+    // Equip falls back cleanly: unequip by undefined.
+    equipSkin(s, "ahri", undefined);
+    expect(s.equippedSkin.ahri).toBeUndefined();
+  });
+
+  it("rejects unaffordable, unobtainable, and duplicate purchases", () => {
+    const s = save({ blueEssence: 10 });
+    const data = CHAMPION_SKINS.ahri;
+    const skin = data.obtainable[0];
+    expect(buySkin(s, "ahri", skin.num)).toMatchObject({ ok: false });
+    s.blueEssence = SKIN_COST;
+    expect(buySkin(s, "ahri", 9999)).toMatchObject({ ok: false });
+    expect(buySkin(s, "ahri", skin.num)).toEqual({ ok: true });
+    expect(buySkin(s, "ahri", skin.num)).toMatchObject({ ok: false });
   });
 });

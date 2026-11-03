@@ -11,6 +11,12 @@ export class AdminPanel {
   /** Grants gold inside the active run (solo worker only). */
   onRunGold?: (amount: number) => void;
 
+  private grantEssence(amount: number): void {
+    this.save.blueEssence += amount;
+    persistSave(this.save);
+    this.status.textContent = `+${amount} BLUE ESSENCE (TOTAL ${this.save.blueEssence})`;
+  }
+
   constructor(
     private readonly save: SaveData,
     private readonly characters: CharacterDef[],
@@ -35,6 +41,7 @@ export class AdminPanel {
     grid.className = "admin-grid";
     this.addButton(grid, "+1,000 GOLD", () => this.grantGold(1000));
     this.addButton(grid, "+5,000 RUN GOLD (DEV)", () => this.onRunGold?.(5000));
+    this.addButton(grid, "+50 BLUE ESSENCE (DEV)", () => this.grantEssence(50));
     this.addButton(grid, "+10,000 GOLD", () => this.grantGold(10000));
     this.addButton(grid, "+10 KEYS", () => this.grantKeys(10));
     this.addButton(grid, "+100 KEYS", () => this.grantKeys(100));

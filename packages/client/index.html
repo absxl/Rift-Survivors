@@ -4487,6 +4487,51 @@ body.touch-mode .shop { width: 96vw; max-height: 76vh; }
   .chest-opening-card-beams { animation: none; opacity: 0.6; }
   .chest-opening-card-splash { transition: none; }
 }
+
+/* ---- Skin carousel (D-055) ------------------------------------------------ */
+.meta-skins { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.meta-skin-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--rift-line);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  position: relative;
+  overflow: hidden;
+}
+.meta-skin-row.holo::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(120, 220, 232, 0.14) 42%,
+    rgba(215, 181, 109, 0.2) 50%,
+    rgba(176, 88, 216, 0.14) 58%,
+    transparent 70%
+  );
+  animation: holo-shift 4.5s linear infinite;
+  pointer-events: none;
+}
+@keyframes holo-shift {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
+}
+.meta-skin-thumb {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  border: 1px solid var(--rift-line);
+  object-fit: cover;
+}
+.meta-skin-info { flex: 1; min-width: 0; }
+.meta-skin-name { color: var(--rift-text); font-size: 13px; }
+.meta-skin-state { color: var(--rift-muted); font-size: 10px; letter-spacing: 0.12em; }
+@media (prefers-reduced-motion: reduce) {
+  .meta-skin-row.holo::before { animation: none; }
+}
 </style>
   </head>
   <body>

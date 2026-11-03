@@ -68,6 +68,12 @@ export interface SaveData {
   unlockedCharacters: string[];
   /** Keys spent to open region chests on the CHESTS page. */
   keys: number;
+  /** Blue Essence: boss-only currency for skins (docs/10 D-055). */
+  blueEssence: number;
+  /** Skin nums owned per champion (from CHAMPION_SKINS obtainable lists). */
+  ownedSkins: Record<string, number[]>;
+  /** Equipped skin num per champion (absent = default skin). */
+  equippedSkin: Record<string, number>;
   achievements: string[];
   /** Best display progress per achievement id; goals are monotonic within a save. */
   achievementProgress: Record<string, number>;
@@ -86,7 +92,7 @@ export interface SaveData {
   settings: SaveSettings;
 }
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 const SAVE_KEY = "rift-survivors-save";
 
 export function defaultSave(firstCharacter: string, firstStage = "rift-field"): SaveData {
@@ -100,6 +106,9 @@ export function defaultSave(firstCharacter: string, firstStage = "rift-field"): 
     selectedStage: firstStage,
     unlockedCharacters: [firstCharacter],
     keys: 0,
+    blueEssence: 0,
+    ownedSkins: {},
+    equippedSkin: {},
     achievements: [],
     achievementProgress: {},
     regionProgress: {},

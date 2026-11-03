@@ -1,3 +1,4 @@
+import { CHAMPION_SKINS } from "@rift/content";
 // Meta progression logic: per-champion upgrades, region gacha shards, and
 // achievements. Pure functions over SaveData; the UI persists after calling them.
 import type { CharacterDef, PowerUpDef, Rarity } from "@rift/sim";
@@ -206,6 +207,38 @@ export function canUnlockWithShards(save: SaveData, character: CharacterDef): bo
   return (
     !isUnlocked(save, character.id) && shardsFor(save, character.id) >= shardsRequired(character)
   );
+}
+
+/** Skin price: flat, deliberately steep — bosses are the only BE source. */
+export const SKIN_COST = 120;
+
+/** Buy one obtainable skin for a champion with Blue Essence. */
+export function buySkin(
+  save: SaveData,
+  championId: string,
+  skinNum: number,
+): { ok: true } | { ok: false; error: string } {
+  const data = CHAMPION_SKINS[championId];
+  if (!data?.obtainable.some((s) => s.num === skinNum)) {
+    return { ok: false, error: "That skin is not obtainable." };
+  }
+  const owned = save.ownedSkins[championId] ?? [];
+  if (owned.includes(skinNum)) return { ok: false, error: "Already owned." };
+  if (save.blueEssence < SKIN_COST) return { ok: false, error: "Not enough Blue Essence." };
+  save.blueEssence -= SKIN_COST;
+  save.ownedSkins[championId] = [...owned, skinNum];
+  return { ok: true };
+}
+
+/** Equip an owned skin (or the default with num undefined). */
+export function equipSkin(save: SaveData, championId: string, skinNum: number | undefined): void {
+  if (skinNum === undefined) {
+    delete save.equippedSkin[championId];
+    return;
+  }
+  const owned = save.ownedSkins[championId] ?? [];
+  if (!owned.includes(skinNum)) return;
+  save.equippedSkin[championId] = skinNum;
 }
 
 /** Spend champion shards to unlock; the player chooses the champion manually. */

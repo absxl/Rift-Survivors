@@ -105,6 +105,8 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "reviveProgress", type: "f32" },
     /** Temporary absorb shield from shield-pulse abilities (decays on hit). */
     { name: "shield", type: "f32" },
+    /** Blue Essence crystals collected this run (bosses only; D-055). */
+    { name: "essence", type: "u16" },
     { name: "velocityX", type: "f32", network: false },
     { name: "velocityY", type: "f32", network: false },
   ],

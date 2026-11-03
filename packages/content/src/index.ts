@@ -6,6 +6,8 @@ import { loadLolPack } from "./packs/lol";
 
 export { contentPackSchema } from "./schema";
 export { loadCorePack } from "./packs/core";
+export type { ChampionSkinData, ObtainableSkin } from "./champions/skins.generated";
+export { CHAMPION_SKINS } from "./champions/skins.generated";
 export { loadLolPack } from "./packs/lol";
 export {
   CHAMPION_CLASS_IDS,

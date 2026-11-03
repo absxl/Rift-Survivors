@@ -57,6 +57,7 @@ export class Hud {
   private readonly stageEl: HTMLElement;
   private readonly goldEl: HTMLElement;
   private readonly keysEl: HTMLElement;
+  private readonly essenceEl: HTMLElement;
   private readonly partyEl: HTMLElement;
   private readonly bossEl: HTMLElement;
   private readonly bossName: HTMLElement;
@@ -124,7 +125,9 @@ export class Hud {
     this.stageEl = el("span", "hud-stage-name", "");
     this.goldEl = el("span", "hud-gold", "0 G");
     this.keysEl = el("span", "hud-keys", "0 KEYS");
-    currency.append(this.stageEl, this.goldEl, this.keysEl);
+    this.essenceEl = el("span", "hud-essence", "0 BE");
+    currency.append(this.stageEl, this.goldEl, this.keysEl, this.essenceEl);
+    this.essenceEl.style.display = "none";
     topbar.appendChild(currency);
     this.root.appendChild(topbar);
 
@@ -255,6 +258,9 @@ export class Hud {
     this.killsEl.textContent = String(Math.round(teamKills));
     this.goldEl.textContent = `${Math.round(gold)} G`;
     this.keysEl.textContent = `${Math.round(keys)} KEYS`;
+    const essence = playerStore?.fields.essence?.[this.localPlayerId] ?? 0;
+    this.essenceEl.style.display = essence > 0 ? "" : "none";
+    this.essenceEl.textContent = `${Math.round(essence)} BE`;
 
     this.hpFill.style.width = `${Math.max(0, Math.min(1, maxHp > 0 ? hp / maxHp : 0)) * 100}%`;
     this.hpText.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
