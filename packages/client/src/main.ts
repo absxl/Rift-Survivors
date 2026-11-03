@@ -27,6 +27,7 @@ import {
   resolveSelectedCharacter,
   setSaveSink,
 } from "./save/save";
+import { ShopUI } from "./shop";
 import { TouchControls } from "./touch-controls";
 
 function formatTime(secs: number): string {
@@ -107,7 +108,31 @@ async function main(): Promise<void> {
   app.stage.addChild(worldLayer);
 
   const renderer = new GameRenderer(worldLayer, pack.abilities, pack.enemies, pack.stages ?? []);
-  const hud = new Hud(pack.abilities, pack.passives, pack.enemies, pack.characters);
+  const hud = new Hud(
+    pack.abilities,
+    pack.passives,
+    pack.enemies,
+    pack.characters,
+    pack.items ?? [],
+  );
+  const shop = new ShopUI();
+  shop.setItems(pack.items ?? []);
+  // B toggles the shop unless a level-up offer owns the keyboard (B = banish).
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && shop.isOpen) {
+      shop.hide();
+      return;
+    }
+    if (e.key.toLowerCase() === "b" && !levelUp.visible && !runEnded) {
+      e.preventDefault();
+      shop.toggle();
+    }
+  });
+  shop.setCallbacks({
+    onBuy: (itemId: string) => shopSender?.({ type: "buy", itemId }),
+    onCombine: (itemId: string) => shopSender?.({ type: "combine", itemId }),
+    onSell: (slot: number) => shopSender?.({ type: "sell", slot }),
+  });
   const input = new Input();
   input.attach();
   input.setKeybinds(save.settings.keybinds);
@@ -119,6 +144,10 @@ async function main(): Promise<void> {
   let activeSkip: (() => void) | null = null;
   let activeBanish: ((index: number) => void) | null = null;
   let inputSender: ((moveX: number, moveY: number) => void) | null = null;
+  // Shop actions route to whichever host is authoritative right now.
+  let shopSender:
+    | ((msg: { type: "buy" | "combine" | "sell"; itemId?: string; slot?: number }) => void)
+    | null = null;
   let coopCharacterId = save.selectedCharacter;
   let currentMode: "solo" | "coop" = "solo";
   let currentCharacterId = save.selectedCharacter;
@@ -236,6 +265,7 @@ async function main(): Promise<void> {
   };
 
   const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
+    shop.update(snap);
     renderer.receive(snap, events);
     lastSnap = snap;
     levelUp.setStats(snap.playerStats[localPlayerId] ?? snap.playerStats[0] ?? null);
@@ -306,7 +336,8 @@ async function main(): Promise<void> {
     pack.stages ?? [],
     account,
   );
-  new AdminPanel(save, pack.characters, pack.powerUps, () => metaScreen.refresh());
+  const admin = new AdminPanel(save, pack.characters, pack.powerUps, () => metaScreen.refresh());
+  admin.onRunGold = (amount: number) => host.grantRunGold?.(amount);
   sfx.setVolume(save.settings.volume);
   renderer.setShake(save.settings.shake);
   renderer.setDamageNumbers(save.settings.damageNumbers);
@@ -343,6 +374,8 @@ async function main(): Promise<void> {
     activeSkip = () => host.skip();
     activeBanish = (i) => host.banishOption(i);
     inputSender = (mx, my) => host.sendInput({ playerId: 0, moveX: mx, moveY: my });
+    shopSender = (msg) => host.sendShop(msg);
+    shop.setLocalPlayer(0);
     touchControls?.setActive(true);
     host.start(
       characterId,
@@ -399,6 +432,8 @@ async function main(): Promise<void> {
     activeSkip = () => netHost.sendSkip();
     activeBanish = (i) => netHost.sendBanish(i);
     inputSender = (mx, my) => netHost.sendInput({ playerId: yourPlayerId, moveX: mx, moveY: my });
+    shopSender = (msg) => netHost.sendShop(msg);
+    shop.setLocalPlayer(yourPlayerId);
     touchControls?.setActive(true);
   });
   metaScreen.onCoop(() => {

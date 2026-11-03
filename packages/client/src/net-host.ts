@@ -102,6 +102,15 @@ export class NetHost {
     this.send({ type: "input", moveX: input.moveX, moveY: input.moveY });
   }
 
+  sendShop(action: { type: "buy" | "combine" | "sell"; itemId?: string; slot?: number }): void {
+    if (action.type === "buy" && action.itemId) this.send({ type: "buy", itemId: action.itemId });
+    else if (action.type === "combine" && action.itemId) {
+      this.send({ type: "combine", itemId: action.itemId });
+    } else if (action.type === "sell" && action.slot !== undefined) {
+      this.send({ type: "sell", slot: action.slot });
+    }
+  }
+
   sendChoice(choiceIndex: number): void {
     this.send({ type: "choice", choiceIndex });
   }

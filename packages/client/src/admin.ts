@@ -8,6 +8,8 @@ import { persistSave, resetSave } from "./save/save";
 export class AdminPanel {
   private readonly root: HTMLElement;
   private readonly status: HTMLElement;
+  /** Grants gold inside the active run (solo worker only). */
+  onRunGold?: (amount: number) => void;
 
   constructor(
     private readonly save: SaveData,
@@ -32,6 +34,7 @@ export class AdminPanel {
     const grid = document.createElement("div");
     grid.className = "admin-grid";
     this.addButton(grid, "+1,000 GOLD", () => this.grantGold(1000));
+    this.addButton(grid, "+5,000 RUN GOLD (DEV)", () => this.onRunGold?.(5000));
     this.addButton(grid, "+10,000 GOLD", () => this.grantGold(10000));
     this.addButton(grid, "+10 KEYS", () => this.grantKeys(10));
     this.addButton(grid, "+100 KEYS", () => this.grantKeys(100));

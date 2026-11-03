@@ -5,6 +5,12 @@ import type { Offer, PlayerInput, SimEvent, WorldSnapshot } from "@rift/sim";
 export type SnapshotHandler = (snapshot: WorldSnapshot, events: SimEvent[]) => void;
 export type OfferHandler = (offer: Offer) => void;
 
+export interface ShopAction {
+  type: "buy" | "combine" | "sell";
+  itemId?: string;
+  slot?: number;
+}
+
 export interface Host {
   start(
     characterId: string,
@@ -19,6 +25,10 @@ export interface Host {
   reroll(): void;
   skip(): void;
   banishOption(optionIndex: number): void;
+  /** Item-shop action; the authoritative side validates it. */
+  sendShop(action: ShopAction): void;
+  /** Dev-only: add run gold (solo worker). Co-op hosts omit this. */
+  grantRunGold?(amount: number): void;
   onSnapshot(cb: SnapshotHandler): void;
   onOffer(cb: OfferHandler): void;
 }
@@ -82,6 +92,14 @@ export class WorkerHost implements Host {
 
   banishOption(optionIndex: number): void {
     this.worker.postMessage({ type: "banish", optionIndex });
+  }
+
+  sendShop(action: ShopAction): void {
+    this.worker.postMessage({ type: action.type, itemId: action.itemId, slot: action.slot });
+  }
+
+  grantRunGold(amount: number): void {
+    this.worker.postMessage({ type: "dev-gold", amount });
   }
 
   onSnapshot(cb: SnapshotHandler): void {

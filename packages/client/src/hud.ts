@@ -6,6 +6,7 @@ import type {
   AbilityDef,
   CharacterDef,
   EnemyDef,
+  ItemDef,
   PassiveDef,
   RunStats,
   WorldSnapshot,
@@ -79,6 +80,7 @@ export class Hud {
   private readonly passives: PassiveDef[];
   private readonly enemies: EnemyDef[];
   private readonly characters: CharacterDef[];
+  private readonly items: ItemDef[];
   private localPlayerId = 0;
   private championId = "";
   private party: LobbyPlayer[] = [];
@@ -93,11 +95,13 @@ export class Hud {
     passives: PassiveDef[],
     enemies: EnemyDef[],
     characters: CharacterDef[] = [],
+    items: ItemDef[] = [],
   ) {
     this.abilities = abilities;
     this.passives = passives;
     this.enemies = enemies;
     this.characters = characters;
+    this.items = items;
 
     this.root = el("div", "hud");
     document.body.appendChild(this.root);
@@ -162,11 +166,12 @@ export class Hud {
     for (let i = 0; i < 8; i++) {
       this.abilitySlots.push(this.makeSlot(abilityRow, "ability"));
     }
-    const items = el("div", "hud-items");
-    for (let i = 0; i < 8; i++) {
-      this.itemSlots.push(this.makeSlot(items, "passive", true));
+    // 16-slot inventory strip fed from the sim's item store (shop purchases).
+    const itemRow = el("div", "hud-items");
+    for (let i = 0; i < 16; i++) {
+      this.itemSlots.push(this.makeSlot(itemRow, "passive", true));
     }
-    hotbar.append(identity, abilityRow, items);
+    hotbar.append(identity, abilityRow, itemRow);
     this.root.appendChild(hotbar);
 
     // Tooltip ---------------------------------------------------------------
@@ -251,16 +256,22 @@ export class Hud {
     this.lastStats = stats;
 
     const abilityStore = s.stores.find((st) => st.kind === "ability");
-    const passiveStore = s.stores.find((st) => st.kind === "passive");
+    const itemStore = s.stores.find((st) => st.kind === "item");
     const ownedAbilities = ownedIndices(abilityStore, this.localPlayerId);
-    const ownedPassives = ownedIndices(passiveStore, this.localPlayerId);
+    // Inventory slots in stable order (snapshot slots ascend per player).
+    const ownedItems: { slot: number; defIndex: number }[] = [];
+    if (itemStore) {
+      for (let i = 0; i < itemStore.slots.length; i++) {
+        if (itemStore.fields.owner?.[i] !== this.localPlayerId) continue;
+        ownedItems.push({
+          slot: itemStore.slots[i],
+          defIndex: itemStore.fields.defIndex?.[i] ?? 0,
+        });
+      }
+    }
 
     this.abilitySlots.forEach((slot, i) => this.fillAbilitySlot(slot, ownedAbilities[i], stats));
-    this.itemSlots.forEach((slot, i) => {
-      const entry = ownedPassives[i];
-      if (!entry) this.drawEmpty(slot);
-      else this.fillPassiveSlot(slot, entry);
-    });
+    this.itemSlots.forEach((slot, i) => this.fillItemSlot(slot, ownedItems[i]));
 
     this.updateBoss(s);
     if (this.statsVisible) this.renderScoreboard(playerStore, stats);
@@ -348,25 +359,35 @@ export class Hud {
     slot.cooldown.style.height = `${slot.cooldownFrac * 100}%`;
   }
 
-  private fillPassiveSlot(slot: SlotView, entry: LoadoutEntry): void {
-    const def = this.passives[entry.defIndex];
+  private fillItemSlot(
+    slot: SlotView,
+    entry: { slot: number; defIndex: number } | undefined,
+  ): void {
+    if (!entry) {
+      this.drawEmpty(slot);
+      return;
+    }
+    const def = this.items[entry.defIndex];
     if (!def) {
       this.drawEmpty(slot);
       return;
     }
-    const key = `p:${entry.defIndex}:${entry.level}`;
+    const key = `i:${entry.slot}:${def.id}`;
     if (slot.key !== key) {
       slot.key = key;
       slot.empty = false;
       slot.kind = "passive";
       slot.defIndex = entry.defIndex;
-      slot.levelNum = entry.level;
-      slot.label = def.name ?? def.id;
-      slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
-      slot.level.textContent = String(entry.level);
+      slot.levelNum = 0;
+      slot.label = def.name;
+      slot.color =
+        def.tier === "legendary" ? "#d7b56d" : def.tier === "epic" ? "#7f9cff" : "#a8b6c8";
+      slot.glyph.textContent = def.name.charAt(0).toUpperCase();
+      slot.level.textContent = "";
       slot.root.classList.remove("hud-slot-empty");
-      slot.root.style.borderColor = "#3c5870";
-      slot.root.style.background = "linear-gradient(160deg, #1b3348, #0b1019 75%)";
+      slot.root.style.borderColor = slot.color;
+      slot.root.style.background = `linear-gradient(160deg, ${slot.color}33, #0b1019 70%)`;
+      slot.root.title = `${def.name}${def.description ? ` — ${def.description}` : ""}`;
     }
     slot.cooldown.style.height = "0%";
   }

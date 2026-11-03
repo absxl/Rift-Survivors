@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RULESET, applyChoice, createWorld, snapshot, step } from "./index";
+import { DEFAULT_RULESET, createWorld, snapshot, step } from "./index";
 import type { AbilityDef, ContentPack } from "./index";
 
 function ability(id: string, tag: string): AbilityDef {
