@@ -35,7 +35,24 @@ describe("account store", () => {
 
     const reloaded = new AccountStore({ file });
     expect(reloaded.getSave(first.id)).toMatchObject({ gold: 123 });
-    expect(reloaded.getSessionAccount(token)).toBeNull();
+    // Sessions persist across restarts so players stay logged in.
+    expect(reloaded.getSessionAccount(token)?.id).toBe(first.id);
+  });
+
+  it("persists sessions across restarts and drops expired ones on load", () => {
+    const file = tempFile();
+    let now = 1000;
+    const store = new AccountStore({ file, now: () => now, sessionTtlMs: 100 });
+    const account = store.getOrCreateDev("Persist");
+    if (!account) throw new Error("dev account missing");
+    const token = store.createSession(account.id);
+
+    const reloaded = new AccountStore({ file, now: () => now, sessionTtlMs: 100 });
+    expect(reloaded.getSessionAccount(token)?.id).toBe(account.id);
+
+    now += 101;
+    const later = new AccountStore({ file, now: () => now, sessionTtlMs: 100 });
+    expect(later.getSessionAccount(token)).toBeNull();
   });
 
   it("enforces nickname format and global uniqueness", () => {

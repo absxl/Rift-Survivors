@@ -6,7 +6,12 @@ export type SnapshotHandler = (snapshot: WorldSnapshot, events: SimEvent[]) => v
 export type OfferHandler = (offer: Offer) => void;
 
 export interface Host {
-  start(characterId: string, metaBonuses?: Record<string, number>, stageId?: string): void;
+  start(
+    characterId: string,
+    metaBonuses?: Record<string, number>,
+    stageId?: string,
+    seed?: number,
+  ): void;
   pause(): void;
   resume(): void;
   sendInput(input: PlayerInput): void;
@@ -42,8 +47,13 @@ export class WorkerHost implements Host {
     };
   }
 
-  start(characterId: string, metaBonuses?: Record<string, number>, stageId?: string): void {
-    this.worker.postMessage({ type: "start", characterId, metaBonuses, stageId });
+  start(
+    characterId: string,
+    metaBonuses?: Record<string, number>,
+    stageId?: string,
+    seed?: number,
+  ): void {
+    this.worker.postMessage({ type: "start", characterId, metaBonuses, stageId, seed });
   }
 
   pause(): void {

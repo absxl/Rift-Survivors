@@ -3,7 +3,14 @@
 // pipeline. Everything else is a module registered by id.
 
 import { BushField } from "./bush-field";
-import type { CharacterDef, ContentPack, StageDef, StatusApply, WeaponDef } from "./content-types";
+import type {
+  CharacterDef,
+  ContentPack,
+  DamageType,
+  StageDef,
+  StatusApply,
+  WeaponDef,
+} from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
 import { ModifierStack } from "./modifiers";
@@ -96,7 +103,6 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "downs", type: "u16" },
     { name: "downed", type: "u8" },
     { name: "reviveProgress", type: "f32" },
-    { name: "envTick", type: "u8", network: false },
     { name: "velocityX", type: "f32", network: false },
     { name: "velocityY", type: "f32", network: false },
   ],
@@ -130,7 +136,6 @@ const ENEMY_SCHEMA: EntitySchema = {
     { name: "abilityCd2", type: "u16" },
     { name: "abilityCd3", type: "u16" },
     { name: "abilityCd4", type: "u16" },
-    { name: "envTick", type: "u8", network: false },
   ],
 };
 
@@ -382,7 +387,7 @@ export class World {
       null;
     const fieldWidth = Number(this.ruleset.rules["core.fieldWidth"] ?? 1280);
     const fieldHeight = Number(this.ruleset.rules["core.fieldHeight"] ?? 720);
-    const stageHash = stringHash(this.stage?.id ?? "rift-field");
+    const stageHash = stringHash(this.stage?.id ?? "");
     this.terrainSeed = (seed ^ stageHash) >>> 0;
     const safe: TerrainSafeZone[] = [
       { x: fieldWidth / 2, y: fieldHeight / 2, radius: SPAWN_CLEARING_RADIUS },
@@ -410,8 +415,10 @@ export class World {
     this.modifiers = new ModifierStack();
     this.spatialHash = new SpatialHash();
 
-    const fieldW = Number(this.ruleset.rules["core.fieldWidth"] ?? 480);
-    const fieldH = Number(this.ruleset.rules["core.fieldHeight"] ?? 270);
+    // Same fallback values as the terrain-safe-zone read above; the ruleset
+    // always defines these, the literal only guards malformed rulesets.
+    const fieldW = Number(this.ruleset.rules["core.fieldWidth"] ?? 1280);
+    const fieldH = Number(this.ruleset.rules["core.fieldHeight"] ?? 720);
     for (let i = 0; i < playerCount; i++) {
       const slot = this.stores.players.alloc();
       this.stores.players.field("x")[slot] = fieldW / 2 + i * 40;
@@ -585,6 +592,9 @@ export class World {
         newMax,
         players.field("hp")[playerId] + (newMax - oldMax),
       );
+    } else if (newMax < oldMax && players.field("hp")[playerId] > newMax) {
+      // A shrinking max (curse effects, debuffs) must clamp current HP too.
+      players.field("hp")[playerId] = newMax;
     }
   }
 
@@ -799,6 +809,7 @@ export class World {
     knockback: number,
     hitCooldown: number,
     owner = 0,
+    damageType: DamageType = "physical",
   ): void {
     const enemies = this.stores.enemies;
     const knock = knockback * this.playerStat(owner, "knockback", 1);
@@ -834,7 +845,7 @@ export class World {
       x: enemies.field("x")[slot],
       y: enemies.field("y")[slot],
       amount,
-      kind: "physical",
+      kind: damageType,
     });
   }
 
@@ -889,7 +900,7 @@ export function snapshot(world: World): WorldSnapshot {
     worldWidth: Number(world.ruleset.rules["core.fieldWidth"] ?? 0),
     worldHeight: Number(world.ruleset.rules["core.fieldHeight"] ?? 0),
     stageId: world.stage?.id ?? "",
-    stageName: world.stage?.name ?? "The Rift",
+    stageName: world.stage?.name ?? "",
     terrainSeed: world.terrainSeed,
     stores: [
       world.stores.players.snapshot(),

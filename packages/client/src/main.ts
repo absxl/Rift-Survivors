@@ -353,6 +353,8 @@ async function main(): Promise<void> {
         pack.characters.find((c) => c.id === characterId),
       ),
       save.selectedStage,
+      // Fresh world generation every run; the sim stays deterministic per run.
+      (Math.random() * 0xffffffff) >>> 0,
     );
   };
 

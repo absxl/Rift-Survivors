@@ -156,7 +156,13 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     options.push({ optionId: "fallback-heal", ref: { type: "heal", id: "heal" } });
   }
 
-  const chosen = world.rng.shuffle(options).slice(0, world.num("levelUp.choices"));
+  // A completed evolution recipe is always visible: pin it alongside the
+  // guaranteed training card instead of letting the shuffle hide it.
+  const maxChoices = world.num("levelUp.choices");
+  const pinned = options.filter((o) => o.isEvolution).slice(0, maxChoices);
+  const regular = options.filter((o) => !o.isEvolution);
+  const chosen = world.rng.shuffle(regular).slice(0, Math.max(0, maxChoices - pinned.length));
+  chosen.push(...pinned);
   chosen.push(trainingOption(world, playerId));
   const tokens = world.offerTokens(playerId);
 
@@ -294,10 +300,13 @@ function evolveWeapon(world: World, playerId: number, evolvedId: string): void {
 export function applyOfferOption(world: World, playerId: number, choiceIndex: number): void {
   const offer = world.pendingOffers().find((o) => o.playerId === playerId);
   if (!offer) return;
+  // An out-of-range choice is ignored, not consumed: only a real pick may
+  // resolve the offer, or malformed input would dismiss it for free.
+  if (!Number.isInteger(choiceIndex) || choiceIndex < 0) return;
   const option = offer.options[choiceIndex];
+  if (!option) return;
 
   try {
-    if (!option) return;
     const ref = option.ref;
     if (ref.type === "weapon") {
       if (option.isEvolution) {

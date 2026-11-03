@@ -21,6 +21,8 @@ interface WorkerScope {
 }
 const ctx = self as unknown as WorkerScope;
 
+// Fallback only; the client passes a fresh random seed for every run so world
+// generation differs between sessions while each run stays deterministic.
 const SEED = 20261023;
 const pack = loadGamePack();
 
@@ -28,6 +30,8 @@ let world: World | null = null;
 let currentInput: PlayerInput = { playerId: 0, moveX: 0, moveY: 0 };
 let paused = false;
 let clientPaused = false;
+// Wall-clock pacing only — the sim itself is always stepped by fixed ticks.
+let nextTickAt = Date.now() + TICK_MS;
 
 function loop(): void {
   if (world && !paused && !clientPaused && !world.over) {
@@ -46,7 +50,15 @@ function loop(): void {
       ctx.postMessage({ type: "snapshot", snapshot: snapshot(world), events: [] });
     }
   }
-  setTimeout(loop, TICK_MS);
+  nextTickAt += TICK_MS;
+  const delay = nextTickAt - Date.now();
+  if (delay <= 0) {
+    // Fell behind (background tab, GC pause): resync instead of bursting.
+    nextTickAt = Date.now();
+    setTimeout(loop, 0);
+  } else {
+    setTimeout(loop, delay);
+  }
 }
 
 function postOffer(): void {
@@ -63,6 +75,7 @@ ctx.onmessage = (event: MessageEvent) => {
     characterId?: string;
     metaBonuses?: Record<string, number>;
     stageId?: string;
+    seed?: number;
   };
   if (msg.type === "input" && msg.input) currentInput = msg.input;
   else if (msg.type === "pause") clientPaused = true;
@@ -96,10 +109,11 @@ ctx.onmessage = (event: MessageEvent) => {
         metaBonuses: msg.metaBonuses,
         stageId: msg.stageId,
       },
-      SEED,
+      typeof msg.seed === "number" ? msg.seed >>> 0 : SEED,
     );
     paused = false;
     clientPaused = false;
+    nextTickAt = Date.now() + TICK_MS;
   }
 };
 

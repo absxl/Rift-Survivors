@@ -123,6 +123,49 @@ describe("room server", () => {
     ws.close();
   });
 
+  it("only lets the host start the run", async () => {
+    const host = await connect();
+    const hostInbox = inbox(host);
+    host.send(
+      JSON.stringify({
+        type: "create",
+        name: "host",
+        protocolVersion: PROTOCOL_VERSION,
+        characterId: "lux",
+      }),
+    );
+    const lobby = await hostInbox();
+    const code = lobby.code as string;
+
+    const guest = await connect();
+    const guestInbox = inbox(guest);
+    guest.send(
+      JSON.stringify({
+        type: "join",
+        code,
+        name: "guest",
+        protocolVersion: PROTOCOL_VERSION,
+        characterId: "ahri",
+      }),
+    );
+    await guestInbox(); // lobby
+
+    guest.send(JSON.stringify({ type: "start" }));
+    const rejected = await guestInbox();
+    expect(rejected).toMatchObject({ type: "error", message: "only the host can start" });
+
+    host.send(JSON.stringify({ type: "start" }));
+    // Drain queued lobby broadcasts until the run-start reply arrives.
+    let started: Record<string, unknown>;
+    do {
+      started = await hostInbox();
+    } while (started.type !== "start");
+    expect(started.yourPlayerId).toBe(0);
+
+    host.close();
+    guest.close();
+  });
+
   it("supports a second player joining a room", async () => {
     const host = await connect();
     const hostInbox = inbox(host);

@@ -35,6 +35,17 @@ import {
 const MAX_PLAYERS = 4;
 /** Send a full snapshot this often (safety net / resync for any delta drift). */
 const FULL_SNAPSHOT_EVERY_TICKS = 150;
+/** Max concurrent rooms (env RIFT_MAX_ROOMS) so one client can't exhaust memory. */
+const MAX_ROOMS = Math.max(1, Math.floor(Number(process.env.RIFT_MAX_ROOMS ?? 20)) || 20);
+/** Idle pings keep half-open TCP peers from hogging reconnect slots. */
+const HEARTBEAT_INTERVAL_MS = 30_000;
+/** A finished room lingers for the results screen, then is swept. */
+const ROOM_LINGER_MS = 60_000;
+/** Per-connection message budget (inputs are ~30/s; the rest is headroom). */
+const MESSAGE_BUDGET = 240;
+const MESSAGE_REFILL_PER_SEC = 240;
+/** Inbound frames larger than this are refused before parsing. */
+const MAX_PAYLOAD_BYTES = 256 * 1024;
 
 interface Client {
   ws: WebSocket;
@@ -64,6 +75,8 @@ interface Room {
   seed: number;
   /** Last snapshot broadcast to connected clients (delta base). */
   lastSent: WorldSnapshot | null;
+  /** When the run ended; the room is swept after the linger window. */
+  endedAt: number | null;
 }
 
 export interface ServerHandle {
@@ -93,6 +106,8 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
   const authConfig = authConfigFromEnv(options.auth);
   const rooms = new Map<string, Room>();
   const conns = new Map<WebSocket, { room: Room; client: Client }>();
+  /** Token-bucket message budgets per connection (flood protection). */
+  const rate = new Map<WebSocket, { budget: number; last: number }>();
 
   const send = (ws: WebSocket, msg: ServerMessage): void => {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -137,6 +152,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       timer: null,
       seed: Math.floor(Math.random() * 1e9),
       lastSent: null,
+      endedAt: null,
     };
     rooms.set(room.code, room);
     return room;
@@ -214,6 +230,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       room.world.over = true;
       if (room.timer) clearInterval(room.timer);
       room.timer = null;
+      room.endedAt = Date.now();
       broadcast(room, { type: "end", stats: { tick: room.world.tick, error: true } });
       return;
     }
@@ -253,6 +270,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     if (room.world.over) {
       if (room.timer) clearInterval(room.timer);
       room.timer = null;
+      room.endedAt = Date.now();
       broadcast(room, { type: "end", stats: { tick: room.world.tick } });
     }
   };
@@ -323,6 +341,10 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       }
       const account = connectionAccounts.get(ws);
       if (msg.type === "create") {
+        if (rooms.size >= MAX_ROOMS) {
+          send(ws, { type: "error", message: "server full" });
+          return;
+        }
         addClient(
           newRoom(),
           ws,
@@ -374,6 +396,13 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
       client.input.moveX = msg.moveX;
       client.input.moveY = msg.moveY;
     } else if (msg.type === "start") {
+      // Only the room's oldest member (its creator, or the next in line after
+      // they leave) may launch the run.
+      if (room.world) return;
+      if (room.clients[0] !== client) {
+        send(ws, { type: "error", message: "only the host can start" });
+        return;
+      }
       startRoom(room);
     } else if (msg.type === "choice" && room.world) {
       applyChoice(room.world, client.playerId, msg.choiceIndex);
@@ -469,13 +498,65 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     })();
   });
 
-  const wss = new WebSocketServer({ server: http });
+  const wss = new WebSocketServer({ server: http, maxPayload: MAX_PAYLOAD_BYTES });
+
+  // Half-open TCP peers (dropped laptops, dead Wi-Fi) never fire "close", so
+  // ping everyone on an interval and terminate whoever stays silent.
+  const alive = new WeakSet<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const socket of wss.clients) {
+      if (alive.has(socket)) {
+        alive.delete(socket);
+        socket.ping();
+      } else {
+        socket.terminate();
+      }
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+
+  // Sweep finished rooms: they block joins and hold sim memory until every
+  // socket happens to leave, which abusive or crashed clients never do.
+  const sweep = setInterval(() => {
+    const now = Date.now();
+    for (const room of rooms.values()) {
+      if (!room.world?.over || room.endedAt === null) continue;
+      if (now - room.endedAt <= ROOM_LINGER_MS) continue;
+      for (const c of room.clients) {
+        conns.delete(c.ws);
+        rate.delete(c.ws);
+        send(c.ws, { type: "error", message: "room closed" });
+        c.ws.terminate();
+      }
+      room.clients = [];
+      if (room.timer) clearInterval(room.timer);
+      room.timer = null;
+      rooms.delete(room.code);
+    }
+  }, 15_000);
+  sweep.unref();
+  heartbeat.unref();
+
   wss.on("connection", (ws, request) => {
     const account = accounts.getSessionAccount(
       sessionTokenFromCookieHeader(request.headers.cookie),
     );
     if (account) connectionAccounts.set(ws, account);
+    alive.add(ws);
+    ws.on("pong", () => alive.add(ws));
+    rate.set(ws, { budget: MESSAGE_BUDGET, last: Date.now() });
     ws.on("message", (data) => {
+      const bucket = rate.get(ws);
+      if (bucket) {
+        const now = Date.now();
+        bucket.budget = Math.min(
+          MESSAGE_BUDGET,
+          bucket.budget + ((now - bucket.last) / 1000) * MESSAGE_REFILL_PER_SEC,
+        );
+        bucket.last = now;
+        // Silently drop floods; a legitimate client sends ~30 inputs/s.
+        if (bucket.budget < 1) return;
+        bucket.budget -= 1;
+      }
       try {
         handle(ws, clientMessageSchema.parse(JSON.parse(data.toString())));
       } catch (err) {
@@ -486,6 +567,7 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     });
     ws.on("close", () => {
       connectionAccounts.delete(ws);
+      rate.delete(ws);
       removeClient(ws);
     });
   });
@@ -497,6 +579,8 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     rooms,
     accounts,
     close: () => {
+      clearInterval(heartbeat);
+      clearInterval(sweep);
       for (const room of rooms.values()) {
         if (room.timer) clearInterval(room.timer);
         for (const client of room.clients) {

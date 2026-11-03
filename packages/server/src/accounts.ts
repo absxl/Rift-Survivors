@@ -32,8 +32,10 @@ export interface DiscordIdentity {
 }
 
 interface StoreFile {
-  version: 1;
+  version: 2;
   accounts: AccountRecord[];
+  /** Serialized sessions so a server restart does not log everyone out. */
+  sessions?: Record<string, SessionRecord>;
 }
 
 interface SessionRecord {
@@ -74,6 +76,24 @@ export class AccountStore {
             typeof account?.id === "string" && typeof account?.nickname === "string",
         );
       }
+      if (parsed.sessions && typeof parsed.sessions === "object") {
+        const now = this.now();
+        for (const [token, session] of Object.entries(parsed.sessions)) {
+          if (
+            typeof token === "string" &&
+            token.length > 0 &&
+            session &&
+            typeof session.accountId === "string" &&
+            typeof session.expiresAt === "number" &&
+            session.expiresAt > now
+          ) {
+            this.sessions.set(token, {
+              accountId: session.accountId,
+              expiresAt: session.expiresAt,
+            });
+          }
+        }
+      }
     } catch (error) {
       console.error("[accounts] could not load account file", error);
     }
@@ -84,7 +104,11 @@ export class AccountStore {
     const file = this.file;
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      const payload: StoreFile = { version: 1, accounts: this.accounts };
+      const payload: StoreFile = {
+        version: 2,
+        accounts: this.accounts,
+        sessions: Object.fromEntries(this.sessions),
+      };
       const tmp = `${file}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(payload, null, 2), "utf8");
       fs.renameSync(tmp, file);
@@ -196,6 +220,8 @@ export class AccountStore {
       accountId,
       expiresAt: this.now() + this.sessionTtlMs,
     });
+    // Persist so sessions survive a server restart.
+    this.persist();
     return token;
   }
 
@@ -205,13 +231,16 @@ export class AccountStore {
     if (!session) return null;
     if (session.expiresAt <= this.now()) {
       this.sessions.delete(token);
+      this.persist();
       return null;
     }
     return this.findById(session.accountId);
   }
 
   deleteSession(token: string | null | undefined): void {
-    if (token) this.sessions.delete(token);
+    if (!token) return;
+    if (!this.sessions.delete(token)) return;
+    this.persist();
   }
 
   publicAccount(account: AccountRecord): PublicAccount {

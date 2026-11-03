@@ -1,13 +1,35 @@
 # 14 - Implementation status
 
-Last updated: **2026-10-29**.
-Current batch: **D-040** (mobile touch joystick, pause/stats buttons, compact touch HUD, and phone-safe
-selection screens) on top of D-039 (late-run XP, time-scaled enemies, elite bars, magnet drops, crest
-branding), D-038 (search/filter/sort controls), D-037 (deeper meta/passive ranks and denser terrain), D-036
-(per-chest pull records and centered PLAY hero), D-035 (frost, chest utilities, enemy ability kits, Darkin
-chest, normalized crests, region achievements/dossiers, HUD/render fixes, focus removal), and earlier
-batches.
-Commits: `4f217ac` is the D-032 baseline; the D-033 batch is committed at `git log -1`.
+Last updated: **2026-11-03**.
+Current batch: **D-041 engine/server correctness pass** on top of D-040 (mobile touch joystick,
+pause/stats buttons, compact touch HUD), D-039 (late-run XP, time-scaled enemies, elite bars, magnet
+drops, crest branding), D-038, D-037, D-036, D-035, and earlier batches.
+Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
+
+### D-041 batch summary
+
+- **Noxus spawn fix**: `TerrainField.findFreeNear` rejected every point on stages with `liquidDamage > 0`
+  (stage-global guard instead of a positional liquid check), so Noxian Warfront spawned no ground
+  minions/elites, no run chests and no summoner minions. It now only rejects points that actually sit in
+  damaging liquid; regression test in `terrain.test.ts`.
+- Progression: an invalid/out-of-range offer choice no longer consumes (dismisses) the offer; a completed
+  evolution recipe is now always pinned visible in level-up/chest offers like the training card.
+- Loot: downed players no longer collect or attract gems/pickups; the nuke pickup is shield-aware and sets
+  `lastHitBy` kill credit; `syncPlayerMaxHp` clamps HP when max shrinks.
+- Sim hygiene: separation reuses the per-tick spatial hash (one rebuild/tick instead of two, rule keys
+  `separation.strength`/`separation.maxPush`); dead `envTick` store field removed; `"rift-field"`/`"The Rift"`
+  content literals removed from `world.ts`; `applyHit` accepts and emits a real `damageType`.
+- Solo runs get a fresh random seed per run (worker accepts a seed; old fixed-seed fallback kept), and the
+  worker loop paces wall-clock ticks instead of accumulating `setTimeout` drift.
+- Server hardening: only the room host can `start`; finished rooms are swept after 60 s instead of blocking
+  joins forever; WS heartbeat terminates half-open peers; `maxPayload` 256 KiB; per-connection message rate
+  limit; `RIFT_MAX_ROOMS` cap (default 20); sessions persist to the account file (v2) so restarts no longer
+  log everyone out.
+- Deploy: runtime Docker image now contains only the server bundle + `ws` (was the whole workspace, which
+  could bake local `data/` into the image); `data/`, `.github`, `docs` in `.dockerignore`; `docker-compose.yml`
+  for one-command LAN hosting; `RIFT_MAX_ROOMS` documented in `.env.example`.
+- Tests: 115 sim (+1 terrain regression), 17 content, 35 client, 16 server (+host-only start, +session
+  persistence/expiry); typecheck, Biome and browser verification green.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
 [`10-DESIGN-DECISIONS.md`](10-DESIGN-DECISIONS.md); the classic baseline is in

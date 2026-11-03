@@ -1,3 +1,4 @@
+# Runtime image: only the bundled server and the `ws` package it imports.
 node_modules
 **/node_modules
 .git
@@ -8,3 +9,8 @@ dist
 coverage
 *.log
 .env
+# Local account data must never be baked into an image.
+data
+.github
+.wrangler
+docs

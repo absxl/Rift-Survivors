@@ -170,6 +170,40 @@ describe("terrain", () => {
     expect(field.liquidDamageAt(200, 200, true)).toBe(0);
   });
 
+  it("finds free spawn points on stages with damaging liquid", () => {
+    // Regression: the old check was stage-global (liquidDamage > 0 rejected
+    // every point), which silently disabled all ground spawns and run chests
+    // on lava stages like Noxian Warfront.
+    const lava: StageTerrain = {
+      ...WATER,
+      liquid: "lava",
+      liquidDamage: 5,
+      wallThreshold: 0.65,
+      liquidThreshold: 0.3,
+    };
+    const field = new TerrainField(lava, 421, [{ x: 0, y: 0, radius: 96 }]);
+    const safe = field.findFreeNear(0, 0, 8);
+    expect(safe).not.toBeNull();
+    if (safe) {
+      expect(field.isLiquidAt(safe.x, safe.y)).toBe(false);
+    }
+
+    // A search that starts on liquid must never land back on damaging liquid.
+    for (let y = 0; y < 480; y += 8) {
+      for (let x = 300; x < 780; x += 8) {
+        if (!field.isLiquidAt(x, y)) continue;
+        const relocated = field.findFreeNear(x, y, 8);
+        if (relocated) {
+          expect(field.isLiquidAt(relocated.x, relocated.y)).toBe(false);
+        }
+      }
+    }
+
+    // Harmless liquid (no liquidDamage) stays spawnable, as before.
+    const plain = new TerrainField(WATER, 421, [{ x: 0, y: 0, radius: 96 }]);
+    expect(plain.findFreeNear(0, 0, 8)).not.toBeNull();
+  });
+
   it("resolves a circle out of a solid tile", () => {
     const terrain = new TerrainField(WALLS, 4, [{ x: 0, y: 0, radius: 120 }]);
     const blocked = terrain.collide(124, 0, 8);

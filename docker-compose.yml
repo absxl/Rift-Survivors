@@ -1,0 +1,26 @@
+# Private friends server: build once, run anywhere Docker runs (home PC, NAS,
+# small VPS). Accounts and cloud saves persist in the `rift-data` volume.
+#
+#   docker compose up -d --build
+#   Health:  curl http://<host>:8787/health
+#   Clients: ws://<host>:8787  (set VITE_SERVER_URL when building the client,
+#            or the client's default ws://<current-host>:8787 just works on LAN)
+#
+# RIFT_DEV_AUTH=1 lets friends log in with just a nickname (no Discord app).
+# Turn it off and configure DISCORD_* if you ever expose this beyond the LAN.
+services:
+  rift-server:
+    build: .
+    image: rift-survivors-server
+    container_name: rift-server
+    ports:
+      - "8787:8787"
+    environment:
+      - RIFT_DEV_AUTH=1
+      - RIFT_MAX_ROOMS=20
+    volumes:
+      - rift-data:/data
+    restart: unless-stopped
+
+volumes:
+  rift-data:

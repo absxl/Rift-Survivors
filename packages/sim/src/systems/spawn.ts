@@ -234,7 +234,6 @@ export function spawnEnemyAt(world: World, defIndex: number, x: number, y: numbe
   enemies.field("lastHitBy")[slot] = 0;
   enemies.field("shield")[slot] = 0;
   enemies.field("fuseTicks")[slot] = 0;
-  enemies.field("envTick")[slot] = 0;
   assignEnemyAbilities(world, slot, def);
   return slot;
 }

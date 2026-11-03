@@ -14,15 +14,13 @@ function separation(world: World): void {
 
   let maxRadius = 0;
   for (const def of content) maxRadius = Math.max(maxRadius, def.radius);
+  // Reuse the hash the spatial-hash system built this tick. Separation moves
+  // bodies by at most `separation.maxPush` px, so stale bucket membership is
+  // negligible against the maxRadius padding and saves a full rebuild.
   const hash = world.spatialHash;
-  hash.clear();
-  enemies.forEachAlive((slot) => {
-    if (enemies.field("hp")[slot] <= 0) return;
-    hash.insert(slot, enemies.field("x")[slot], enemies.field("y")[slot]);
-  });
 
-  const strength = 0.5;
-  const cap = 1;
+  const strength = world.num("separation.strength");
+  const cap = world.num("separation.maxPush");
   enemies.forEachAlive((a) => {
     if (enemies.field("hp")[a] <= 0) return;
     const defA = content[enemies.field("kind")[a]];

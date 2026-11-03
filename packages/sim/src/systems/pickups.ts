@@ -59,6 +59,8 @@ function pickups(world: World): void {
     let nearest = -1;
     let bestD2 = Number.POSITIVE_INFINITY;
     players.forEachAlive((p) => {
+      // Downed players neither collect nor attract loot until revived.
+      if (players.field("downed")[p]) return;
       const dx = players.field("x")[p] - x;
       const dy = players.field("y")[p] - y;
       const d2 = dx * dx + dy * dy;
@@ -91,7 +93,17 @@ function applyPickup(world: World, playerId: number, kind: number, value: number
     world.partyXp += total;
   } else if (kind === PICKUP_NUKE) {
     enemies.forEachAlive((slot) => {
-      enemies.field("hp")[slot] -= value;
+      let damage = value;
+      const shield = enemies.field("shield")[slot];
+      if (shield > 0) {
+        const absorbed = Math.min(shield, damage);
+        enemies.field("shield")[slot] = shield - absorbed;
+        damage -= absorbed;
+      }
+      if (damage > 0) {
+        enemies.field("hp")[slot] = Math.max(0, enemies.field("hp")[slot] - damage);
+      }
+      enemies.field("lastHitBy")[slot] = playerId;
     });
     world.emit({ type: "nuke", playerId });
   } else if (kind === PICKUP_FREEZE) {

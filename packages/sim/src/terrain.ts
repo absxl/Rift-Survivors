@@ -314,6 +314,16 @@ export class TerrainField {
     return true;
   }
 
+  /** True when a ground body can stand here: clear of walls and off damaging liquid. */
+  private spawnableAt(x: number, y: number, bodyRadius: number): boolean {
+    if (!this.isFree(x, y, bodyRadius)) return false;
+    // Standing in harmless liquid is fine (it only slows); damaging liquid is
+    // checked positionally, never stage-wide, or stages like Noxus could never
+    // spawn anything at all.
+    if ((this.settings?.liquidDamage ?? 0) > 0 && this.isLiquidAt(x, y)) return false;
+    return true;
+  }
+
   /** Find a nearby safe floor point for a ground spawn. */
   findFreeNear(
     x: number,
@@ -321,9 +331,7 @@ export class TerrainField {
     bodyRadius: number,
     search = 96,
   ): { x: number; y: number } | null {
-    if (this.isFree(x, y, bodyRadius) && (this.settings?.liquidDamage ?? 0) <= 0) {
-      return { x, y };
-    }
+    if (this.spawnableAt(x, y, bodyRadius)) return { x, y };
     for (let ring = 1; ring <= 4; ring++) {
       const radius = (search * ring) / 4;
       const steps = 8 + ring * 4;
@@ -331,9 +339,7 @@ export class TerrainField {
         const angle = (i / steps) * Math.PI * 2;
         const px = x + Math.cos(angle) * radius;
         const py = y + Math.sin(angle) * radius;
-        if (this.isFree(px, py, bodyRadius) && (this.settings?.liquidDamage ?? 0) <= 0) {
-          return { x: px, y: py };
-        }
+        if (this.spawnableAt(px, py, bodyRadius)) return { x: px, y: py };
       }
     }
     return null;

@@ -23,6 +23,8 @@ function gems(world: World): void {
     let nearest = -1;
     let bestD2 = Number.POSITIVE_INFINITY;
     players.forEachAlive((p) => {
+      // Downed players neither collect nor attract loot until revived.
+      if (players.field("downed")[p]) return;
       const dx = players.field("x")[p] - gx;
       const dy = players.field("y")[p] - gy;
       const d2 = dx * dx + dy * dy;
