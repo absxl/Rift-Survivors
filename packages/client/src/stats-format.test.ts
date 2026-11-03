@@ -10,6 +10,8 @@ import {
 
 const BASE: RunStats = {
   might: 1,
+  abilityPower: 0,
+  attackDamage: 0,
   cooldown: 1,
   area: 1,
   moveSpeed: 1,

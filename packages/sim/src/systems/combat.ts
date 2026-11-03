@@ -35,6 +35,7 @@ function projectiles(world: World): void {
   const projs = world.stores.projectiles;
   const players = world.stores.players;
   const orbitSpeed = world.num("ability.orbitSpeed");
+  const beamWidth = world.num("ability.beamWidth");
 
   projs.forEachAlive((slot) => {
     const life = projs.field("lifetime")[slot] - 1;
@@ -45,6 +46,13 @@ function projectiles(world: World): void {
     }
 
     const mode = projs.field("mode")[slot];
+    if (mode === 6) {
+      // Sustained beam: anchored to the caster, fixed direction (p1 angle),
+      // length p2. Damages everything along the segment each tick.
+      beamTick(world, slot, beamWidth);
+      return;
+    }
+
     if (mode === 1) {
       // orbit around the owner
       const owner = projs.field("owner")[slot];
@@ -54,6 +62,10 @@ function projectiles(world: World): void {
       projs.field("x")[slot] = players.field("x")[owner] + Math.cos(angle) * radius;
       projs.field("y")[slot] = players.field("y")[owner] + Math.sin(angle) * radius;
     } else {
+      if (mode === 8) {
+        // Homing: steer the velocity toward the nearest enemy within seek range.
+        homeTick(world, slot);
+      }
       // straight / boomerang / bounce all advance by velocity
       if (mode === 2) {
         projs.field("p1")[slot] += Math.hypot(projs.field("vx")[slot], projs.field("vy")[slot]);
@@ -139,6 +151,18 @@ function projectiles(world: World): void {
         projs.field("hitCooldown")[slot],
         projs.field("owner")[slot],
       );
+      if (mode === 7) {
+        // Hook: yank the victim toward the caster, then the hook is spent.
+        const owner = projs.field("owner")[slot];
+        const ox = players.field("x")[owner] - ex;
+        const oy = players.field("y")[owner] - ey;
+        const dist = Math.hypot(ox, oy) || 1;
+        const pull = Math.min(projs.field("p1")[slot], dist);
+        world.stores.enemies.field("x")[enemySlot] += (ox / dist) * pull;
+        world.stores.enemies.field("y")[enemySlot] += (oy / dist) * pull;
+        projs.free(slot);
+        return;
+      }
       const pierce = projs.field("pierce")[slot] - 1;
       if (pierce < 0) {
         projs.free(slot);
@@ -147,6 +171,76 @@ function projectiles(world: World): void {
       }
     });
   });
+}
+
+/** Damage every enemy within `width` of the beam segment for one tick. */
+function beamTick(world: World, slot: number, width: number): void {
+  const projs = world.stores.projectiles;
+  const players = world.stores.players;
+  const owner = projs.field("owner")[slot];
+  const ox = players.field("x")[owner];
+  const oy = players.field("y")[owner];
+  const angle = projs.field("p1")[slot];
+  const dirX = Math.cos(angle);
+  const dirY = Math.sin(angle);
+  const length = projs.field("p2")[slot];
+  const damage = projs.field("damage")[slot];
+
+  world.enemiesInCircle(
+    ox + (dirX * length) / 2,
+    oy + (dirY * length) / 2,
+    length / 2 + width,
+    (enemySlot) => {
+      if (!world.canHit(enemySlot)) return;
+      const ex = world.stores.enemies.field("x")[enemySlot] - ox;
+      const ey = world.stores.enemies.field("y")[enemySlot] - oy;
+      const along = ex * dirX + ey * dirY;
+      if (along < 0 || along > length) return;
+      const perp = Math.abs(ex * -dirY + ey * dirX);
+      if (perp > width) return;
+      world.applyHit(
+        enemySlot,
+        damage,
+        dirX,
+        dirY,
+        projs.field("knockback")[slot],
+        projs.field("hitCooldown")[slot],
+        owner,
+      );
+    },
+  );
+}
+
+/** Steer a homing projectile's velocity toward its nearest living enemy. */
+function homeTick(world: World, slot: number): void {
+  const projs = world.stores.projectiles;
+  const px = projs.field("x")[slot];
+  const py = projs.field("y")[slot];
+  const seekRange = projs.field("p2")[slot];
+  let best = -1;
+  let bestD2 = seekRange * seekRange;
+  world.enemiesInCircle(px, py, seekRange, (enemySlot) => {
+    const ex = world.stores.enemies.field("x")[enemySlot] - px;
+    const ey = world.stores.enemies.field("y")[enemySlot] - py;
+    const d2 = ex * ex + ey * ey;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = enemySlot;
+    }
+  });
+  if (best < 0) return;
+  const enemies = world.stores.enemies;
+  const dx = enemies.field("x")[best] - px;
+  const dy = enemies.field("y")[best] - py;
+  const dist = Math.hypot(dx, dy) || 1;
+  const speed = Math.hypot(projs.field("vx")[slot], projs.field("vy")[slot]) || 1;
+  // Turn a fraction of the way toward the target each tick (deterministic).
+  const turn = projs.field("p1")[slot];
+  const nvx = projs.field("vx")[slot] * (1 - turn) + (dx / dist) * speed * turn;
+  const nvy = projs.field("vy")[slot] * (1 - turn) + (dy / dist) * speed * turn;
+  const len = Math.hypot(nvx, nvy) || 1;
+  projs.field("vx")[slot] = (nvx / len) * speed;
+  projs.field("vy")[slot] = (nvy / len) * speed;
 }
 
 /**
@@ -164,8 +258,31 @@ export function damagePlayer(
   const players = world.stores.players;
   if (players.field("downed")[slot] || players.field("hp")[slot] <= 0) return;
 
+  let remaining = rawDamage;
+  const shield = players.field("shield")[slot];
+  if (shield > 0) {
+    const absorbed = Math.min(shield, remaining);
+    players.field("shield")[slot] = shield - absorbed;
+    remaining -= absorbed;
+    if (remaining <= 0) {
+      // Fully absorbed: still take i-frames so shields read as a real block.
+      players.field("iFrames")[slot] = world.num("player.iFrames");
+      world.emit({
+        type: "hit",
+        target: "player",
+        targetSlot: slot,
+        targetGen: players.gen(slot),
+        x,
+        y,
+        amount: 0,
+        kind,
+      });
+      return;
+    }
+  }
+
   const resist = Math.min(0.7, Math.max(0, world.playerStat(slot, "resist", 0)));
-  const final = Math.max(1, rawDamage * (1 - resist) - world.playerStat(slot, "armor", 0));
+  const final = Math.max(1, remaining * (1 - resist) - world.playerStat(slot, "armor", 0));
   players.field("hp")[slot] -= final;
   players.field("iFrames")[slot] = world.num("player.iFrames");
   world.emit({

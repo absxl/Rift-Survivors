@@ -393,6 +393,18 @@ export function registerAbilityBehaviors(reg: Registries): void {
   reg.abilityBehaviors.register("orbit", orbit);
   reg.abilityBehaviors.register("bounce", bounce);
   reg.abilityBehaviors.register("boomerang", boomerang);
+  // Extended archetype set for real champion kits (docs/10 D-044).
+  reg.abilityBehaviors.register("line-skillshot", lineSkillshot);
+  reg.abilityBehaviors.register("cone-burst", coneBurst);
+  reg.abilityBehaviors.register("nova", nova);
+  reg.abilityBehaviors.register("chain", chain);
+  reg.abilityBehaviors.register("beam", beam);
+  reg.abilityBehaviors.register("hook-pull", hookPull);
+  reg.abilityBehaviors.register("homing-orb", homingOrb);
+  reg.abilityBehaviors.register("dash-strike", dashStrike);
+  reg.abilityBehaviors.register("fling-knockup", flingKnockup);
+  reg.abilityBehaviors.register("shield-pulse", shieldPulse);
+  reg.abilityBehaviors.register("turret", turret);
 }
 
 /** Melee arc, auto-aimed at the nearest enemy in range. */
@@ -690,4 +702,292 @@ function spawnProjectile(
   p.field("lifetime")[proj] = def.base.lifetime;
   p.field("owner")[proj] = owner;
   return proj;
+}
+
+// --- Extended archetypes for real champion kits -----------------------------
+// Each one maps a family of real abilities onto data-driven params; no content
+// ids appear here. Projectile modes: 6 beam, 7 hook, 8 homing (combat.ts).
+
+function abilityParam(def: AbilityDef, key: string, fallback: number): number {
+  const value = def.params[key];
+  return typeof value === "number" ? value : fallback;
+}
+
+/** Long, fast, piercing bolt — the classic skillshot shape. */
+function lineSkillshot(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const aim = world.aimFromPlayer(owner, 520);
+  const proj = spawnProjectile(
+    world,
+    abilitySlot,
+    players.field("x")[owner],
+    players.field("y")[owner],
+    aim.dx,
+    aim.dy,
+    def,
+  );
+  if (proj >= 0) {
+    // Lifetime already encodes the long range; speed comes from base data.
+    world.stores.projectiles.field("mode")[proj] = 0;
+  }
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+}
+
+/** Fires `amount` projectiles in a forward cone at the aimed target. */
+function coneBurst(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const aim = world.aimFromPlayer(owner, 400);
+  const base = Math.atan2(aim.dy, aim.dx);
+  const spread = abilityParam(def, "spread", 0.9);
+  const count = Math.max(1, def.base.amount);
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+    const angle = base + t * spread;
+    spawnProjectile(world, abilitySlot, px, py, Math.cos(angle), Math.sin(angle), def);
+  }
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot, angle: base });
+}
+
+/** A full ring of projectiles bursting outward from the caster. */
+function nova(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const count = Math.max(4, def.base.amount * 4);
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    spawnProjectile(world, abilitySlot, px, py, Math.cos(angle), Math.sin(angle), def);
+  }
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+}
+
+/** Lightning-style instant strike that jumps between nearby enemies. */
+function chain(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const level = abilities.field("level")[abilitySlot];
+  const area = world.abilityArea(def, level, owner);
+  const falloff = abilityParam(def, "falloff", 0.85);
+  const jumps = Math.max(1, def.base.amount);
+  const jumpRange = abilityParam(def, "jumpRange", 130);
+
+  const hit = new Set<number>();
+  let fromX = px;
+  let fromY = py;
+  let damage = world.abilityDamage(def, level, owner);
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+
+  for (let jump = 0; jump < jumps; jump++) {
+    let best = -1;
+    let bestD2 = (jump === 0 ? area : jumpRange) ** 2;
+    world.enemiesInCircle(fromX, fromY, jump === 0 ? area : jumpRange, (slot) => {
+      if (hit.has(slot) || !world.canHit(slot)) return;
+      const dx = world.stores.enemies.field("x")[slot] - fromX;
+      const dy = world.stores.enemies.field("y")[slot] - fromY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = slot;
+      }
+    });
+    if (best < 0) break;
+    hit.add(best);
+    const ex = world.stores.enemies.field("x")[best];
+    const ey = world.stores.enemies.field("y")[best];
+    const dx = ex - fromX;
+    const dy = ey - fromY;
+    const dist = Math.hypot(dx, dy) || 1;
+    world.applyHit(
+      best,
+      damage,
+      dx / dist,
+      dy / dist,
+      def.base.knockback,
+      def.base.hitCooldown,
+      owner,
+    );
+    if (def.status) world.applyStatus(best, def.status);
+    fromX = ex;
+    fromY = ey;
+    damage *= falloff;
+  }
+}
+
+/** A sustained ray from the caster (mode 6): damages along the line per tick. */
+function beam(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const aim = world.aimFromPlayer(owner, 400);
+  const proj = world.stores.projectiles.alloc();
+  if (proj < 0) return;
+  const p = world.stores.projectiles;
+  p.field("owner")[proj] = owner;
+  p.field("mode")[proj] = 6;
+  p.field("p1")[proj] = Math.atan2(aim.dy, aim.dx);
+  p.field("p2")[proj] = world.abilityArea(def, abilities.field("level")[abilitySlot], owner);
+  p.field("damage")[proj] = world.abilityDamage(def, abilities.field("level")[abilitySlot], owner);
+  p.field("pierce")[proj] = 99;
+  p.field("hitCooldown")[proj] = def.base.hitCooldown;
+  p.field("knockback")[proj] = def.base.knockback;
+  p.field("lifetime")[proj] = Math.max(
+    2,
+    Math.round((def.base.duration || 40) * world.playerStat(owner, "duration", 1)),
+  );
+  world.emit({
+    type: "ability-fire",
+    playerId: owner,
+    abilityId: abilitySlot,
+    angle: p.field("p1")[proj],
+  });
+}
+
+/** Hook that drags the first enemy it strikes back toward the caster. */
+function hookPull(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const aim = world.aimFromPlayer(owner, 420);
+  const proj = spawnProjectile(world, abilitySlot, px, py, aim.dx, aim.dy, def);
+  if (proj >= 0) {
+    const p = world.stores.projectiles;
+    p.field("mode")[proj] = 7;
+    p.field("p1")[proj] = abilityParam(def, "pull", 140);
+    p.field("pierce")[proj] = 0;
+  }
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+}
+
+/** Slow orb that curves toward the nearest enemy in flight (mode 8). */
+function homingOrb(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const aim = world.aimFromPlayer(owner, 400);
+  const proj = spawnProjectile(world, abilitySlot, px, py, aim.dx, aim.dy, def);
+  if (proj >= 0) {
+    const p = world.stores.projectiles;
+    p.field("mode")[proj] = 8;
+    p.field("p1")[proj] = abilityParam(def, "turn", 0.18);
+    p.field("p2")[proj] = abilityParam(def, "seekRange", 240);
+  }
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+}
+
+/** Blink to the nearest enemy and burst on arrival (assassin gap closer). */
+function dashStrike(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const range = abilityParam(def, "range", 240);
+  const aim = world.aimFromPlayer(owner, range);
+  if (aim.target < 0) return;
+  const level = abilities.field("level")[abilitySlot];
+  const damage = world.abilityDamage(def, level, owner);
+  const area = world.abilityArea(def, level, owner);
+
+  // Land just short of the target, resolved out of any wall.
+  const ex = world.stores.enemies.field("x")[aim.target];
+  const ey = world.stores.enemies.field("y")[aim.target];
+  const dist = aim.dist || 1;
+  const landing = world.terrain.collide(ex - (aim.dx / dist) * 18, ey - (aim.dy / dist) * 18, 8);
+  players.field("x")[owner] = landing.x;
+  players.field("y")[owner] = landing.y;
+  world.emit({ type: "dash", playerId: owner, x: landing.x, y: landing.y });
+
+  world.enemiesInCircle(landing.x, landing.y, area, (slot) => {
+    if (!world.canHit(slot)) return;
+    const dx = world.stores.enemies.field("x")[slot] - landing.x;
+    const dy = world.stores.enemies.field("y")[slot] - landing.y;
+    const d = Math.hypot(dx, dy) || 1;
+    world.applyHit(slot, damage, dx / d, dy / d, def.base.knockback, def.base.hitCooldown, owner);
+    if (def.status) world.applyStatus(slot, def.status);
+  });
+  world.damageBushesInCircle(landing.x, landing.y, area, damage, owner);
+}
+
+/** Radial blast that hurls enemies away and briefly stuns them. */
+function flingKnockup(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  const level = abilities.field("level")[abilitySlot];
+  const damage = world.abilityDamage(def, level, owner);
+  const area = world.abilityArea(def, level, owner);
+  const multiplier = abilityParam(def, "knockMultiplier", 3);
+  const stun = abilityParam(def, "stunTicks", 18);
+
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
+  world.enemiesInCircle(px, py, area, (slot) => {
+    const dx = world.stores.enemies.field("x")[slot] - px;
+    const dy = world.stores.enemies.field("y")[slot] - py;
+    const dist = Math.hypot(dx, dy) || 1;
+    world.applyHit(
+      slot,
+      damage,
+      dx / dist,
+      dy / dist,
+      def.base.knockback * multiplier,
+      def.base.hitCooldown,
+      owner,
+    );
+    const enemies = world.stores.enemies;
+    enemies.field("freezeTicks")[slot] = Math.max(enemies.field("freezeTicks")[slot], stun);
+    if (def.status) world.applyStatus(slot, def.status);
+  });
+  world.damageBushesInCircle(px, py, area, damage, owner);
+}
+
+/** Grants the caster an absorb shield (LoL-style block) for a duration. */
+function shieldPulse(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const level = abilities.field("level")[abilitySlot];
+  // Shield value authored in `base.damage`; duration in `base.lifetime`.
+  const amount = world.abilityDamage(def, level, owner);
+  const players = world.stores.players;
+  players.field("shield")[owner] = Math.max(players.field("shield")[owner], amount);
+  world.emit({ type: "player-shield", playerId: owner, amount });
+}
+
+/** Deploys a stationary turret zone (kind 1) that fires at nearby enemies. */
+function turret(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
+  const players = world.stores.players;
+  const aim = world.aimFromPlayer(owner, 400);
+  const px = players.field("x")[owner];
+  const py = players.field("y")[owner];
+  // Place beside the caster toward the aim direction (turret at the caster's
+  // flank), or on the aimed target when there is one.
+  const originX = aim.target >= 0 ? px + aim.dx * 40 : px;
+  const originY = aim.target >= 0 ? py + aim.dy * 40 : py;
+  const zone = world.stores.zones.alloc();
+  if (zone < 0) return;
+  world.stores.zones.field("x")[zone] = originX;
+  world.stores.zones.field("y")[zone] = originY;
+  world.stores.zones.field("radius")[zone] = abilityParam(def, "range", 260);
+  world.stores.zones.field("damage")[zone] = world.abilityDamage(
+    def,
+    abilities.field("level")[abilitySlot],
+    owner,
+  );
+  world.stores.zones.field("lifetime")[zone] = Math.max(
+    30,
+    Math.round((def.base.duration || 300) * world.playerStat(owner, "duration", 1)),
+  );
+  world.stores.zones.field("owner")[zone] = owner;
+  world.stores.zones.field("kind")[zone] = 1;
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 }

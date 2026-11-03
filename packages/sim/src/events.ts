@@ -40,6 +40,9 @@ export type SimEvent =
   | { type: "frost"; playerId: number; x: number; y: number }
   | { type: "enemy-heal"; x: number; y: number; radius: number; amount: number }
   | { type: "enemy-shield"; x: number; y: number; radius: number; amount: number }
+  | { type: "player-shield"; playerId: number; amount: number }
+  | { type: "dash"; playerId: number; x: number; y: number }
+  | { type: "turret-shot"; x: number; y: number }
   | { type: "run-end"; victory: boolean };
 
 export type SimEventType = SimEvent["type"];

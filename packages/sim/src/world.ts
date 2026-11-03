@@ -103,6 +103,8 @@ const PLAYER_SCHEMA: EntitySchema = {
     { name: "downs", type: "u16" },
     { name: "downed", type: "u8" },
     { name: "reviveProgress", type: "f32" },
+    /** Temporary absorb shield from shield-pulse abilities (decays on hit). */
+    { name: "shield", type: "f32" },
     { name: "velocityX", type: "f32", network: false },
     { name: "velocityY", type: "f32", network: false },
   ],
@@ -201,6 +203,8 @@ const ZONE_SCHEMA: EntitySchema = {
     { name: "damage", type: "f32" },
     { name: "lifetime", type: "u16" },
     { name: "owner", type: "u8" },
+    /** 0 = damage pool (ticks contact damage), 1 = turret (fires at foes). */
+    { name: "kind", type: "u8" },
   ],
 };
 

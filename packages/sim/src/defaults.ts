@@ -188,6 +188,8 @@ export const DEFAULT_RULESET: RulesetDef = {
     "xp.growthPerLevel": 4,
     "ability.orbitSpeed": 0.08,
     "ability.zoneHitCooldown": 10,
+    "ability.turretFireEvery": 45,
+    "ability.beamWidth": 12,
     "status.burnDps": 1,
     "status.reactionDamage": 2,
     "separation.strength": 0.5,
