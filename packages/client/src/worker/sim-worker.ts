@@ -76,6 +76,8 @@ ctx.onmessage = (event: MessageEvent) => {
     metaBonuses?: Record<string, number>;
     stageId?: string;
     seed?: number;
+    itemId?: string;
+    slot?: number;
   };
   if (msg.type === "input" && msg.input) currentInput = msg.input;
   else if (msg.type === "pause") clientPaused = true;
@@ -99,6 +101,12 @@ ctx.onmessage = (event: MessageEvent) => {
   } else if (msg.type === "banish" && world) {
     banishOfferOption(world, 0, msg.optionIndex ?? 0);
     postOffer();
+  } else if (msg.type === "buy" && world) {
+    if (msg.itemId) world.buyItem(0, msg.itemId);
+  } else if (msg.type === "combine" && world) {
+    if (msg.itemId) world.combineItem(0, msg.itemId);
+  } else if (msg.type === "sell" && world) {
+    if (typeof msg.slot === "number") world.sellItem(0, msg.slot);
   } else if (msg.type === "start") {
     world = createWorld(
       DEFAULT_RULESET,

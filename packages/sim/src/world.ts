@@ -193,6 +193,15 @@ const GEM_SCHEMA: EntitySchema = {
   ],
 };
 
+const ITEM_SCHEMA: EntitySchema = {
+  kind: "item",
+  capacity: 64, // 16 item slots per player x 4 players
+  fields: [
+    { name: "owner", type: "u8" },
+    { name: "defIndex", type: "u16" },
+  ],
+};
+
 const ZONE_SCHEMA: EntitySchema = {
   kind: "zone",
   capacity: 200,
@@ -264,6 +273,7 @@ export interface WorldStores {
   abilities: EntityStore;
   passives: EntityStore;
   gems: EntityStore;
+  items: EntityStore;
   zones: EntityStore;
   pickups: EntityStore;
   bushes: EntityStore;
@@ -412,6 +422,7 @@ export class World {
       enemies: new EntityStore(ENEMY_SCHEMA),
       projectiles: new EntityStore(PROJECTILE_SCHEMA),
       abilities: new EntityStore(ABILITY_SCHEMA),
+      items: new EntityStore(ITEM_SCHEMA),
       passives: new EntityStore(PASSIVE_SCHEMA),
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
@@ -862,6 +873,108 @@ export class World {
     });
   }
 
+  // --- Item shop (docs/10 D-047) --------------------------------------------
+
+  /** Items currently owned by one player (slot -> defIndex). */
+  ownedItems(playerId: number): { slot: number; defIndex: number }[] {
+    const items = this.stores.items;
+    const out: { slot: number; defIndex: number }[] = [];
+    items.forEachAlive((slot) => {
+      if (items.field("owner")[slot] === playerId) {
+        out.push({ slot, defIndex: items.field("defIndex")[slot] });
+      }
+    });
+    return out;
+  }
+
+  private ownedItemIds(playerId: number): string[] {
+    return this.ownedItems(playerId).map((entry) => this.content.items?.[entry.defIndex]?.id ?? "");
+  }
+
+  private addItemSlot(playerId: number, defIndex: number): boolean {
+    if (this.ownedItems(playerId).length >= this.num("loadout.itemSlots")) return false;
+    const slot = this.stores.items.alloc();
+    if (slot < 0) return false;
+    this.stores.items.field("owner")[slot] = playerId;
+    this.stores.items.field("defIndex")[slot] = defIndex;
+    return true;
+  }
+
+  private refreshItemModifiers(playerId: number): void {
+    const mods = this.playerModifiers[playerId];
+    if (!mods) return;
+    mods.removeSourcePrefix("item:");
+    for (const entry of this.ownedItems(playerId)) {
+      const def = this.content.items?.[entry.defIndex];
+      if (!def) continue;
+      for (const [key, value] of Object.entries(def.stats)) {
+        mods.add(key, { op: "add", value, source: `item:${def.id}` });
+      }
+    }
+    this.syncPlayerMaxHp(playerId);
+    refreshSynergies(this);
+  }
+
+  /** Buy an item outright (components included) if affordable and slottable. */
+  buyItem(playerId: number, itemId: string): boolean {
+    const def = this.content.items?.find((i) => i.id === itemId);
+    if (!def) return false;
+    const gold = this.stores.players.field("gold")[playerId];
+    if (gold < def.cost) return false;
+    const defIndex = this.content.items?.indexOf(def) ?? -1;
+    if (defIndex < 0 || !this.addItemSlot(playerId, defIndex)) return false;
+    this.stores.players.field("gold")[playerId] = gold - def.cost;
+    this.refreshItemModifiers(playerId);
+    this.emit({ type: "item-bought", playerId, itemId });
+    return true;
+  }
+
+  /** Combine an owned recipe's components into the finished item. */
+  combineItem(playerId: number, itemId: string): boolean {
+    const def = this.content.items?.find((i) => i.id === itemId);
+    if (!def?.recipe) return false;
+    const owned = this.ownedItemIds(playerId);
+    const need = new Map<string, number>();
+    for (const id of def.recipe.components) need.set(id, (need.get(id) ?? 0) + 1);
+    for (const [id, count] of need) {
+      if (owned.filter((x) => x === id).length < count) return false;
+    }
+    const gold = this.stores.players.field("gold")[playerId];
+    if (gold < def.recipe.combineCost) return false;
+    // Consume one component slot per required component (frees them all).
+    for (const id of def.recipe.components) {
+      const entry = this.ownedItems(playerId).find(
+        (e) => this.content.items?.[e.defIndex]?.id === id,
+      );
+      if (!entry) return false;
+      this.stores.items.free(entry.slot);
+    }
+    const defIndex = this.content.items?.indexOf(def) ?? -1;
+    if (defIndex < 0 || !this.addItemSlot(playerId, defIndex)) {
+      // Slot accounting guarantees room: components freed >= one added.
+      this.refreshItemModifiers(playerId);
+      return false;
+    }
+    this.stores.players.field("gold")[playerId] = gold - def.recipe.combineCost;
+    this.refreshItemModifiers(playerId);
+    this.emit({ type: "item-combined", playerId, itemId });
+    return true;
+  }
+
+  /** Sell one owned item for 70% of its cost. */
+  sellItem(playerId: number, slot: number): boolean {
+    const items = this.stores.items;
+    if (!items.isAlive(slot) || items.field("owner")[slot] !== playerId) return false;
+    const def = this.content.items?.[items.field("defIndex")[slot]];
+    if (!def) return false;
+    const refund = Math.round(def.cost * 0.7);
+    items.free(slot);
+    this.stores.players.field("gold")[playerId] += refund;
+    this.refreshItemModifiers(playerId);
+    this.emit({ type: "item-sold", playerId, itemId: def.id, refund });
+    return true;
+  }
+
   /** Apply a status effect to an enemy (burn/slow), refreshing to the longer duration. */
   applyStatus(slot: number, status: StatusApply): void {
     const enemies = this.stores.enemies;
@@ -921,6 +1034,7 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.projectiles.snapshot(),
       world.stores.abilities.snapshot(),
       world.stores.passives.snapshot(),
+      world.stores.items.snapshot(),
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),
       world.stores.pickups.snapshot(),

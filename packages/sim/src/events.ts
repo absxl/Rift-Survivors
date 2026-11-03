@@ -43,6 +43,9 @@ export type SimEvent =
   | { type: "player-shield"; playerId: number; amount: number }
   | { type: "dash"; playerId: number; x: number; y: number }
   | { type: "turret-shot"; x: number; y: number }
+  | { type: "item-bought"; playerId: number; itemId: string }
+  | { type: "item-combined"; playerId: number; itemId: string }
+  | { type: "item-sold"; playerId: number; itemId: string; refund: number }
   | { type: "run-end"; victory: boolean };
 
 export type SimEventType = SimEvent["type"];

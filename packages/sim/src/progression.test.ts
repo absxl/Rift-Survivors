@@ -62,7 +62,8 @@ describe("progression", () => {
     step(world, []);
     expect(world.stores.players.field("level")[0]).toBe(2);
     expect(world.pendingOffers().length).toBe(1);
-    expect(world.pendingOffers()[0].options.length).toBe(4);
+    // 1 unused new ability + 1 upgrade + 1 guaranteed training card.
+    expect(world.pendingOffers()[0].options.length).toBe(3);
     expect(world.pendingOffers()[0].options.filter((o) => o.ref.type === "training").length).toBe(
       1,
     );
@@ -89,18 +90,20 @@ describe("progression", () => {
     expect(world.pendingOffers()[0].options.some((o) => o.ref.type === "training")).toBe(true);
   });
 
-  it("applying a passive adds it and applies its modifier via the stack", () => {
+  it("learning a new ability adds it to the unified pool", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
     world.partyXp = 100;
     step(world, []);
     const offer = world.pendingOffers()[0];
-    const idx = offer.options.findIndex((o) => o.ref.id === "might");
+    const idx = offer.options.findIndex((o) => o.ref.id === "bolt");
     expect(idx).toBeGreaterThanOrEqual(0);
 
     applyChoice(world, 0, idx);
     expect(world.pendingOffers().length).toBe(0);
-    expect(world.stores.passives.liveSlots().length).toBe(1);
-    expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.2);
+    const defs = world.stores.abilities
+      .liveSlots()
+      .map((slot) => world.content.abilities[world.stores.abilities.field("defIndex")[slot]].id);
+    expect(defs.sort()).toEqual(["blade", "bolt"]);
   });
 
   it("upgrading a ability raises its level", () => {

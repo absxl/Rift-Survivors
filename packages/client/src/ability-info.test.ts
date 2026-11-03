@@ -42,6 +42,8 @@ const STATS = {
   might: 2,
   cooldown: 2,
   area: 1,
+  abilityPower: 0,
+  attackDamage: 0,
   moveSpeed: 1,
   moveSpeedPx: 2.5,
   magnet: 1,

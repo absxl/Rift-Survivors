@@ -419,6 +419,13 @@ export function startServer(port: number, options: ServerOptions = {}): ServerHa
     } else if (msg.type === "banish" && room.world) {
       banishOfferOption(room.world, client.playerId, msg.optionIndex);
       sendOfferTo(room, client.playerId);
+    } else if (msg.type === "buy" && room.world) {
+      // The sim validates gold/recipes/slots; the broadcast carries the result.
+      if (room.world.buyItem(client.playerId, msg.itemId)) client.needsFull = true;
+    } else if (msg.type === "combine" && room.world) {
+      if (room.world.combineItem(client.playerId, msg.itemId)) client.needsFull = true;
+    } else if (msg.type === "sell" && room.world) {
+      if (room.world.sellItem(client.playerId, msg.slot)) client.needsFull = true;
     } else if (msg.type === "resync" && room.world) {
       send(ws, {
         type: "snapshot",

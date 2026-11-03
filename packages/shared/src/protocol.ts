@@ -3,7 +3,7 @@
 // @rift/sim. Bump PROTOCOL_VERSION on any breaking change.
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export interface LobbyPlayer {
   id: number;
@@ -43,6 +43,10 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("reroll") }),
   z.object({ type: z.literal("skip") }),
   z.object({ type: z.literal("banish"), optionIndex: z.number().int().nonnegative() }),
+  // Item shop (D-047): the sim validates gold, recipes and slots authoritatively.
+  z.object({ type: z.literal("buy"), itemId: z.string().min(1).max(40) }),
+  z.object({ type: z.literal("combine"), itemId: z.string().min(1).max(40) }),
+  z.object({ type: z.literal("sell"), slot: z.number().int().nonnegative() }),
   z.object({ type: z.literal("rejoin"), token: z.string(), protocolVersion: z.number() }),
   z.object({ type: z.literal("resync") }),
   z.object({ type: z.literal("start") }),

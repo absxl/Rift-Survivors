@@ -78,4 +78,5 @@ export type {
   AbilityStats,
   ChampionAbilityData,
   ChampionAbilityRef,
+  ItemDef,
 } from "./content-types";

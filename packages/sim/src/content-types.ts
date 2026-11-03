@@ -85,8 +85,8 @@ export interface AbilityDef {
   status?: StatusApply;
   /** Evolved forms are never offered in level-up pools. */
   isEvolved?: boolean;
-  /** Evolve this ability (maxed) + the required passive → the evolved ability. */
-  evolution?: { requiresPassive: string; evolvesTo: string };
+  /** Empower this ability (maxed) + owning the required shop item. */
+  evolution?: { requiresItem: string; evolvesTo: string };
 }
 
 export interface EnemyDef {
@@ -266,6 +266,20 @@ export interface StageDef {
   terrain?: StageTerrain;
 }
 
+/** League-style shop item (docs/10 D-047). Stats reuse the modifier-stack
+ * stat keys; recipes consume components plus combine cost gold. */
+export interface ItemDef {
+  id: string;
+  name: string;
+  description?: string;
+  tier: "component" | "epic" | "legendary";
+  cost: number;
+  /** Stat key → flat bonus applied as `item:` modifiers while owned. */
+  stats: Record<string, number>;
+  /** Finished-item recipe: consumes these component ids + combine gold. */
+  recipe?: { components: string[]; combineCost: number };
+}
+
 export interface ContentPack {
   id: string;
   schemaVersion: number;
@@ -275,6 +289,7 @@ export interface ContentPack {
   characters: CharacterDef[];
   powerUps: PowerUpDef[];
   synergies: SynergyDef[];
+  items?: ItemDef[];
   /** Optional for test packs and backwards-compatible content. */
   stages?: StageDef[];
 }

@@ -42,22 +42,40 @@ describe("content packs", () => {
     }
   });
 
-  it("every evolution recipe resolves", () => {
+  it("every evolution recipe resolves through a shop item", () => {
     const game = loadGamePack();
     const abilityIds = new Set(game.abilities.map((w) => w.id));
-    const passiveIds = new Set(game.passives.map((p) => p.id));
+    const itemIds = new Set((game.items ?? []).map((i) => i.id));
     let evolutions = 0;
     for (const w of game.abilities) {
       if (!w.evolution) continue;
       evolutions++;
-      expect(passiveIds.has(w.evolution.requiresPassive)).toBe(true);
+      expect(itemIds.has(w.evolution.requiresItem), w.id).toBe(true);
       expect(abilityIds.has(w.evolution.evolvesTo)).toBe(true);
       const evolved = game.abilities.find((e) => e.id === w.evolution?.evolvesTo);
       expect(evolved?.isEvolved).toBe(true);
     }
-    // D-045: the old passive-gated champion-kit evolutions retired with the
-    // unified real-ability kits; item-keyed evolutions return with the shop.
-    expect(evolutions).toBeGreaterThanOrEqual(0);
+    // D-047: class evolutions are gated on owning the right legendary.
+    expect(evolutions).toBeGreaterThanOrEqual(4);
+  });
+
+  it("ships the League shop with resolvable recipes and sane stats", () => {
+    const game = loadGamePack();
+    const items = game.items ?? [];
+    expect(items.length).toBeGreaterThanOrEqual(50);
+    const ids = new Set(items.map((i) => i.id));
+    expect(ids.size).toBe(items.length);
+    for (const item of items) {
+      expect(item.cost).toBeGreaterThan(0);
+      expect(Object.keys(item.stats).length).toBeGreaterThan(0);
+      if (!item.recipe) continue;
+      for (const component of item.recipe.components) {
+        expect(ids.has(component), `${item.id} -> ${component}`).toBe(true);
+        const comp = items.find((i) => i.id === component);
+        // Components must be cheaper than the item they build into.
+        expect(comp?.cost ?? 0, component).toBeLessThan(item.cost);
+      }
+    }
   });
 
   it("ships two real abilities for every champion with valid scaling", () => {

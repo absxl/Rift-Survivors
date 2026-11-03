@@ -57,7 +57,7 @@ const abilityDefSchema: z.ZodType<AbilityDef> = z.object({
   scale: z.object({ ap: z.number().optional(), ad: z.number().optional() }).optional(),
   status: z.object({ id: z.enum(["burn", "slow"]), ticks: z.number().int().positive() }).optional(),
   isEvolved: z.boolean().optional(),
-  evolution: z.object({ requiresPassive: z.string(), evolvesTo: z.string() }).optional(),
+  evolution: z.object({ requiresItem: z.string(), evolvesTo: z.string() }).optional(),
 });
 
 const enemyDefSchema: z.ZodType<EnemyDef> = z.object({
@@ -201,6 +201,21 @@ export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   schemaVersion: z.number().int().positive(),
   enemies: z.array(enemyDefSchema),
   abilities: z.array(abilityDefSchema),
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string().optional(),
+        tier: z.enum(["component", "epic", "legendary"]),
+        cost: z.number().nonnegative(),
+        stats: z.record(z.number()),
+        recipe: z
+          .object({ components: z.array(z.string()), combineCost: z.number().nonnegative() })
+          .optional(),
+      }),
+    )
+    .optional(),
   passives: z.array(passiveDefSchema),
   characters: z.array(characterDefSchema),
   powerUps: z.array(powerUpDefSchema),

@@ -36,7 +36,16 @@ const COOP_STATS_PACK: ContentPack = {
   schemaVersion: 1,
   enemies: [],
   abilities: [ability("flame", "damage:fire"), ability("arcane", "damage:arcane")],
-  passives: [{ id: "power", maxLevel: 5, perLevel: { might: 0.2, maxHp: 0.25 } }],
+  passives: [],
+  items: [
+    {
+      id: "power-token",
+      name: "Power Token",
+      tier: "component",
+      cost: 10,
+      stats: { might: 0.2, maxHp: 0.25 },
+    },
+  ],
   characters: [
     {
       id: "mage-a",
@@ -105,12 +114,9 @@ describe("per-player co-op stats", () => {
     expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.45);
     expect(world.playerStat(1, "area", 1)).toBeCloseTo(1.6);
 
-    // Player 0 picks the passive; player 1 must not inherit it.
-    const offer = world.pendingOffers().find((o) => o.playerId === 0);
-    expect(offer).toBeTruthy();
-    const passiveIndex = offer?.options.findIndex((o) => o.ref.type === "passive") ?? -1;
-    expect(passiveIndex).toBeGreaterThanOrEqual(0);
-    applyChoice(world, 0, passiveIndex);
+    // Player 0 buys the stat item; player 1 must not inherit it.
+    world.stores.players.field("gold")[0] = 100;
+    expect(world.buyItem(0, "power-token")).toBe(true);
 
     expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.65);
     expect(world.playerStat(1, "might", 1)).toBeCloseTo(1);

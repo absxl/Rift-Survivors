@@ -65,23 +65,14 @@ function progression(world: World): void {
 
 function buildLevelUpOffer(world: World, playerId: number): Offer {
   const abilities = world.stores.abilities;
-  const passives = world.stores.passives;
 
+  // D-047: stat items come from the League-style shop now; passives no longer
+  // appear in offers. The passive store stays for save/schema compatibility.
   const ownedAbilities = new Map<number, number>(); // defIndex -> level
-  const ownedPassives = new Map<number, number>();
-  const ownedPassiveIds = new Set<string>();
   abilities.forEachAlive((slot) => {
     if (abilities.field("owner")[slot] === playerId) {
       const defIndex = abilities.field("defIndex")[slot];
       ownedAbilities.set(defIndex, abilities.field("level")[slot]);
-    }
-  });
-  passives.forEachAlive((slot) => {
-    if (passives.field("owner")[slot] === playerId) {
-      const defIndex = passives.field("defIndex")[slot];
-      ownedPassives.set(defIndex, passives.field("level")[slot]);
-      const def = world.content.passives[defIndex];
-      if (def) ownedPassiveIds.add(def.id);
     }
   });
 
@@ -104,15 +95,6 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
       });
     }
   }
-  if (ownedPassives.size < world.num("loadout.passiveSlots")) {
-    for (let i = 0; i < world.content.passives.length; i++) {
-      if (ownedPassives.has(i)) continue;
-      consider({
-        optionId: `new-p:${i}`,
-        ref: { type: "passive", id: world.content.passives[i].id },
-      });
-    }
-  }
   for (const [defIndex, level] of ownedAbilities) {
     const def = world.content.abilities[defIndex];
     if (def && level < def.maxLevel) {
@@ -123,19 +105,9 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
       });
     }
   }
-  for (const [defIndex, level] of ownedPassives) {
-    const def = world.content.passives[defIndex];
-    if (def && level < def.maxLevel) {
-      consider({
-        optionId: `up-p:${defIndex}`,
-        ref: { type: "passive", id: def.id },
-        level: level + 1,
-      });
-    }
-  }
 
   // Evolutions are level-up cards; region chests are meta rewards.
-  for (const option of evolutionOptions(world, ownedAbilities, ownedPassiveIds)) {
+  for (const option of evolutionOptions(world, ownedAbilities, ownedItemIds(world, playerId))) {
     consider(option);
   }
 
@@ -176,18 +148,29 @@ function trainingOption(world: World, playerId: number): OfferOption {
   };
 }
 
-/** Evolution cards available when a ability is maxed and its passive is owned. */
+/** Ids of the shop items one player owns (for evolution recipes). */
+function ownedItemIds(world: World, playerId: number): Set<string> {
+  const ids = new Set<string>();
+  for (const entry of world.ownedItems(playerId)) {
+    const def = world.content.items?.[entry.defIndex];
+    if (def) ids.add(def.id);
+  }
+  return ids;
+}
+
+/** Evolution cards: maxed ability + the required shop item owned. */
 function evolutionOptions(
   world: World,
   ownedAbilities: Map<number, number>,
-  ownedPassiveIds: Set<string>,
+  ownedItemIds: Set<string>,
 ): OfferOption[] {
   const options: OfferOption[] = [];
+  if (ownedItemIds.size === 0) return options;
   for (const [defIndex, level] of ownedAbilities) {
     const def = world.content.abilities[defIndex];
     if (!def?.evolution) continue;
     if (level < def.maxLevel) continue;
-    if (!ownedPassiveIds.has(def.evolution.requiresPassive)) continue;
+    if (!ownedItemIds.has(def.evolution.requiresItem)) continue;
     options.push({
       optionId: `evolve:${defIndex}`,
       ref: { type: "ability", id: def.evolution.evolvesTo },
@@ -200,21 +183,11 @@ function evolutionOptions(
 /** Chest offer: evolutions (if available) + item upgrades, 1/3/5 items by luck. */
 export function buildChestOffer(world: World, playerId: number): Offer {
   const abilities = world.stores.abilities;
-  const passives = world.stores.passives;
 
   const ownedAbilities = new Map<number, number>();
-  const ownedPassives = new Map<number, number>();
-  const ownedPassiveIds = new Set<string>();
   abilities.forEachAlive((slot) => {
     if (abilities.field("owner")[slot] === playerId) {
       ownedAbilities.set(abilities.field("defIndex")[slot], abilities.field("level")[slot]);
-    }
-  });
-  passives.forEachAlive((slot) => {
-    if (passives.field("owner")[slot] === playerId) {
-      ownedPassives.set(passives.field("defIndex")[slot], passives.field("level")[slot]);
-      const def = world.content.passives[passives.field("defIndex")[slot]];
-      if (def) ownedPassiveIds.add(def.id);
     }
   });
 
@@ -224,7 +197,7 @@ export function buildChestOffer(world: World, playerId: number): Offer {
     if (!banished.has(option.optionId)) options.push(option);
   };
 
-  for (const option of evolutionOptions(world, ownedAbilities, ownedPassiveIds)) {
+  for (const option of evolutionOptions(world, ownedAbilities, ownedItemIds(world, playerId))) {
     consider(option);
   }
   for (const [defIndex, level] of ownedAbilities) {
@@ -237,17 +210,6 @@ export function buildChestOffer(world: World, playerId: number): Offer {
       });
     }
   }
-  for (const [defIndex, level] of ownedPassives) {
-    const def = world.content.passives[defIndex];
-    if (def && level < def.maxLevel) {
-      consider({
-        optionId: `up-p:${defIndex}`,
-        ref: { type: "passive", id: def.id },
-        level: level + 1,
-      });
-    }
-  }
-
   const luck = world.playerStat(playerId, "luck", 0);
   const itemCount = luck >= 0.3 ? 5 : luck >= 0.1 ? 3 : 1;
   if (options.length === 0) {
@@ -304,13 +266,6 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
           if (option.level === undefined) addAbility(world, playerId, defIndex);
           else upgradeAbility(world, playerId, defIndex, option.level);
         }
-      }
-    } else if (ref.type === "passive") {
-      const defIndex = world.content.passives.findIndex((p) => p.id === ref.id);
-      if (defIndex >= 0) {
-        if (option.level === undefined) addPassive(world, playerId, defIndex);
-        else upgradePassive(world, playerId, defIndex, option.level);
-        refreshPassiveModifiers(world);
       }
     } else if (ref.type === "heal") {
       const players = world.stores.players;
@@ -401,45 +356,6 @@ function upgradeAbility(world: World, playerId: number, defIndex: number, level:
       abilities.field("level")[slot] = level;
     }
   });
-}
-
-function addPassive(world: World, playerId: number, defIndex: number): void {
-  const slot = world.stores.passives.alloc();
-  if (slot < 0) return;
-  world.stores.passives.field("owner")[slot] = playerId;
-  world.stores.passives.field("defIndex")[slot] = defIndex;
-  world.stores.passives.field("level")[slot] = 1;
-}
-
-function upgradePassive(world: World, playerId: number, defIndex: number, level: number): void {
-  const passives = world.stores.passives;
-  passives.forEachAlive((slot) => {
-    if (
-      passives.field("owner")[slot] === playerId &&
-      passives.field("defIndex")[slot] === defIndex
-    ) {
-      passives.field("level")[slot] = level;
-    }
-  });
-}
-
-/** Re-apply each player's passive modifiers and sync their maxHp. */
-function refreshPassiveModifiers(world: World): void {
-  const passives = world.stores.passives;
-  for (let p = 0; p < world.playerModifiers.length; p++) {
-    const mods = world.playerModifiers[p];
-    mods.removeSourcePrefix("passive:");
-    passives.forEachAlive((slot) => {
-      if (passives.field("owner")[slot] !== p) return;
-      const def = world.content.passives[passives.field("defIndex")[slot]];
-      if (!def) return;
-      const level = passives.field("level")[slot];
-      for (const [key, amount] of Object.entries(def.perLevel)) {
-        mods.add(key, { op: "add", value: amount * level, source: `passive:${def.id}` });
-      }
-    });
-    world.syncPlayerMaxHp(p);
-  }
 }
 
 /** Re-apply each player's character growth bonuses (per-player stacks). */

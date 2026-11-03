@@ -180,6 +180,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "chest.magnetChance": 0.35,
     "chest.bombChance": 0.2,
     "loadout.abilitySlots": 8,
+    "loadout.itemSlots": 16,
     "loadout.passiveSlots": 6,
     "levelUp.choices": 3,
     "levelUp.rerolls": 3,

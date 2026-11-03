@@ -2,6 +2,7 @@
 // ability abilities live in the `lol` pack. Names are generic; League flavor is data.
 import type { ContentPack, PowerUpDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
+import { SHOP_ITEMS } from "./shop/items";
 
 const corePack: ContentPack = {
   id: "core",
@@ -1040,7 +1041,7 @@ corePack.passives = corePack.passives.map((passive) => {
   };
 });
 
-/** Load and validate the core pack (enemies + items). */
+/** Load and validate the core pack (enemies + shop items). */
 export function loadCorePack(): ContentPack {
-  return contentPackSchema.parse(corePack);
+  return contentPackSchema.parse({ ...corePack, items: SHOP_ITEMS });
 }

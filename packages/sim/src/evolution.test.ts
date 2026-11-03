@@ -43,7 +43,7 @@ const EVO_PACK: ContentPack = {
   abilities: [
     ability({
       id: "blade",
-      evolution: { requiresPassive: "focus", evolvesTo: "blade-evolved" },
+      evolution: { requiresItem: "focus-gem", evolvesTo: "blade-evolved" },
     }),
     ability({
       id: "blade-evolved",
@@ -57,7 +57,16 @@ const EVO_PACK: ContentPack = {
       isEvolved: true,
     }),
   ],
-  passives: [{ id: "focus", maxLevel: 1, perLevel: { might: 0.1 } }],
+  passives: [],
+  items: [
+    {
+      id: "focus-gem",
+      name: "Focus Gem",
+      tier: "epic",
+      cost: 800,
+      stats: { might: 0.1 },
+    },
+  ],
   characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
@@ -69,11 +78,9 @@ describe("progression endgame", () => {
     const abilities = world.stores.abilities;
     const abilitySlot = abilities.liveSlots()[0];
     abilities.field("level")[abilitySlot] = 2;
-    const passives = world.stores.passives;
-    const passiveSlot = passives.alloc();
-    passives.field("owner")[passiveSlot] = 0;
-    passives.field("defIndex")[passiveSlot] = 0;
-    passives.field("level")[passiveSlot] = 1;
+    // The evolution requires owning the recipe item from the shop.
+    world.stores.players.field("gold")[0] = 1000;
+    expect(world.buyItem(0, "focus-gem")).toBe(true);
 
     world.partyXp = world.partyXpToNext;
     step(world, []);
