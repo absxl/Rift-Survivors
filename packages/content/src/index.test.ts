@@ -55,7 +55,26 @@ describe("content packs", () => {
       const evolved = game.abilities.find((e) => e.id === w.evolution?.evolvesTo);
       expect(evolved?.isEvolved).toBe(true);
     }
-    expect(evolutions).toBeGreaterThanOrEqual(4);
+    // D-045: the old passive-gated champion-kit evolutions retired with the
+    // unified real-ability kits; item-keyed evolutions return with the shop.
+    expect(evolutions).toBeGreaterThanOrEqual(0);
+  });
+
+  it("ships two real abilities for every champion with valid scaling", () => {
+    const game = loadGamePack();
+    const abilityIds = new Set(game.abilities.map((w) => w.id));
+    for (const c of game.characters) {
+      expect(abilityIds.has(c.startingAbility), `${c.id} q`).toBe(true);
+      expect(abilityIds.has(c.startingAbility2 ?? ""), `${c.id} r`).toBe(true);
+    }
+    // Every authored kit ability carries a wiki-verified ratio or damage.
+    for (const w of game.abilities) {
+      if (!/-[qr]$/.test(w.id)) continue;
+      expect(
+        w.scale?.ap !== undefined || w.scale?.ad !== undefined || w.base.damage > 0,
+        w.id,
+      ).toBe(true);
+    }
   });
 
   it("has the expanded power-up shop scope and valid rank curves", () => {

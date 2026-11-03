@@ -18,19 +18,17 @@ const UA = "RiftSurvivorsAbilityAudit/1.0 (private fan project)";
 
 // Wiki page titles differ from Data Dragon names for a few champions.
 const WIKI_NAME_OVERRIDES = {
-  "nunu": "Nunu",
-  "renata": "Renata",
-  "wukong": "Wukong",
-  "monkeyking": "Wukong",
-  "mel": "Mel",
-  "aurora": "Aurora",
-  "ambessa": "Ambessa",
+  nunu: "Nunu",
+  renata: "Renata",
+  wukong: "Wukong",
+  monkeyking: "Wukong",
+  mel: "Mel",
+  aurora: "Aurora",
+  ambessa: "Ambessa",
 };
 
 // The 8 hand-authored champions from lol.ts (roster.ts holds the other 165).
-const CUSTOM_IDS = [
-  "lux", "brand", "ahri", "ryze", "syndra", "veigar", "annie", "xerath",
-];
+const CUSTOM_IDS = ["lux", "brand", "ahri", "ryze", "syndra", "veigar", "annie", "xerath"];
 
 let lastRequestAt = 0;
 const MIN_SPACING_MS = 350;
@@ -178,7 +176,17 @@ async function abilityTemplates(champion) {
     ordered.push(template);
     const tail = template.toLowerCase().split("/")[1] ?? "";
     const key =
-      tail === "i" ? "I" : tail === "q" ? "Q" : tail === "w" ? "W" : tail === "e" ? "E" : tail === "r" ? "R" : null;
+      tail === "i"
+        ? "I"
+        : tail === "q"
+          ? "Q"
+          : tail === "w"
+            ? "W"
+            : tail === "e"
+              ? "E"
+              : tail === "r"
+                ? "R"
+                : null;
     if (key && !found[key]) found[key] = template;
   }
   const keys = ["I", "Q", "W", "E", "R"];
@@ -201,9 +209,10 @@ async function readRoster() {
 async function main() {
   await fs.mkdir(CACHE, { recursive: true });
   const roster = await readRoster();
-  const all = [...roster, ...CUSTOM_IDS.filter((id) => !roster.some((r) => r.id === id)).map((id) => ({ id, name: id }))].sort((a, b) =>
-    a.id.localeCompare(b.id),
-  );
+  const all = [
+    ...roster,
+    ...CUSTOM_IDS.filter((id) => !roster.some((r) => r.id === id)).map((id) => ({ id, name: id })),
+  ].sort((a, b) => a.id.localeCompare(b.id));
   if (all.length !== 173) throw new Error(`expected 173 champions, parsed ${all.length}`);
 
   const records = {};
