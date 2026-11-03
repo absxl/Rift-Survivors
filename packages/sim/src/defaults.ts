@@ -1,6 +1,6 @@
 // Core registration: movement + generic behaviors + systems. The default ruleset
 // wires them into a pipeline; the real gameplay is driven by content data.
-import { registerEnemyBehaviors, registerWeaponBehaviors } from "./behaviors";
+import { registerAbilityBehaviors, registerEnemyBehaviors } from "./behaviors";
 import type { Registries } from "./registry";
 import { registerBushSystem } from "./systems/bushes";
 import { registerChestSystem } from "./systems/chests";
@@ -24,7 +24,7 @@ export function registerCoreSystems(reg: Registries): void {
   registerChestSystem(reg);
   reg.systems.register("pathing", (world) => world.pathfinder.update(world));
   registerEnemyBehaviors(reg);
-  registerWeaponBehaviors(reg);
+  registerAbilityBehaviors(reg);
   registerSpatialHash(reg);
   registerSpawn(reg);
   registerEnemySystems(reg);
@@ -115,7 +115,7 @@ export const DEFAULT_RULESET: RulesetDef = {
     "enemy-hazards",
     "spatial-hash",
     "separation",
-    "weapons",
+    "abilities",
     "projectiles",
     "zones",
     "contact-damage",
@@ -179,16 +179,15 @@ export const DEFAULT_RULESET: RulesetDef = {
     "chest.keyChance": 0.35,
     "chest.magnetChance": 0.35,
     "chest.bombChance": 0.2,
-    "loadout.weaponSlots": 6,
-    "loadout.moveSlots": 4,
+    "loadout.abilitySlots": 8,
     "loadout.passiveSlots": 6,
     "levelUp.choices": 3,
     "levelUp.rerolls": 3,
     "levelUp.skips": 2,
     "levelUp.banishes": 2,
     "xp.growthPerLevel": 4,
-    "weapon.orbitSpeed": 0.08,
-    "weapon.zoneHitCooldown": 10,
+    "ability.orbitSpeed": 0.08,
+    "ability.zoneHitCooldown": 10,
     "status.burnDps": 1,
     "status.reactionDamage": 2,
     "separation.strength": 0.5,

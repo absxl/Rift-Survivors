@@ -19,7 +19,7 @@ const COOP_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -42,14 +42,14 @@ const COOP_PACK: ContentPack = {
     },
   ],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
 
 describe("co-op sim", () => {
-  // No enemies/weapons so allocated enemies are the only ones and auto-fire can't interfere.
-  const CREDIT_PACK: ContentPack = { ...COOP_PACK, enemies: [], weapons: [] };
+  // No enemies/abilities so allocated enemies are the only ones and auto-fire can't interfere.
+  const CREDIT_PACK: ContentPack = { ...COOP_PACK, enemies: [], abilities: [] };
 
   it("credits each kill to the player who dealt the final hit", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: CREDIT_PACK }, 7);
@@ -91,11 +91,11 @@ describe("co-op sim", () => {
     expect(players.field("gold")[1]).toBe(10);
   });
 
-  it("creates one starting weapon per player", () => {
+  it("creates one starting ability per player", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 2, content: COOP_PACK }, 1);
-    const weapons = world.stores.weapons.liveSlots();
-    expect(weapons.length).toBe(2);
-    const owners = weapons.map((s) => world.stores.weapons.field("owner")[s]).sort();
+    const abilities = world.stores.abilities.liveSlots();
+    expect(abilities.length).toBe(2);
+    const owners = abilities.map((s) => world.stores.abilities.field("owner")[s]).sort();
     expect(owners).toEqual([0, 1]);
   });
 

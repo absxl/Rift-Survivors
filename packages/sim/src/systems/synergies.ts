@@ -31,10 +31,10 @@ export function refreshSynergies(world: World): void {
 
 function collectTags(world: World, playerId: number): string[] {
   const tags: string[] = [];
-  const weapons = world.stores.weapons;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] !== playerId) return;
-    const def = world.content.weapons[weapons.field("defIndex")[slot]];
+  const abilities = world.stores.abilities;
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] !== playerId) return;
+    const def = world.content.abilities[abilities.field("defIndex")[slot]];
     if (def?.tags) tags.push(...def.tags);
   });
   const passives = world.stores.passives;

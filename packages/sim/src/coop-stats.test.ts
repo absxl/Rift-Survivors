@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, applyChoice, createWorld, snapshot, step } from "./index";
-import type { ContentPack, WeaponDef } from "./index";
+import type { AbilityDef, ContentPack } from "./index";
 
-function weapon(id: string, tag: string): WeaponDef {
+function ability(id: string, tag: string): AbilityDef {
   return {
     id,
     tags: [tag],
@@ -35,18 +35,18 @@ const COOP_STATS_PACK: ContentPack = {
   id: "coop-stats",
   schemaVersion: 1,
   enemies: [],
-  weapons: [weapon("flame", "damage:fire"), weapon("arcane", "damage:arcane")],
+  abilities: [ability("flame", "damage:fire"), ability("arcane", "damage:arcane")],
   passives: [{ id: "power", maxLevel: 5, perLevel: { might: 0.2, maxHp: 0.25 } }],
   characters: [
     {
       id: "mage-a",
-      startingWeapon: "flame",
+      startingAbility: "flame",
       baseStats: { might: 0.25 },
       growth: { everyLevels: 2, mods: { might: 0.1 } },
     },
     {
       id: "mage-b",
-      startingWeapon: "arcane",
+      startingAbility: "arcane",
       baseStats: { area: 0.5 },
       growth: { everyLevels: 2, mods: { area: 0.1 } },
     },
@@ -117,10 +117,10 @@ describe("per-player co-op stats", () => {
     expect(world.stores.players.field("maxHp")[0]).toBeCloseTo(125);
     expect(world.stores.players.field("maxHp")[1]).toBeCloseTo(100);
 
-    // Weapon scaling uses the owner's stats.
-    const flame = world.content.weapons[0];
-    expect(world.weaponDamage(flame, 1, 0)).toBeCloseTo(flame.base.damage * 1.65);
-    expect(world.weaponDamage(flame, 1, 1)).toBeCloseTo(flame.base.damage * 1);
+    // Ability scaling uses the owner's stats.
+    const flame = world.content.abilities[0];
+    expect(world.abilityDamage(flame, 1, 0)).toBeCloseTo(flame.base.damage * 1.65);
+    expect(world.abilityDamage(flame, 1, 1)).toBeCloseTo(flame.base.damage * 1);
 
     const snap = snapshot(world);
     expect(snap.playerStats[0].might).toBeCloseTo(1.65);

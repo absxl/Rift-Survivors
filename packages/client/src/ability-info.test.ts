@@ -1,12 +1,11 @@
-import type { OfferOption, PassiveDef, RunStats, WeaponDef } from "@rift/sim";
+import type { AbilityDef, OfferOption, PassiveDef, RunStats } from "@rift/sim";
 import { describe, expect, it } from "vitest";
-import { offerCardInfo, passiveInfo, weaponInfo, weaponUpgradeLines } from "./ability-info";
+import { abilityInfo, abilityUpgradeLines, offerCardInfo, passiveInfo } from "./ability-info";
 
-const WEAPON: WeaponDef = {
+const ABILITY: AbilityDef = {
   id: "nova",
   name: "Nova",
   description: "A test nova.",
-  isMove: true,
   behavior: "aura",
   params: {},
   maxLevel: 5,
@@ -60,26 +59,25 @@ const STATS = {
 } satisfies RunStats;
 
 describe("ability cards", () => {
-  it("derives weapon stats from the same base/level data and owner stats", () => {
-    const info = weaponInfo(WEAPON, 3, STATS);
-    expect(info.badge).toBe("MOVE");
+  it("derives ability stats from the same base/level data and owner stats", () => {
+    const info = abilityInfo(ABILITY, 3, STATS);
+    expect(info.badge).toBe("ABILITY");
     expect(info.lines.find((l) => l.label === "DAMAGE")?.value).toBe("40");
     expect(info.lines.find((l) => l.label === "CAST TIME")?.value).toBe("1.00S");
   });
 
-  it("shows current -> next deltas for weapon upgrades", () => {
-    const lines = weaponUpgradeLines(WEAPON, 1, STATS);
+  it("shows current -> next deltas for ability upgrades", () => {
+    const lines = abilityUpgradeLines(ABILITY, 1, STATS);
     expect(lines.find((l) => l.label === "DAMAGE")?.value).toBe("20 → 30");
   });
 
-  it("marks a new champion move card and includes its stats", () => {
+  it("marks a new champion ability card and includes its stats", () => {
     const option: OfferOption = {
       optionId: "new-m:0",
-      ref: { type: "weapon", id: "nova" },
-      isMove: true,
+      ref: { type: "ability", id: "nova" },
     };
-    const info = offerCardInfo(option, [WEAPON], [], STATS);
-    expect(info.badge).toBe("MOVE");
+    const info = offerCardInfo(option, [ABILITY], [], STATS);
+    expect(info.badge).toBe("ABILITY");
     expect(info.subtitle).toContain("NEW");
     expect(info.lines.length).toBeGreaterThan(0);
   });

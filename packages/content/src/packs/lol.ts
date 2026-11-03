@@ -1,7 +1,7 @@
 // The `lol` pack: League-of-Legends-inspired mage champions and their abilities
-// mapped onto generic weapon behaviors. Names and flavor are placeholder data and
+// mapped onto generic ability behaviors. Names and flavor are placeholder data and
 // never copied from game text/art; the sim only sees ids and numbers.
-import type { ContentPack, StatDelta, WeaponDef } from "@rift/sim";
+import type { AbilityDef, ContentPack, StatDelta } from "@rift/sim";
 import { classUpgradeIds } from "../champions/classes";
 import { CHAMPION_PROFILES } from "../champions/profiles.generated";
 import { contentPackSchema } from "../schema";
@@ -35,7 +35,7 @@ const lolPack: ContentPack = {
   id: "lol",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
+  abilities: [
     {
       id: "light-binding",
       name: "Light Binding",
@@ -382,7 +382,7 @@ const lolPack: ContentPack = {
     },
 
     // ---------------------------------------------------------------------
-    // Class weapons: the shared starting-weapon pools for the six classes.
+    // Class abilities: the shared starting-ability pools for the six classes.
     // They are deliberately archetypal; champion-specific kits arrive in the
     // later moves pass.
     // ---------------------------------------------------------------------
@@ -455,7 +455,7 @@ const lolPack: ContentPack = {
     {
       id: "war-boomerang",
       name: "War Boomerang",
-      description: "A heavy thrown weapon that carves out and back again.",
+      description: "A heavy thrown ability that carves out and back again.",
       behavior: "boomerang",
       params: {},
       maxLevel: 5,
@@ -619,7 +619,6 @@ const lolPack: ContentPack = {
       name: "Prismatic Nova",
       description:
         "Lux signature. A ring of light detonates around you, slowing everything caught in it.",
-      isMove: true,
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -644,7 +643,6 @@ const lolPack: ContentPack = {
       name: "Pyre Pillar",
       description:
         "Brand signature. Raises a burning pillar beneath a nearby cluster. Leaves fire behind.",
-      isMove: true,
       behavior: "ground-pool",
       params: { scatter: 90 },
       maxLevel: 5,
@@ -668,7 +666,6 @@ const lolPack: ContentPack = {
       id: "charm",
       name: "Charm",
       description: "Ahri signature. Sends a heart-lure that slows the first enemy it touches.",
-      isMove: true,
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -692,7 +689,6 @@ const lolPack: ContentPack = {
       id: "realm-warp",
       name: "Realm Warp",
       description: "Ryze signature. Tears three rune seams beneath distant enemies.",
-      isMove: true,
       behavior: "strike-random",
       params: {},
       maxLevel: 5,
@@ -716,7 +712,6 @@ const lolPack: ContentPack = {
       name: "Force of Will",
       description:
         "Syndra signature. Hurls a sphere of gathered force that ricochets through a crowd.",
-      isMove: true,
       behavior: "bounce",
       params: {},
       maxLevel: 5,
@@ -740,7 +735,6 @@ const lolPack: ContentPack = {
       name: "Dark Matter",
       description:
         "Veigar signature. Calls a dark star down on a distant cluster and burns the ground.",
-      isMove: true,
       behavior: "ground-pool",
       params: { scatter: 110 },
       maxLevel: 5,
@@ -764,7 +758,6 @@ const lolPack: ContentPack = {
       name: "Infernal Guardian",
       description:
         "Annie signature. A burning guardian scorches the air around you while it lingers.",
-      isMove: true,
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -789,7 +782,6 @@ const lolPack: ContentPack = {
       name: "Arcanopulse",
       description:
         "Xerath signature. Channels a long, piercing arcane beam across the battlefield.",
-      isMove: true,
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -812,7 +804,6 @@ const lolPack: ContentPack = {
       id: "arcane-bolt",
       name: "Arcane Bolt",
       description: "Mage placeholder. A simple bolt of focused arcana for new mages.",
-      isMove: true,
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -835,7 +826,6 @@ const lolPack: ContentPack = {
       id: "shockwave",
       name: "Shockwave",
       description: "Tank placeholder. A heavy pulse that shoves the swarm back.",
-      isMove: true,
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -858,7 +848,6 @@ const lolPack: ContentPack = {
       id: "cleaving-strike",
       name: "Cleaving Strike",
       description: "Fighter placeholder. A broad strike for the middle of the fight.",
-      isMove: true,
       behavior: "sweep",
       params: { arc: 1.6 },
       maxLevel: 5,
@@ -881,7 +870,6 @@ const lolPack: ContentPack = {
       id: "shadow-strike",
       name: "Shadow Strike",
       description: "Assassin placeholder. A fast blade that seeks a second target.",
-      isMove: true,
       behavior: "bounce",
       params: {},
       maxLevel: 5,
@@ -904,7 +892,6 @@ const lolPack: ContentPack = {
       id: "piercing-shot",
       name: "Piercing Shot",
       description: "Marksman placeholder. A long, piercing line shot.",
-      isMove: true,
       behavior: "shoot-nearest",
       params: {},
       maxLevel: 5,
@@ -927,7 +914,6 @@ const lolPack: ContentPack = {
       id: "renewal-pulse",
       name: "Renewal Pulse",
       description: "Support placeholder. A soft field of light that slows the crowd.",
-      isMove: true,
       behavior: "aura",
       params: {},
       maxLevel: 5,
@@ -958,8 +944,8 @@ const lolPack: ContentPack = {
       region: "Demacia",
       rarity: "epic",
       class: "mage",
-      startingWeapon: "lucent-singularity",
-      startingMove: "prismatic-nova",
+      startingAbility: "lucent-singularity",
+      startingAbility2: "prismatic-nova",
       baseStats: { might: 0.1, cooldown: 0.1 },
       growth: { everyLevels: 3, mods: { might: 0.05 } },
       upgradeIds: [
@@ -981,8 +967,8 @@ const lolPack: ContentPack = {
       region: "Noxus",
       rarity: "epic",
       class: "mage",
-      startingWeapon: "conflagration",
-      startingMove: "pyre-pillar",
+      startingAbility: "conflagration",
+      startingAbility2: "pyre-pillar",
       baseStats: { might: 0.15 },
       growth: { everyLevels: 4, mods: { area: 0.1 } },
       upgradeIds: [
@@ -1005,8 +991,8 @@ const lolPack: ContentPack = {
       rarity: "common",
       class: "mage",
       starter: true,
-      startingWeapon: "orb-of-deception",
-      startingMove: "charm",
+      startingAbility: "orb-of-deception",
+      startingAbility2: "charm",
       baseStats: { moveSpeed: 0.1, cooldown: 0.05 },
       growth: { everyLevels: 3, mods: { moveSpeed: 0.05 } },
       upgradeIds: [
@@ -1028,8 +1014,8 @@ const lolPack: ContentPack = {
       region: "Runeterra",
       rarity: "legendary",
       class: "mage",
-      startingWeapon: "overload",
-      startingMove: "realm-warp",
+      startingAbility: "overload",
+      startingAbility2: "realm-warp",
       baseStats: { cooldown: 0.15 },
       growth: { everyLevels: 3, mods: { cooldown: 0.05 } },
       upgradeIds: [
@@ -1051,8 +1037,8 @@ const lolPack: ContentPack = {
       region: "Ionia",
       rarity: "epic",
       class: "mage",
-      startingWeapon: "scatter-the-weak",
-      startingMove: "force-of-will",
+      startingAbility: "scatter-the-weak",
+      startingAbility2: "force-of-will",
       baseStats: { might: 0.1 },
       growth: { everyLevels: 4, mods: { might: 0.08 } },
       upgradeIds: [
@@ -1074,8 +1060,8 @@ const lolPack: ContentPack = {
       region: "Bandle City",
       rarity: "epic",
       class: "mage",
-      startingWeapon: "primordial-burst",
-      startingMove: "dark-matter",
+      startingAbility: "primordial-burst",
+      startingAbility2: "dark-matter",
       baseStats: { cooldown: 0.1 },
       growth: { everyLevels: 2, mods: { might: 0.1 } },
       upgradeIds: [
@@ -1097,8 +1083,8 @@ const lolPack: ContentPack = {
       region: "Noxus",
       rarity: "rare",
       class: "mage",
-      startingWeapon: "fox-fire",
-      startingMove: "infernal-guardian",
+      startingAbility: "fox-fire",
+      startingAbility2: "infernal-guardian",
       baseStats: { might: 0.05, maxHp: 0.1 },
       growth: { everyLevels: 4, mods: { maxHp: 0.15 } },
       upgradeIds: [
@@ -1120,8 +1106,8 @@ const lolPack: ContentPack = {
       region: "Shurima",
       rarity: "epic",
       class: "mage",
-      startingWeapon: "arcane-barrage",
-      startingMove: "arcanopulse",
+      startingAbility: "arcane-barrage",
+      startingAbility2: "arcanopulse",
       baseStats: { area: 0.1 },
       growth: { everyLevels: 3, mods: { area: 0.08 } },
       upgradeIds: [
@@ -1190,7 +1176,7 @@ const lolPack: ContentPack = {
   ],
 };
 
-// Weapons grouped by damage tag (drives synergy counting). Moves carry the same
+// Abilities grouped by damage tag (drives synergy counting). Moves carry the same
 // tags so champion kits feel coherent with the elemental synergies.
 const FIRE = new Set([
   "conflagration",
@@ -1239,8 +1225,8 @@ const PHYSICAL = new Set([
   "piercing-shot",
 ]);
 
-function tagWeapons(weapons: WeaponDef[]): WeaponDef[] {
-  return weapons.map((w) => {
+function tagAbilities(abilities: AbilityDef[]): AbilityDef[] {
+  return abilities.map((w) => {
     const tags: string[] = [];
     if (FIRE.has(w.id)) tags.push("damage:fire");
     if (ARCANE.has(w.id)) tags.push("damage:arcane");
@@ -1254,7 +1240,7 @@ function tagWeapons(weapons: WeaponDef[]): WeaponDef[] {
 export function loadLolPack(): ContentPack {
   const pack: ContentPack = {
     ...lolPack,
-    weapons: tagWeapons(lolPack.weapons),
+    abilities: tagAbilities(lolPack.abilities),
     characters: [...lolPack.characters, ...ROSTER_CHAMPIONS].map((c) => {
       const profile = CHAMPION_PROFILES[c.id];
       return {

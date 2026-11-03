@@ -8,7 +8,7 @@ export interface LoadoutEntry {
 }
 
 /**
- * Entries owned by a player. Weapon stores have a `cooldown` field; passive
+ * Entries owned by a player. Ability stores have a `cooldown` field; passive
  * stores do not, so it defaults to 0 instead of throwing on the missing field.
  */
 export function ownedIndices(store: StoreSnapshot | undefined, playerId: number): LoadoutEntry[] {

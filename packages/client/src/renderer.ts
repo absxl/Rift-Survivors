@@ -1,9 +1,9 @@
 import type {
+  AbilityDef,
   EnemyDef,
   SimEvent,
   StageDef,
   StoreSnapshot,
-  WeaponDef,
   WorldSnapshot,
 } from "@rift/sim";
 import {
@@ -129,7 +129,7 @@ export class GameRenderer {
 
   constructor(
     private readonly stage: Container,
-    private readonly weapons: WeaponDef[],
+    private readonly abilities: AbilityDef[],
     private readonly enemies: EnemyDef[],
     stageDefs: StageDef[] = [],
   ) {
@@ -319,14 +319,14 @@ export class GameRenderer {
     const ox = Math.round(camX - VIEW_W / 2 + shakeX);
     const oy = Math.round(camY - VIEW_H / 2 + shakeY);
 
-    // Process events → hit flash, damage numbers, weapon-fire visuals, shake.
+    // Process events → hit flash, damage numbers, ability-fire visuals, shake.
     for (const e of this.events) {
       if (e.type === "hit") {
         if (e.target === "enemy") this.enemyFlash.set(e.targetSlot, FLASH_FRAMES);
         this.spawnDamage(e.x, e.y, e.amount);
         this.shake = Math.min(4, this.shake + 0.6);
-      } else if (e.type === "weapon-fire") {
-        this.spawnFireEffect(e.weaponId, e.angle);
+      } else if (e.type === "ability-fire") {
+        this.spawnFireEffect(e.abilityId, e.angle);
       } else if (e.type === "bush-break") {
         this.effects.push({
           kind: "ring",
@@ -1031,19 +1031,19 @@ export class GameRenderer {
     this.championColor = color;
   }
 
-  /** Find a weapon def by its weapon-store slot (for fire visuals). */
-  private weaponDefAt(slot: number): WeaponDef | null {
+  /** Find a ability def by its ability-store slot (for fire visuals). */
+  private abilityDefAt(slot: number): AbilityDef | null {
     if (!this.curr) return null;
-    const store = getStore(this.curr, "weapon");
+    const store = getStore(this.curr, "ability");
     if (!store) return null;
     const idx = store.slots.indexOf(slot);
     if (idx < 0) return null;
-    return this.weapons[store.fields.defIndex[idx]] ?? null;
+    return this.abilities[store.fields.defIndex[idx]] ?? null;
   }
 
-  /** Spawn a short visual for a weapon firing (arc for sweeps, ring for auras). */
-  private spawnFireEffect(weaponSlot: number, aimedAngle?: number): void {
-    const def = this.weaponDefAt(weaponSlot);
+  /** Spawn a short visual for a ability firing (arc for sweeps, ring for auras). */
+  private spawnFireEffect(abilitySlot: number, aimedAngle?: number): void {
+    const def = this.abilityDefAt(abilitySlot);
     const p = this.playerPosition();
     if (!def || !p) return;
     const angle = aimedAngle ?? Math.atan2(p.fy, p.fx);
@@ -1176,7 +1176,7 @@ export class GameRenderer {
     }
   }
 
-  /** Transient weapon-fire visuals (arcs/rings). */
+  /** Transient ability-fire visuals (arcs/rings). */
   private drawEffects(): void {
     this.fxGraphics.clear();
     for (const fx of this.effects) {

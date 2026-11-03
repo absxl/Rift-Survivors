@@ -106,8 +106,8 @@ async function main(): Promise<void> {
   const worldLayer = new Container();
   app.stage.addChild(worldLayer);
 
-  const renderer = new GameRenderer(worldLayer, pack.weapons, pack.enemies, pack.stages ?? []);
-  const hud = new Hud(pack.weapons, pack.passives, pack.enemies, pack.characters);
+  const renderer = new GameRenderer(worldLayer, pack.abilities, pack.enemies, pack.stages ?? []);
+  const hud = new Hud(pack.abilities, pack.passives, pack.enemies, pack.characters);
   const input = new Input();
   input.attach();
   input.setKeybinds(save.settings.keybinds);
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
   let localPlayerId = 0;
 
   let touchControls: TouchControls | null = null;
-  const levelUp = new LevelUpUI(pack.weapons, pack.passives);
+  const levelUp = new LevelUpUI(pack.abilities, pack.passives);
   levelUp.onChoose((index) => {
     touchControls?.setActive(true);
     activeChoice?.(index);
@@ -244,7 +244,7 @@ async function main(): Promise<void> {
       else if (e.type === "enemy-died") sfx.play("kill");
       else if (e.type === "gem-pickup") sfx.play("pickup");
       else if (e.type === "level-up") sfx.play("levelup");
-      else if (e.type === "weapon-fire") sfx.play("fire");
+      else if (e.type === "ability-fire") sfx.play("fire");
       else if (e.type === "boss-rush") banner.show("BOSS RUSH");
       else if (e.type === "explosion") sfx.play("kill");
       else if (e.type === "bush-break") {
@@ -302,7 +302,7 @@ async function main(): Promise<void> {
     save,
     pack.powerUps,
     pack.characters,
-    pack.weapons,
+    pack.abilities,
     pack.stages ?? [],
     account,
   );

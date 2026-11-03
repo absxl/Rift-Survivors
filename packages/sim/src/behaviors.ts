@@ -1,5 +1,5 @@
-// Generic enemy + weapon behaviors, matched by id from content data.
-import type { EnemyDef, WeaponDef } from "./content-types";
+// Generic enemy + ability behaviors, matched by id from content data.
+import type { AbilityDef, EnemyDef } from "./content-types";
 import type { Registries } from "./registry";
 import { spawnEnemyAt } from "./systems/spawn";
 import type { World } from "./world";
@@ -384,32 +384,32 @@ function spawnHostileProjectile(
   p.field("mode")[proj] = 5;
 }
 
-export function registerWeaponBehaviors(reg: Registries): void {
-  reg.weaponBehaviors.register("sweep", sweep);
-  reg.weaponBehaviors.register("shoot-nearest", shootNearest);
-  reg.weaponBehaviors.register("aura", aura);
-  reg.weaponBehaviors.register("strike-random", strikeRandom);
-  reg.weaponBehaviors.register("ground-pool", groundPool);
-  reg.weaponBehaviors.register("orbit", orbit);
-  reg.weaponBehaviors.register("bounce", bounce);
-  reg.weaponBehaviors.register("boomerang", boomerang);
+export function registerAbilityBehaviors(reg: Registries): void {
+  reg.abilityBehaviors.register("sweep", sweep);
+  reg.abilityBehaviors.register("shoot-nearest", shootNearest);
+  reg.abilityBehaviors.register("aura", aura);
+  reg.abilityBehaviors.register("strike-random", strikeRandom);
+  reg.abilityBehaviors.register("ground-pool", groundPool);
+  reg.abilityBehaviors.register("orbit", orbit);
+  reg.abilityBehaviors.register("bounce", bounce);
+  reg.abilityBehaviors.register("boomerang", boomerang);
 }
 
 /** Melee arc, auto-aimed at the nearest enemy in range. */
-function sweep(world: World, weaponSlot: number, def: WeaponDef): void {
-  const weapons = world.stores.weapons;
-  const owner = weapons.field("owner")[weaponSlot];
+function sweep(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
   const arc = typeof def.params.arc === "number" ? def.params.arc : 1.2;
-  const level = weapons.field("level")[weaponSlot];
-  const range = world.weaponArea(def, level, owner);
-  const damage = world.weaponDamage(def, level, owner);
+  const level = abilities.field("level")[abilitySlot];
+  const range = world.abilityArea(def, level, owner);
+  const damage = world.abilityDamage(def, level, owner);
   const aim = world.aimFromPlayer(owner, range);
   const facingAngle = Math.atan2(aim.dy, aim.dx);
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot, angle: facingAngle });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot, angle: facingAngle });
 
   world.enemiesInCircle(px, py, range, (slot) => {
     const ex = world.stores.enemies.field("x")[slot];
@@ -442,8 +442,8 @@ function sweep(world: World, weaponSlot: number, def: WeaponDef): void {
 }
 
 /** Fire a projectile at the nearest enemy (or facing direction if none). */
-function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
+function shootNearest(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
@@ -460,9 +460,9 @@ function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
   p.field("y")[proj] = py;
   p.field("vx")[proj] = dirX * speed;
   p.field("vy")[proj] = dirY * speed;
-  p.field("damage")[proj] = world.weaponDamage(
+  p.field("damage")[proj] = world.abilityDamage(
     def,
-    world.stores.weapons.field("level")[weaponSlot],
+    world.stores.abilities.field("level")[abilitySlot],
     owner,
   );
   p.field("pierce")[proj] = def.base.pierce + Math.floor(world.playerStat(owner, "pierce", 0));
@@ -472,20 +472,20 @@ function shootNearest(world: World, weaponSlot: number, def: WeaponDef): void {
   p.field("owner")[proj] = owner;
   p.field("mode")[proj] = 0;
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 }
 
 /** Radial pulse: damages every enemy within `area` radius. */
-function aura(world: World, weaponSlot: number, def: WeaponDef): void {
-  const weapons = world.stores.weapons;
-  const owner = weapons.field("owner")[weaponSlot];
+function aura(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
-  const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot], owner);
-  const area = world.weaponArea(def, weapons.field("level")[weaponSlot], owner);
+  const damage = world.abilityDamage(def, abilities.field("level")[abilitySlot], owner);
+  const area = world.abilityArea(def, abilities.field("level")[abilitySlot], owner);
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 
   world.damageBushesInCircle(px, py, area, damage, owner);
   world.enemiesInCircle(px, py, area, (slot) => {
@@ -507,19 +507,19 @@ function aura(world: World, weaponSlot: number, def: WeaponDef): void {
 }
 
 /** Instantly hits a few random enemies in range. */
-function strikeRandom(world: World, weaponSlot: number, def: WeaponDef): void {
-  const weapons = world.stores.weapons;
-  const owner = weapons.field("owner")[weaponSlot];
+function strikeRandom(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
-  const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot], owner);
+  const damage = world.abilityDamage(def, abilities.field("level")[abilitySlot], owner);
 
   const candidates: number[] = [];
   world.enemiesInCircle(
     px,
     py,
-    world.weaponArea(def, weapons.field("level")[weaponSlot], owner),
+    world.abilityArea(def, abilities.field("level")[abilitySlot], owner),
     (slot) => {
       if (world.canHit(slot)) candidates.push(slot);
     },
@@ -534,7 +534,7 @@ function strikeRandom(world: World, weaponSlot: number, def: WeaponDef): void {
     return ax * ax + ay * ay - (bx * bx + by * by);
   });
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 
   const hits = Math.min(def.base.amount, candidates.length);
   for (let i = 0; i < hits; i++) {
@@ -559,13 +559,13 @@ function strikeRandom(world: World, weaponSlot: number, def: WeaponDef): void {
 }
 
 /** Spawn lingering damage zones at random nearby spots. */
-function groundPool(world: World, weaponSlot: number, def: WeaponDef): void {
-  const weapons = world.stores.weapons;
-  const owner = weapons.field("owner")[weaponSlot];
+function groundPool(world: World, abilitySlot: number, def: AbilityDef): void {
+  const abilities = world.stores.abilities;
+  const owner = abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
-  const damage = world.weaponDamage(def, weapons.field("level")[weaponSlot], owner);
+  const damage = world.abilityDamage(def, abilities.field("level")[abilitySlot], owner);
   const scatter = typeof def.params.scatter === "number" ? def.params.scatter : 60;
   const lifetime = Math.max(
     1,
@@ -577,16 +577,16 @@ function groundPool(world: World, weaponSlot: number, def: WeaponDef): void {
   const originX = aim.target >= 0 ? aim.x : px;
   const originY = aim.target >= 0 ? aim.y : py;
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 
   for (let i = 0; i < def.base.amount; i++) {
     const zone = world.stores.zones.alloc();
     if (zone < 0) break;
     world.stores.zones.field("x")[zone] = originX + world.rng.range(-scatter, scatter);
     world.stores.zones.field("y")[zone] = originY + world.rng.range(-scatter, scatter);
-    world.stores.zones.field("radius")[zone] = world.weaponArea(
+    world.stores.zones.field("radius")[zone] = world.abilityArea(
       def,
-      weapons.field("level")[weaponSlot],
+      abilities.field("level")[abilitySlot],
       owner,
     );
     world.stores.zones.field("damage")[zone] = damage;
@@ -596,17 +596,21 @@ function groundPool(world: World, weaponSlot: number, def: WeaponDef): void {
 }
 
 /** Spawn objects that orbit the player for a duration. */
-function orbit(world: World, weaponSlot: number, def: WeaponDef): void {
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
-  const damage = world.weaponDamage(def, world.stores.weapons.field("level")[weaponSlot], owner);
+function orbit(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
+  const damage = world.abilityDamage(
+    def,
+    world.stores.abilities.field("level")[abilitySlot],
+    owner,
+  );
   const count = Math.max(1, def.base.amount);
-  const radius = world.weaponArea(def, world.stores.weapons.field("level")[weaponSlot], owner);
+  const radius = world.abilityArea(def, world.stores.abilities.field("level")[abilitySlot], owner);
   const lifetime = Math.max(
     1,
     Math.round((def.base.duration || 180) * world.playerStat(owner, "duration", 1)),
   );
 
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 
   for (let i = 0; i < count; i++) {
     const proj = world.stores.projectiles.alloc();
@@ -625,59 +629,59 @@ function orbit(world: World, weaponSlot: number, def: WeaponDef): void {
 }
 
 /** A projectile that ricochets off the field edges, aimed at the nearest foe. */
-function bounce(world: World, weaponSlot: number, def: WeaponDef): void {
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
+function bounce(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
   const aim = world.aimFromPlayer(owner, 400);
-  const proj = spawnProjectile(world, weaponSlot, px, py, aim.dx, aim.dy, def);
+  const proj = spawnProjectile(world, abilitySlot, px, py, aim.dx, aim.dy, def);
   if (proj >= 0) world.stores.projectiles.field("mode")[proj] = 4;
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 }
 
 /** A projectile that flies out and returns along its path, aimed at the nearest foe. */
-function boomerang(world: World, weaponSlot: number, def: WeaponDef): void {
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
+function boomerang(world: World, abilitySlot: number, def: AbilityDef): void {
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
   const players = world.stores.players;
   const px = players.field("x")[owner];
   const py = players.field("y")[owner];
   const aim = world.aimFromPlayer(owner, 400);
-  const proj = spawnProjectile(world, weaponSlot, px, py, aim.dx, aim.dy, def);
+  const proj = spawnProjectile(world, abilitySlot, px, py, aim.dx, aim.dy, def);
   if (proj >= 0) {
     const p = world.stores.projectiles;
-    const level = world.stores.weapons.field("level")[weaponSlot];
-    const range = world.weaponArea(def, level, owner);
+    const level = world.stores.abilities.field("level")[abilitySlot];
+    const range = world.abilityArea(def, level, owner);
     p.field("mode")[proj] = 2;
     p.field("p1")[proj] = 0;
     p.field("p2")[proj] = range;
     p.field("lifetime")[proj] = Math.ceil((range / Math.max(1, def.base.speed)) * 2 + 20);
   }
-  world.emit({ type: "weapon-fire", playerId: owner, weaponId: weaponSlot });
+  world.emit({ type: "ability-fire", playerId: owner, abilityId: abilitySlot });
 }
 
 /** Shared projectile setup. Returns the projectile slot, or -1 if full. */
 function spawnProjectile(
   world: World,
-  weaponSlot: number,
+  abilitySlot: number,
   x: number,
   y: number,
   dirX: number,
   dirY: number,
-  def: WeaponDef,
+  def: AbilityDef,
 ): number {
   const proj = world.stores.projectiles.alloc();
   if (proj < 0) return -1;
   const p = world.stores.projectiles;
-  const owner = world.stores.weapons.field("owner")[weaponSlot];
+  const owner = world.stores.abilities.field("owner")[abilitySlot];
   const speed = def.base.speed * world.playerStat(owner, "projectileSpeed", 1);
   p.field("x")[proj] = x;
   p.field("y")[proj] = y;
   p.field("vx")[proj] = dirX * speed;
   p.field("vy")[proj] = dirY * speed;
-  p.field("damage")[proj] = world.weaponDamage(
+  p.field("damage")[proj] = world.abilityDamage(
     def,
-    world.stores.weapons.field("level")[weaponSlot],
+    world.stores.abilities.field("level")[abilitySlot],
     owner,
   );
   p.field("pierce")[proj] = def.base.pierce + Math.floor(world.playerStat(owner, "pierce", 0));

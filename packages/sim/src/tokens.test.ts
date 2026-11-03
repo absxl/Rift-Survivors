@@ -14,7 +14,7 @@ const TOKEN_PACK: ContentPack = {
   id: "tokens",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -65,7 +65,7 @@ const TOKEN_PACK: ContentPack = {
     { id: "might", maxLevel: 5, perLevel: { might: 0.2 } },
     { id: "scope", maxLevel: 5, perLevel: { area: 0.15 } },
   ],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
@@ -74,9 +74,9 @@ const EMPTY_PACK: ContentPack = {
   id: "empty",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

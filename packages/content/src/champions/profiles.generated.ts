@@ -159,7 +159,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
       "A Noxian child prodigy bound to the pyromantic bear Tybaulk, Annie is as cheerful as she is dangerous.",
   },
   aphelios: {
-    title: "the Weapon of the Faithful",
+    title: "the Ability of the Faithful",
     regions: ["Mount Targon"],
     origin: "Mount Targon, Targon",
     residence: "Mount Targon, Targon (Aphelios), Marus Omegnum (Alune)",
@@ -173,7 +173,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
       verifiedAt: "2026-10-29",
     },
     summary:
-      "Aphelios, the Weapon of the Faithful, is a Human (Aphelios) Human (Alune) Marksman from Mount Targon. Aphelios is connected to Mount Targon.",
+      "Aphelios, the Ability of the Faithful, is a Human (Aphelios) Human (Alune) Marksman from Mount Targon. Aphelios is connected to Mount Targon.",
   },
   ashe: {
     title: "the Frost Archer",
@@ -334,7 +334,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
     origin: "Noxus (Modern Times)",
     residence: "Noxus (No Fixed Abode)",
     species: "Blood Golem",
-    occupation: "Fugitive, Prisoner, Living Weapon",
+    occupation: "Fugitive, Prisoner, Living Ability",
     roles: ["Fighter", "Assassin"],
     difficulty: "Low",
     sources: {
@@ -1842,7 +1842,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
     residence: "Noxus (No Fixed Abode)",
     faction: "Independent, (Informally Adopted)",
     species: "Human",
-    occupation: "Fugitive, Living Weapon, Elite Soldier, Page to Ambessa Medarda, Reckoner",
+    occupation: "Fugitive, Living Ability, Elite Soldier, Page to Ambessa Medarda, Reckoner",
     roles: ["Tank", "Support"],
     difficulty: "Low",
     sources: {
@@ -2116,7 +2116,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
     origin: "Noxus (Modern Times)",
     residence: "Immortal Bastion, Noxus",
     species: "Revenant, Human",
-    occupation: "Undead Weapon, General",
+    occupation: "Undead Ability, General",
     roles: ["Tank", "Fighter"],
     difficulty: "Medium",
     sources: {
@@ -2850,7 +2850,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
       "Zaahen, The Unsundered, is a Darkin Fighter from Shurima (Ancient Times). Zaahen is connected to Runeterra and Shurima.",
   },
   zac: {
-    title: "the Secret Weapon",
+    title: "the Secret Ability",
     regions: ["Zaun"],
     origin: "Zaun (Modern Times)",
     residence: "Zaun",
@@ -2864,7 +2864,7 @@ export const CHAMPION_PROFILES: Record<string, ChampionProfile> = {
       verifiedAt: "2026-10-29",
     },
     summary:
-      "Zac, the Secret Weapon, is a Ooze Golem Tank / Fighter from Zaun (Modern Times). Zac is connected to Zaun.",
+      "Zac, the Secret Ability, is a Ooze Golem Tank / Fighter from Zaun (Modern Times). Zac is connected to Zaun.",
   },
   zed: {
     title: "the Master of Shadows",

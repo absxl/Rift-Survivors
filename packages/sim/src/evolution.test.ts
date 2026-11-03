@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, applyChoice, createWorld, step } from "./index";
-import type { ContentPack, WeaponDef } from "./index";
+import type { AbilityDef, ContentPack } from "./index";
 
 const EMPTY_PACK: ContentPack = {
   id: "evo-empty",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };
 
-function weapon(overrides: Partial<WeaponDef> & Pick<WeaponDef, "id">): WeaponDef {
+function ability(overrides: Partial<AbilityDef> & Pick<AbilityDef, "id">): AbilityDef {
   return {
     behavior: "sweep",
     params: { arc: 1.2 },
@@ -40,12 +40,12 @@ const EVO_PACK: ContentPack = {
   id: "evo",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
-    weapon({
+  abilities: [
+    ability({
       id: "blade",
       evolution: { requiresPassive: "focus", evolvesTo: "blade-evolved" },
     }),
-    weapon({
+    ability({
       id: "blade-evolved",
       maxLevel: 5,
       levels: [
@@ -58,7 +58,7 @@ const EVO_PACK: ContentPack = {
     }),
   ],
   passives: [{ id: "focus", maxLevel: 1, perLevel: { might: 0.1 } }],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
@@ -66,9 +66,9 @@ const EVO_PACK: ContentPack = {
 describe("progression endgame", () => {
   it("offers evolutions on level-up when the recipe is complete", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: EVO_PACK }, 1);
-    const weapons = world.stores.weapons;
-    const weaponSlot = weapons.liveSlots()[0];
-    weapons.field("level")[weaponSlot] = 2;
+    const abilities = world.stores.abilities;
+    const abilitySlot = abilities.liveSlots()[0];
+    abilities.field("level")[abilitySlot] = 2;
     const passives = world.stores.passives;
     const passiveSlot = passives.alloc();
     passives.field("owner")[passiveSlot] = 0;
@@ -82,8 +82,8 @@ describe("progression endgame", () => {
     const idx = offer.options.findIndex((o) => o.isEvolution);
     expect(idx).toBeGreaterThanOrEqual(0);
     applyChoice(world, 0, idx);
-    expect(weapons.field("defIndex")[weaponSlot]).toBe(1);
-    expect(weapons.field("level")[weaponSlot]).toBe(1);
+    expect(abilities.field("defIndex")[abilitySlot]).toBe(1);
+    expect(abilities.field("level")[abilitySlot]).toBe(1);
   });
 
   it("uses the gentler XP table and linear post-table growth", () => {

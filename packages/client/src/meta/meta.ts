@@ -975,7 +975,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "bushwhacker",
     label: "BUSHWHACKER",
-    description: "Break 25 bushes with weapons or AOE.",
+    description: "Break 25 bushes with abilities or AOE.",
     category: "exploration",
     target: 25,
     rewardGold: 50,

@@ -4,12 +4,12 @@
 
 import { BushField } from "./bush-field";
 import type {
+  AbilityDef,
   CharacterDef,
   ContentPack,
   DamageType,
   StageDef,
   StatusApply,
-  WeaponDef,
 } from "./content-types";
 import { registerCoreSystems } from "./defaults";
 import type { SimEvent } from "./events";
@@ -53,7 +53,7 @@ export interface RulesetDef {
 
 export interface RunConfig {
   playerCount: number;
-  /** Validated content (enemies + weapons). Defaults to an empty pack. */
+  /** Validated content (enemies + abilities). Defaults to an empty pack. */
   content?: ContentPack;
   /** Character id to start as; defaults to the first character. */
   characterId?: string;
@@ -71,7 +71,7 @@ const EMPTY_PACK: ContentPack = {
   id: "empty",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
   characters: [],
   powerUps: [],
@@ -159,9 +159,9 @@ const PROJECTILE_SCHEMA: EntitySchema = {
   ],
 };
 
-const WEAPON_SCHEMA: EntitySchema = {
-  kind: "weapon",
-  // Up to 10 ability slots per player (6 weapons + 4 moves) in a 4-player room.
+const ABILITY_SCHEMA: EntitySchema = {
+  kind: "ability",
+  // Up to 10 ability slots per player (6 abilities + 4 moves) in a 4-player room.
   capacity: 64,
   fields: [
     { name: "owner", type: "u8" },
@@ -257,7 +257,7 @@ export interface WorldStores {
   players: EntityStore;
   enemies: EntityStore;
   projectiles: EntityStore;
-  weapons: EntityStore;
+  abilities: EntityStore;
   passives: EntityStore;
   gems: EntityStore;
   zones: EntityStore;
@@ -403,7 +403,7 @@ export class World {
       players: new EntityStore(PLAYER_SCHEMA),
       enemies: new EntityStore(ENEMY_SCHEMA),
       projectiles: new EntityStore(PROJECTILE_SCHEMA),
-      weapons: new EntityStore(WEAPON_SCHEMA),
+      abilities: new EntityStore(ABILITY_SCHEMA),
       passives: new EntityStore(PASSIVE_SCHEMA),
       gems: new EntityStore(GEM_SCHEMA),
       zones: new EntityStore(ZONE_SCHEMA),
@@ -454,21 +454,20 @@ export class World {
         }
       }
       if (char) {
-        const addStarting = (weaponId: string | undefined, cooldownOffset: number): void => {
-          if (!weaponId) return;
-          const weaponIndex = content.weapons.findIndex((w) => w.id === weaponId);
-          if (weaponIndex < 0) return;
-          const slot = this.stores.weapons.alloc();
-          this.stores.weapons.field("owner")[slot] = p;
-          this.stores.weapons.field("defIndex")[slot] = weaponIndex;
-          this.stores.weapons.field("cooldown")[slot] = cooldownOffset;
-          this.stores.weapons.field("level")[slot] = 1;
+        const addStarting = (abilityId: string | undefined, cooldownOffset: number): void => {
+          if (!abilityId) return;
+          const abilityIndex = content.abilities.findIndex((w) => w.id === abilityId);
+          if (abilityIndex < 0) return;
+          const slot = this.stores.abilities.alloc();
+          this.stores.abilities.field("owner")[slot] = p;
+          this.stores.abilities.field("defIndex")[slot] = abilityIndex;
+          this.stores.abilities.field("cooldown")[slot] = cooldownOffset;
+          this.stores.abilities.field("level")[slot] = 1;
         };
-        addStarting(char.startingWeapon, p * 10);
-        // Signature moves use the same auto-cast ability store but a separate
-        // loadout pool (4 move slots); every champion starts with one.
-        if (char.startingMove && char.startingMove !== char.startingWeapon) {
-          addStarting(char.startingMove, p * 10 + 5);
+        addStarting(char.startingAbility, p * 10);
+        // Both real kit abilities live in the same 8-slot ability pool.
+        if (char.startingAbility2 && char.startingAbility2 !== char.startingAbility) {
+          addStarting(char.startingAbility2, p * 10 + 5);
         }
       }
     }
@@ -652,9 +651,9 @@ export class World {
     if (idx >= 0) this.offers.splice(idx, 1);
   }
 
-  /** Effective weapon stat: base + level deltas, scaled by the owner's stats. */
-  weaponStat(
-    def: WeaponDef,
+  /** Effective ability stat: base + level deltas, scaled by the owner's stats. */
+  abilityStat(
+    def: AbilityDef,
     level: number,
     key: "damage" | "area" | "cooldown",
     owner = 0,
@@ -676,23 +675,23 @@ export class World {
     return Number.isFinite(cooldown) ? Math.max(1, cooldown) : value;
   }
 
-  /** Effective weapon damage: base + level deltas, scaled by the owner's "might". */
-  weaponDamage(def: WeaponDef, level: number, owner = 0): number {
-    return this.weaponStat(def, level, "damage", owner);
+  /** Effective ability damage: base + level deltas, scaled by the owner's "might". */
+  abilityDamage(def: AbilityDef, level: number, owner = 0): number {
+    return this.abilityStat(def, level, "damage", owner);
   }
 
-  /** Effective weapon area/range, scaled by the owner's "area". */
-  weaponArea(def: WeaponDef, level: number, owner = 0): number {
-    return this.weaponStat(def, level, "area", owner);
+  /** Effective ability area/range, scaled by the owner's "area". */
+  abilityArea(def: AbilityDef, level: number, owner = 0): number {
+    return this.abilityStat(def, level, "area", owner);
   }
 
-  /** Effective weapon cooldown (ticks), divided by the owner's "cooldown". */
-  weaponCooldown(def: WeaponDef, level: number, owner = 0): number {
-    return this.weaponStat(def, level, "cooldown", owner);
+  /** Effective ability cooldown (ticks), divided by the owner's "cooldown". */
+  abilityCooldown(def: AbilityDef, level: number, owner = 0): number {
+    return this.abilityStat(def, level, "cooldown", owner);
   }
 
   /**
-   * Shared auto-aim contract for every directional/placed weapon: prefer the
+   * Shared auto-aim contract for every directional/placed ability: prefer the
    * nearest living enemy, then fall back to the player's movement facing.
    */
   aimFromPlayer(
@@ -906,7 +905,7 @@ export function snapshot(world: World): WorldSnapshot {
       world.stores.players.snapshot(),
       world.stores.enemies.snapshot(),
       world.stores.projectiles.snapshot(),
-      world.stores.weapons.snapshot(),
+      world.stores.abilities.snapshot(),
       world.stores.passives.snapshot(),
       world.stores.gems.snapshot(),
       world.stores.zones.snapshot(),

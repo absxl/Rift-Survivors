@@ -34,7 +34,7 @@ function character(id: string, levitate: boolean): CharacterDef {
   return {
     id,
     name: id,
-    startingWeapon: "none",
+    startingAbility: "none",
     tags: levitate ? ["levitate"] : [],
   };
 }
@@ -44,7 +44,7 @@ function pack(terrain: StageTerrain): ContentPack {
     id: "terrain-test",
     schemaVersion: 1,
     enemies: [],
-    weapons: [],
+    abilities: [],
     passives: [],
     characters: [character("walker", false), character("floater", true)],
     powerUps: [],

@@ -7,9 +7,9 @@ const PACK: ContentPack = {
   id: "run-chest-test",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "hero", startingWeapon: "none" }],
+  characters: [{ id: "hero", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

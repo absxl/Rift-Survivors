@@ -20,7 +20,7 @@ const TEST_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -43,7 +43,7 @@ const TEST_PACK: ContentPack = {
     },
   ],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
@@ -62,7 +62,7 @@ function run(
     const events = step(world, [input]);
     for (const e of events) {
       if (e.type === "enemy-died") deaths++;
-      else if (e.type === "weapon-fire") fires++;
+      else if (e.type === "ability-fire") fires++;
       else if (e.type === "gem-pickup") pickups++;
     }
     maxEnemies = Math.max(maxEnemies, world.stores.enemies.liveSlots().length);
@@ -71,7 +71,7 @@ function run(
 }
 
 describe("gameplay integration", () => {
-  it("spawns enemies, fires weapons, kills enemies, and collects gems", () => {
+  it("spawns enemies, fires abilities, kills enemies, and collects gems", () => {
     const r = run(42, 3000);
     expect(r.maxEnemies).toBeGreaterThan(0);
     expect(r.fires).toBeGreaterThan(0);

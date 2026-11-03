@@ -25,7 +25,7 @@ const MOVE_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -48,7 +48,7 @@ const MOVE_PACK: ContentPack = {
     },
   ],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
@@ -57,9 +57,9 @@ const EMPTY_PACK: ContentPack = {
   id: "delta-empty",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

@@ -1,4 +1,4 @@
-// Modifier stack: every number that can change at runtime (stats and weapon params)
+// Modifier stack: every number that can change at runtime (stats and ability params)
 // is computed through this stack, never read directly from base data. Any item,
 // synergy, curse or mutator can therefore alter any value.
 //

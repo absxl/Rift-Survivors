@@ -6,7 +6,7 @@ const RIVEN: CharacterDef = {
   id: "riven",
   name: "Riven",
   region: "Noxus",
-  startingWeapon: "cleaver",
+  startingAbility: "cleaver",
   profile: {
     title: "the Exile",
     regions: ["Noxus", "Ionia"],
@@ -23,10 +23,10 @@ const RIVEN: CharacterDef = {
 describe("region themes", () => {
   it("reads multi-region memberships and falls back to the primary region", () => {
     expect(championRegions(RIVEN)).toEqual(["Noxus", "Ionia"]);
-    expect(championRegions({ id: "a", region: "Demacia", startingWeapon: "x" })).toEqual([
+    expect(championRegions({ id: "a", region: "Demacia", startingAbility: "x" })).toEqual([
       "Demacia",
     ]);
-    expect(championRegions({ id: "b", startingWeapon: "x" })).toEqual(["Runeterra"]);
+    expect(championRegions({ id: "b", startingAbility: "x" })).toEqual(["Runeterra"]);
   });
 
   it("keeps the profile primary region as the theme lead", () => {

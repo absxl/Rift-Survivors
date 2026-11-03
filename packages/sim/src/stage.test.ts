@@ -28,7 +28,7 @@ const PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [],
+  abilities: [],
   passives: [],
   characters: [],
   powerUps: [],

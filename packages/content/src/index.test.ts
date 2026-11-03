@@ -7,52 +7,52 @@ describe("content packs", () => {
     const core = loadCorePack();
     expect(core.enemies.length).toBeGreaterThan(0);
     expect(core.passives.length).toBeGreaterThanOrEqual(8);
-    expect(core.weapons.length).toBe(0);
+    expect(core.abilities.length).toBe(0);
     expect(core.characters.length).toBe(0);
   });
 
   it("lol pack loads champions + abilities", () => {
     const lol = loadLolPack();
     expect(lol.characters.length).toBeGreaterThanOrEqual(8);
-    expect(lol.weapons.length).toBeGreaterThanOrEqual(10);
-    const behaviors = new Set(lol.weapons.map((w) => w.behavior));
+    expect(lol.abilities.length).toBeGreaterThanOrEqual(10);
+    const behaviors = new Set(lol.abilities.map((w) => w.behavior));
     expect(behaviors.size).toBeGreaterThanOrEqual(7);
   });
 
   it("game pack merges core + lol", () => {
     const game = loadGamePack();
     expect(game.enemies.length).toBeGreaterThan(0);
-    expect(game.weapons.length).toBeGreaterThanOrEqual(10);
+    expect(game.abilities.length).toBeGreaterThanOrEqual(10);
     expect(game.passives.length).toBeGreaterThanOrEqual(8);
     expect(game.characters.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("every character's starting weapon resolves", () => {
+  it("every character's starting ability resolves", () => {
     const game = loadGamePack();
-    const weaponIds = new Set(game.weapons.map((w) => w.id));
+    const abilityIds = new Set(game.abilities.map((w) => w.id));
     for (const c of game.characters) {
-      expect(weaponIds.has(c.startingWeapon)).toBe(true);
+      expect(abilityIds.has(c.startingAbility)).toBe(true);
     }
   });
 
-  it("weapon level deltas match maxLevel - 1", () => {
+  it("ability level deltas match maxLevel - 1", () => {
     const game = loadGamePack();
-    for (const w of game.weapons) {
+    for (const w of game.abilities) {
       expect(w.levels.length).toBe(w.maxLevel - 1);
     }
   });
 
   it("every evolution recipe resolves", () => {
     const game = loadGamePack();
-    const weaponIds = new Set(game.weapons.map((w) => w.id));
+    const abilityIds = new Set(game.abilities.map((w) => w.id));
     const passiveIds = new Set(game.passives.map((p) => p.id));
     let evolutions = 0;
-    for (const w of game.weapons) {
+    for (const w of game.abilities) {
       if (!w.evolution) continue;
       evolutions++;
       expect(passiveIds.has(w.evolution.requiresPassive)).toBe(true);
-      expect(weaponIds.has(w.evolution.evolvesTo)).toBe(true);
-      const evolved = game.weapons.find((e) => e.id === w.evolution?.evolvesTo);
+      expect(abilityIds.has(w.evolution.evolvesTo)).toBe(true);
+      const evolved = game.abilities.find((e) => e.id === w.evolution?.evolvesTo);
       expect(evolved?.isEvolved).toBe(true);
     }
     expect(evolutions).toBeGreaterThanOrEqual(4);
@@ -88,7 +88,7 @@ describe("content packs", () => {
 
   it("gives every character a gacha identity, starting kit, and valid tree", () => {
     const game = loadGamePack();
-    const weaponIds = new Map(game.weapons.map((w) => [w.id, w]));
+    const abilityIds = new Map(game.abilities.map((w) => [w.id, w]));
     const powerUpIds = new Set(game.powerUps.map((p) => p.id));
     const regions = new Set<string>();
     expect(game.characters.filter((c) => c.starter)).toHaveLength(1);
@@ -100,14 +100,17 @@ describe("content packs", () => {
       expect(c.rarity, c.id).toBeTruthy();
       expect(c.upgradeIds?.length ?? 0, c.id).toBeGreaterThanOrEqual(10);
       regions.add(c.region ?? "");
-      const move = c.startingMove ? weaponIds.get(c.startingMove) : undefined;
-      expect(move, c.id).toBeTruthy();
-      expect(move?.isMove, c.id).toBe(true);
+      // Every champion starts with one or two real kit abilities that resolve.
+      const starting = [c.startingAbility, c.startingAbility2].filter(
+        (id): id is string => typeof id === "string",
+      );
+      expect(starting.length, c.id).toBeGreaterThanOrEqual(1);
+      for (const id of starting) {
+        expect(abilityIds.has(id), `${c.id} -> ${id}`).toBe(true);
+      }
       for (const upgradeId of c.upgradeIds ?? []) expect(powerUpIds.has(upgradeId)).toBe(true);
     }
-    expect(weaponIds.size).toBeGreaterThan(20);
-    const moves = [...weaponIds.values()].filter((w) => w.isMove);
-    expect(moves.length).toBeGreaterThanOrEqual(8);
+    expect(abilityIds.size).toBeGreaterThan(20);
     // Every region must offer an Epic+ so the 10-pull guarantee is meaningful.
     for (const region of regions) {
       const pool = game.characters.filter((c) => (c.region ?? "Runeterra") === region);
@@ -118,9 +121,9 @@ describe("content packs", () => {
     }
   });
 
-  it("writes display names and flavor for every weapon/passive/champion/boss", () => {
+  it("writes display names and flavor for every ability/passive/champion/boss", () => {
     const game = loadGamePack();
-    for (const w of game.weapons) {
+    for (const w of game.abilities) {
       expect(w.name, w.id).toBeTruthy();
       expect(w.description, w.id).toBeTruthy();
     }

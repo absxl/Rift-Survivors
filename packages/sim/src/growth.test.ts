@@ -6,7 +6,7 @@ const GROWTH_PACK: ContentPack = {
   id: "growth",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -30,7 +30,7 @@ const GROWTH_PACK: ContentPack = {
   ],
   passives: [],
   characters: [
-    { id: "champion", startingWeapon: "blade", growth: { everyLevels: 1, mods: { might: 0.1 } } },
+    { id: "champion", startingAbility: "blade", growth: { everyLevels: 1, mods: { might: 0.1 } } },
   ],
   powerUps: [],
   synergies: [],

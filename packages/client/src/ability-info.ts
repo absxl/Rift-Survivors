@@ -1,7 +1,7 @@
 // Pure, Pixi-free presentation helpers for abilities, passives, offers and
 // tooltips. Flavor comes from content; numbers are derived from the same base +
 // level data and evaluated RunStats the sim uses, so cards cannot drift.
-import type { CharacterDef, OfferOption, PassiveDef, RunStats, WeaponDef } from "@rift/sim";
+import type { AbilityDef, CharacterDef, OfferOption, PassiveDef, RunStats } from "@rift/sim";
 import { trainingLabel } from "./stats-format";
 
 export interface InfoLine {
@@ -50,7 +50,7 @@ export function tilde(id: string): string {
     .join(" ");
 }
 
-export function weaponName(def: WeaponDef | undefined, fallback = "Unknown"): string {
+export function abilityName(def: AbilityDef | undefined, fallback = "Unknown"): string {
   return def?.name ?? (fallback ? tilde(fallback) : "Unknown");
 }
 
@@ -62,7 +62,7 @@ export function championName(def: CharacterDef | undefined, fallback = "Unknown"
   return def?.name ?? (fallback ? tilde(fallback) : "Unknown");
 }
 
-export function weaponColor(def: WeaponDef | undefined): string {
+export function abilityColor(def: AbilityDef | undefined): string {
   const tags = def?.tags ?? [];
   if (tags.includes("damage:fire")) return "#ff7744";
   if (tags.includes("damage:arcane")) return "#b07bff";
@@ -82,7 +82,7 @@ export function passiveColor(passive: PassiveDef | undefined): string {
   return "#ffcc55";
 }
 
-interface WeaponStatsAtLevel {
+interface AbilityStatsAtLevel {
   damage: number;
   cooldown: number;
   area: number;
@@ -92,8 +92,8 @@ interface WeaponStatsAtLevel {
   speed: number;
 }
 
-function weaponStatsAt(def: WeaponDef, level: number): WeaponStatsAtLevel {
-  const out: WeaponStatsAtLevel = {
+function abilityStatsAt(def: AbilityDef, level: number): AbilityStatsAtLevel {
+  const out: AbilityStatsAtLevel = {
     damage: def.base.damage,
     cooldown: def.base.cooldown,
     area: def.base.area,
@@ -115,8 +115,8 @@ function weaponStatsAt(def: WeaponDef, level: number): WeaponStatsAtLevel {
   return out;
 }
 
-function effective(def: WeaponDef, level: number, stats?: RunStats): WeaponStatsAtLevel {
-  const s = weaponStatsAt(def, level);
+function effective(def: AbilityDef, level: number, stats?: RunStats): AbilityStatsAtLevel {
+  const s = abilityStatsAt(def, level);
   return {
     damage: Math.round(s.damage * (stats?.might ?? 1) * 10) / 10,
     cooldown: Math.max(0.1, Math.round((s.cooldown / (stats?.cooldown ?? 1) / 30) * 100) / 100),
@@ -128,15 +128,15 @@ function effective(def: WeaponDef, level: number, stats?: RunStats): WeaponStats
   };
 }
 
-export function weaponInfo(def: WeaponDef, level: number, stats?: RunStats): AbilityInfo {
+export function abilityInfo(def: AbilityDef, level: number, stats?: RunStats): AbilityInfo {
   const s = effective(def, level, stats);
-  const isMove = def.isMove === true;
+
   return {
-    title: weaponName(def, def.id),
-    subtitle: `${isMove ? "MOVE" : "WEAPON"} · LV ${level}/${def.maxLevel}`,
+    title: abilityName(def, def.id),
+    subtitle: `ABILITY · LV ${level}/${def.maxLevel}`,
     description: def.description ?? "An arcane technique from the Rift.",
-    color: weaponColor(def),
-    badge: isMove ? "MOVE" : "WEAPON",
+    color: abilityColor(def),
+    badge: "ABILITY",
     lines: [
       { label: "DAMAGE", value: `${s.damage}` },
       { label: "CAST TIME", value: `${s.cooldown.toFixed(2)}S` },
@@ -148,9 +148,9 @@ export function weaponInfo(def: WeaponDef, level: number, stats?: RunStats): Abi
   };
 }
 
-/** Human-readable current -> next changes for a weapon/move upgrade card. */
-export function weaponUpgradeLines(
-  def: WeaponDef,
+/** Human-readable current -> next changes for a ability/move upgrade card. */
+export function abilityUpgradeLines(
+  def: AbilityDef,
   currentLevel: number,
   stats?: RunStats,
 ): InfoLine[] {
@@ -234,7 +234,7 @@ export interface OfferCardInfo {
 /** Build the level-up card data for one OfferOption. */
 export function offerCardInfo(
   option: OfferOption,
-  weapons: WeaponDef[],
+  abilities: AbilityDef[],
   passives: PassiveDef[],
   stats?: RunStats,
 ): OfferCardInfo {
@@ -242,38 +242,37 @@ export function offerCardInfo(
     const info = trainingInfo(option.statKey ?? "", option.statAmount ?? 0);
     return { ...info, isTraining: true };
   }
-  if (option.ref.type === "weapon") {
-    const def = weapons.find((w) => w.id === option.ref.id);
+  if (option.ref.type === "ability") {
+    const def = abilities.find((w) => w.id === option.ref.id);
     if (!def) {
       return {
         title: tilde(option.ref.id),
-        subtitle: "WEAPON",
+        subtitle: "ABILITY",
         description: "",
         lines: [],
         color: "#5fb8ff",
-        badge: "WEAPON",
+        badge: "ABILITY",
         isTraining: false,
       };
     }
-    const isMove = def.isMove === true || option.isMove === true;
     let lines: InfoLine[] = [];
-    let subtitle = `${isMove ? "MOVE" : "WEAPON"} · NEW`;
+    let subtitle = "ABILITY · NEW";
     if (option.isEvolution) {
       subtitle = "EVOLUTION · NEW POWER";
-      lines = weaponInfo(def, 1, stats).lines;
+      lines = abilityInfo(def, 1, stats).lines;
     } else if (option.level !== undefined) {
-      lines = weaponUpgradeLines(def, option.level - 1, stats);
-      subtitle = `${isMove ? "MOVE" : "WEAPON"} · LV ${option.level - 1} → ${option.level}`;
+      lines = abilityUpgradeLines(def, option.level - 1, stats);
+      subtitle = `ABILITY · LV ${option.level - 1} → ${option.level}`;
     } else {
-      lines = weaponInfo(def, 1, stats).lines;
+      lines = abilityInfo(def, 1, stats).lines;
     }
     return {
-      title: weaponName(def, def.id),
+      title: abilityName(def, def.id),
       subtitle,
       description: def.description ?? "",
       lines,
-      color: weaponColor(def),
-      badge: option.isEvolution ? "EVOLUTION" : isMove ? "MOVE" : "WEAPON",
+      color: abilityColor(def),
+      badge: option.isEvolution ? "EVOLUTION" : "ABILITY",
       isTraining: false,
     };
   }

@@ -2,7 +2,7 @@
 // startup validation fails fast if an id is missing. New behaviour = register a
 // module, reference it by id from data. Engine code never hard-codes ids.
 
-import type { EnemyDef, WeaponDef } from "./content-types";
+import type { AbilityDef, EnemyDef } from "./content-types";
 import type { World } from "./world";
 
 /** A system run once per tick, in the order given by the ruleset pipeline. */
@@ -11,8 +11,8 @@ export type SystemFn = (world: World) => void;
 /** Per-enemy movement/AI behavior (e.g. "chase"). */
 export type EnemyBehaviorFn = (world: World, slot: number, def: EnemyDef) => void;
 
-/** Per-weapon fire behavior (e.g. "sweep", "shoot-nearest"). */
-export type WeaponBehaviorFn = (world: World, weaponSlot: number, def: WeaponDef) => void;
+/** Per-ability fire behavior (e.g. "sweep", "shoot-nearest"). */
+export type AbilityBehaviorFn = (world: World, abilitySlot: number, def: AbilityDef) => void;
 
 /** Placeholder signatures refined in later milestones (progression, effects, etc.). */
 export type GenericFn = (...args: unknown[]) => unknown;
@@ -50,7 +50,7 @@ export interface RuleDef {
 
 export interface Registries {
   systems: Registry<SystemFn>;
-  weaponBehaviors: Registry<WeaponBehaviorFn>;
+  abilityBehaviors: Registry<AbilityBehaviorFn>;
   enemyBehaviors: Registry<EnemyBehaviorFn>;
   progression: Registry<GenericFn>;
   triggers: Registry<GenericFn>;
@@ -63,7 +63,7 @@ export interface Registries {
 export function createRegistries(): Registries {
   return {
     systems: new Registry<SystemFn>(),
-    weaponBehaviors: new Registry<WeaponBehaviorFn>(),
+    abilityBehaviors: new Registry<AbilityBehaviorFn>(),
     enemyBehaviors: new Registry<EnemyBehaviorFn>(),
     progression: new Registry<GenericFn>(),
     triggers: new Registry<GenericFn>(),

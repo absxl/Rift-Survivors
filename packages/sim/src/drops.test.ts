@@ -28,9 +28,9 @@ const MINION_PACK: ContentPack = {
   id: "drops-minion",
   schemaVersion: 1,
   enemies: [enemy({ id: "chaser", category: "minion" })],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

@@ -6,12 +6,12 @@ const STATS_PACK: ContentPack = {
   id: "stats",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
   characters: [
     {
       id: "champion",
-      startingWeapon: "none",
+      startingAbility: "none",
       baseStats: { might: 0.25, cooldown: 0.1 },
     },
   ],

@@ -2,7 +2,7 @@
 //   $env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance
 //
 // The bot kites away from the nearest enemy, grabs nearby gems when safe, and
-// auto-picks offers with a simple 6-weapons/6-passives build priority. Results
+// auto-picks offers with a simple 6-abilities/6-passives build priority. Results
 // are written by hand into docs/BALANCE.md.
 import { DEFAULT_RULESET, applyChoice, createWorld, step } from "@rift/sim";
 import type { OfferOption, RulesetDef, World } from "@rift/sim";
@@ -128,12 +128,12 @@ function avoidWalls(
 }
 
 function optionScore(world: World, playerId: number, option: OfferOption): number {
-  const weapons = world.stores.weapons;
+  const abilities = world.stores.abilities;
   const passives = world.stores.passives;
-  let ownedWeapons = 0;
+  let ownedAbilities = 0;
   let ownedPassives = 0;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] === playerId) ownedWeapons++;
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] === playerId) ownedAbilities++;
   });
   passives.forEachAlive((slot) => {
     if (passives.field("owner")[slot] === playerId) ownedPassives++;
@@ -147,8 +147,8 @@ function optionScore(world: World, playerId: number, option: OfferOption): numbe
     return max > 0 && hp / max < 0.4 ? 900 : 10;
   }
   if (option.ref.type === "gold") return 5;
-  if (option.ref.type === "weapon") {
-    if (option.level === undefined && ownedWeapons < 6) return 800 - ownedWeapons * 10;
+  if (option.ref.type === "ability") {
+    if (option.level === undefined && ownedAbilities < 6) return 800 - ownedAbilities * 10;
     return 600 + (option.level ?? 1) * 10;
   }
   if (option.ref.type === "passive") {
@@ -191,7 +191,7 @@ interface RunResult {
   lastHitKind: string | null;
   lastHitSec: number;
   hitKinds: Record<string, number>;
-  weapons: string[];
+  abilities: string[];
   passives: string[];
   msPerTick: number;
   totalMs: number;
@@ -237,12 +237,12 @@ function runSeed(
   }
   const totalMs = performance.now() - started;
 
-  const weaponIds: string[] = [];
-  const weapons = world.stores.weapons;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] !== 0) return;
-    const def = pack.weapons[weapons.field("defIndex")[slot]];
-    if (def) weaponIds.push(`${def.id} L${weapons.field("level")[slot]}`);
+  const abilityIds: string[] = [];
+  const abilities = world.stores.abilities;
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] !== 0) return;
+    const def = pack.abilities[abilities.field("defIndex")[slot]];
+    if (def) abilityIds.push(`${def.id} L${abilities.field("level")[slot]}`);
   });
   const passiveIds: string[] = [];
   const passives = world.stores.passives;
@@ -270,7 +270,7 @@ function runSeed(
     lastHitKind,
     lastHitSec,
     hitKinds,
-    weapons: weaponIds,
+    abilities: abilityIds,
     passives: passiveIds,
     msPerTick: totalMs / Math.max(1, ticks),
     totalMs: Math.round(totalMs),
@@ -306,7 +306,7 @@ function runSeed(
         rules: { ...DEFAULT_RULESET.rules, ...variant.rules },
       };
       const r = runSeed(pack, 101, ruleset);
-      const itemLevels = [...r.weapons, ...r.passives]
+      const itemLevels = [...r.abilities, ...r.passives]
         .map((entry) => Number(entry.split(" L")[1] ?? 0))
         .reduce((a, b) => a + b, 0);
       console.log(

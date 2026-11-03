@@ -6,7 +6,7 @@ import { spawnEnemyAt } from "./systems/spawn";
 const PLAYER: CharacterDef = {
   id: "tester",
   name: "Tester",
-  startingWeapon: "none",
+  startingAbility: "none",
 };
 
 function enemy(
@@ -64,7 +64,7 @@ const PACK: ContentPack = {
       "elite",
     ),
   ],
-  weapons: [],
+  abilities: [],
   passives: [],
   characters: [PLAYER],
   powerUps: [],

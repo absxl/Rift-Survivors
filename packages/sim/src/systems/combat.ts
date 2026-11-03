@@ -1,31 +1,31 @@
-// Combat: weapon auto-fire, projectile movement + collision, and enemy→player
+// Combat: ability auto-fire, projectile movement + collision, and enemy→player
 // contact damage with invulnerability frames.
 import type { Registries } from "../registry";
 import type { World } from "../world";
 
 export function registerCombatSystems(reg: Registries): void {
-  reg.systems.register("weapons", weapons);
+  reg.systems.register("abilities", abilities);
   reg.systems.register("projectiles", projectiles);
   reg.systems.register("contact-damage", contactDamage);
 }
 
-function weapons(world: World): void {
-  const weapons = world.stores.weapons;
+function abilities(world: World): void {
+  const abilities = world.stores.abilities;
   const players = world.stores.players;
-  weapons.forEachAlive((slot) => {
-    if (players.field("downed")[weapons.field("owner")[slot]]) return;
-    const cd = weapons.field("cooldown")[slot] - 1;
+  abilities.forEachAlive((slot) => {
+    if (players.field("downed")[abilities.field("owner")[slot]]) return;
+    const cd = abilities.field("cooldown")[slot] - 1;
     if (cd > 0) {
-      weapons.field("cooldown")[slot] = cd;
+      abilities.field("cooldown")[slot] = cd;
       return;
     }
-    const def = world.content.weapons[weapons.field("defIndex")[slot]];
+    const def = world.content.abilities[abilities.field("defIndex")[slot]];
     if (!def) return;
-    world.registries.weaponBehaviors.get(def.behavior)(world, slot, def);
-    const owner = weapons.field("owner")[slot];
-    weapons.field("cooldown")[slot] = world.weaponCooldown(
+    world.registries.abilityBehaviors.get(def.behavior)(world, slot, def);
+    const owner = abilities.field("owner")[slot];
+    abilities.field("cooldown")[slot] = world.abilityCooldown(
       def,
-      weapons.field("level")[slot],
+      abilities.field("level")[slot],
       owner,
     );
   });
@@ -34,7 +34,7 @@ function weapons(world: World): void {
 function projectiles(world: World): void {
   const projs = world.stores.projectiles;
   const players = world.stores.players;
-  const orbitSpeed = world.num("weapon.orbitSpeed");
+  const orbitSpeed = world.num("ability.orbitSpeed");
 
   projs.forEachAlive((slot) => {
     const life = projs.field("lifetime")[slot] - 1;

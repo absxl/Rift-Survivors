@@ -27,9 +27,9 @@ const PACK: ContentPack = {
     enemy({ id: "boss", category: "boss" }),
     enemy({ id: "final", category: "final-threat" }),
   ],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "hero", startingWeapon: "none" }],
+  characters: [{ id: "hero", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

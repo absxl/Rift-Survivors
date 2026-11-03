@@ -17,7 +17,7 @@ export type SimEvent =
   | { type: "player-downed"; playerId: number }
   | { type: "player-revived"; playerId: number }
   | { type: "gem-pickup"; playerId: number; value: number }
-  | { type: "weapon-fire"; playerId: number; weaponId: number; angle?: number }
+  | { type: "ability-fire"; playerId: number; abilityId: number; angle?: number }
   | { type: "offer"; offer: unknown }
   | { type: "boss-rush"; reason: "killed" | "timeout" }
   | { type: "explosion"; x: number; y: number; radius: number }

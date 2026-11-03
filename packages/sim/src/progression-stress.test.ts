@@ -7,7 +7,7 @@ const MINIMAL_PACK: ContentPack = {
   id: "stress",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
+  abilities: [
     {
       id: "w",
       behavior: "sweep",
@@ -30,7 +30,7 @@ const MINIMAL_PACK: ContentPack = {
     },
   ],
   passives: [{ id: "p", maxLevel: 1, perLevel: { cooldown: 0.12 } }],
-  characters: [{ id: "c", startingWeapon: "w" }],
+  characters: [{ id: "c", startingAbility: "w" }],
   powerUps: [],
   synergies: [],
 };

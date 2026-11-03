@@ -1,12 +1,12 @@
 // AUTO-GENERATED ROSTER DATA (Riot Data Dragon 16.21.1)
 // Regenerate with: node packages/content/scripts/generate-roster.mjs
 // Regions are curated primary-region assignments; rarities are provisional and
-// reviewable. Unique moves/weapons are intentionally deferred.
+// reviewable. Unique moves/abilities are intentionally deferred.
 import type { CharacterDef } from "@rift/sim";
 import {
   classDefinition,
-  classPlaceholderMove,
-  classStartingWeapon,
+  classPlaceholderAbility,
+  classStartingAbility,
   classUpgradeIds,
 } from "../champions/classes";
 
@@ -27,8 +27,8 @@ function champion(
     region,
     rarity,
     class: className,
-    startingWeapon: classStartingWeapon(className, index),
-    startingMove: classPlaceholderMove(className),
+    startingAbility: classStartingAbility(className, index),
+    startingAbility2: classPlaceholderAbility(className),
     baseStats: { ...cls.baseStats },
     growth: { ...cls.growth, mods: { ...cls.growth.mods } },
     upgradeIds: classUpgradeIds(className),
@@ -46,7 +46,7 @@ export const ROSTER_CHAMPIONS: CharacterDef[] = [
   champion(
     "aphelios",
     "Aphelios",
-    "the Weapon of the Faithful",
+    "the Ability of the Faithful",
     "Mount Targon",
     "common",
     "marksman",
@@ -242,7 +242,7 @@ export const ROSTER_CHAMPIONS: CharacterDef[] = [
   champion("yunara", "Yunara", "the Unbroken Faith", "Ionia", "epic", "marksman", 27),
   champion("yuumi", "Yuumi", "the Magical Cat", "Bandle City", "rare", "support", 16),
   champion("zaahen", "Zaahen", "The Unsundered", "Runeterra", "epic", "fighter", 49),
-  champion("zac", "Zac", "the Secret Weapon", "Zaun", "rare", "tank", 23),
+  champion("zac", "Zac", "the Secret Ability", "Zaun", "rare", "tank", 23),
   champion("zed", "Zed", "the Master of Shadows", "Ionia", "common", "assassin", 16),
   champion("zeri", "Zeri", "The Spark of Zaun", "Zaun", "epic", "marksman", 28),
   champion("ziggs", "Ziggs", "the Hexplosives Expert", "Zaun", "common", "mage", 24),

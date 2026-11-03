@@ -33,9 +33,9 @@ const VARIETY_PACK: ContentPack = {
     }),
     enemy({ id: "weaver", behavior: "weaver", params: { amplitude: 0.8, frequency: 0.07 } }),
   ],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

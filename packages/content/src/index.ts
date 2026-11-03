@@ -23,7 +23,7 @@ export function loadGamePack(): ContentPack {
     id: "game",
     schemaVersion: 1,
     enemies: [...core.enemies, ...lol.enemies],
-    weapons: [...core.weapons, ...lol.weapons],
+    abilities: [...core.abilities, ...lol.abilities],
     passives: [...core.passives, ...lol.passives],
     characters: [...core.characters, ...lol.characters],
     powerUps: [...core.powerUps, ...lol.powerUps],

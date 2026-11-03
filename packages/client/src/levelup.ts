@@ -1,6 +1,6 @@
 // Level-up/chest cards (DOM). Flavor + derived stat deltas live on the card;
 // hotkeys never collide with movement (picks 1-4, R reroll, X skip, B banish).
-import type { Offer, PassiveDef, RunStats, WeaponDef } from "@rift/sim";
+import type { AbilityDef, Offer, PassiveDef, RunStats } from "@rift/sim";
 import { offerCardInfo } from "./ability-info";
 
 export class LevelUpUI {
@@ -14,7 +14,7 @@ export class LevelUpUI {
   private stats: RunStats | null = null;
 
   constructor(
-    private readonly weapons: WeaponDef[],
+    private readonly abilities: AbilityDef[],
     private readonly passives: PassiveDef[],
   ) {
     this.root = document.createElement("div");
@@ -81,7 +81,7 @@ export class LevelUpUI {
     const row = document.createElement("div");
     row.className = "levelup-row";
     offer.options.forEach((option, index) => {
-      const info = offerCardInfo(option, this.weapons, this.passives, this.stats ?? undefined);
+      const info = offerCardInfo(option, this.abilities, this.passives, this.stats ?? undefined);
       const card = document.createElement("button");
       const classes = ["levelup-card"];
       if (this.banishMode) classes.push("banish-target");

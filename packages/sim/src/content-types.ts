@@ -1,13 +1,13 @@
 // Runtime content contract consumed by the sim. The content package provides
 // validated instances of these shapes. The sim matches behaviors by id via its
-// registries; it never hard-codes a specific enemy/weapon id or name.
+// registries; it never hard-codes a specific enemy/ability id or name.
 
 export type DamageType = "physical" | "magic" | "true";
 
 /** Gacha/collection rarity. Content-authored; balance-neutral for now. */
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 
-export interface WeaponStats {
+export interface AbilityStats {
   damage: number;
   cooldown: number; // ticks between shots
   area: number;
@@ -38,7 +38,7 @@ export interface StatDelta {
   lifetime?: number;
 }
 
-export interface WeaponDef {
+export interface AbilityDef {
   id: string;
   /** Display name (placeholder flavor; never used by sim logic). */
   name?: string;
@@ -47,17 +47,16 @@ export interface WeaponDef {
   /** Namespaced tags used by synergies/modifiers (e.g. "damage:fire"). */
   tags?: string[];
   /** True for champion signature moves: separate slot pool, never evolved. */
-  isMove?: boolean;
   behavior: string; // registry id: "sweep" | "shoot-nearest" | ...
   params: Record<string, number | string | boolean>;
   maxLevel: number;
-  base: WeaponStats;
+  base: AbilityStats;
   levels: { delta: StatDelta }[]; // length = maxLevel - 1
   damageType?: DamageType;
   status?: StatusApply;
   /** Evolved forms are never offered in level-up pools. */
   isEvolved?: boolean;
-  /** Evolve this weapon (maxed) + the required passive → the evolved weapon. */
+  /** Evolve this ability (maxed) + the required passive → the evolved ability. */
   evolution?: { requiresPassive: string; evolvesTo: string };
 }
 
@@ -137,10 +136,11 @@ export interface CharacterDef {
   /** Free starter champion for a fresh local save. */
   starter?: boolean;
   tags?: string[];
-  /** Content weapon id the character starts with. */
-  startingWeapon: string;
-  /** Signature move weapon id (isMove) the character starts with. */
-  startingMove?: string;
+  /** Content ability id the character starts with. */
+  /** First auto-cast ability the character starts with (their real kit). */
+  startingAbility: string;
+  /** Second real kit ability (typically the ultimate); same 8-slot pool. */
+  startingAbility2?: string;
   /** Stat key → additive bonus applied as modifiers at run start. */
   baseStats?: Record<string, number>;
   /** Growth: every N levels, add these stat bonuses (cumulative). */
@@ -241,7 +241,7 @@ export interface ContentPack {
   id: string;
   schemaVersion: number;
   enemies: EnemyDef[];
-  weapons: WeaponDef[];
+  abilities: AbilityDef[];
   passives: PassiveDef[];
   characters: CharacterDef[];
   powerUps: PowerUpDef[];

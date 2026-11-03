@@ -29,9 +29,9 @@ const ENDGAME_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };

@@ -18,7 +18,7 @@ const PERF_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -41,7 +41,7 @@ const PERF_PACK: ContentPack = {
     },
   ],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };

@@ -7,9 +7,9 @@ function makeStore(kind: string, fields: Record<string, number[]>, slots: number
 }
 
 describe("ownedIndices", () => {
-  it("reads weapon cooldowns", () => {
+  it("reads ability cooldowns", () => {
     const store = makeStore(
-      "weapon",
+      "ability",
       { owner: [0, 1], defIndex: [3, 4], level: [2, 1], cooldown: [10, 5] },
       [0, 1],
     );

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, createWorld, step } from "./index";
-import type { ContentPack, EnemyDef, WeaponDef } from "./index";
+import type { AbilityDef, ContentPack, EnemyDef } from "./index";
 
-const SWEEP: WeaponDef = {
+const SWEEP: AbilityDef = {
   id: "test-sweep",
   behavior: "sweep",
   params: { arc: 2.4 },
@@ -38,9 +38,9 @@ const PACK: ContentPack = {
   id: "aim-test",
   schemaVersion: 1,
   enemies: [ENEMY],
-  weapons: [SWEEP],
+  abilities: [SWEEP],
   passives: [],
-  characters: [{ id: "hero", startingWeapon: SWEEP.id }],
+  characters: [{ id: "hero", startingAbility: SWEEP.id }],
   powerUps: [],
   synergies: [],
 };

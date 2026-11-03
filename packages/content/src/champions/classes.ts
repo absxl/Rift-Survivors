@@ -15,8 +15,8 @@ export type ChampionClassId = (typeof CHAMPION_CLASS_IDS)[number];
 export interface ClassDefinition {
   label: string;
   blurb: string;
-  weapons: string[];
-  move: string;
+  abilities: string[];
+  ability2: string;
   upgrades: string[];
   baseStats: Record<string, number>;
   growth: { everyLevels: number; mods: Record<string, number> };
@@ -38,7 +38,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   mage: {
     label: "Mage",
     blurb: "Bends range, area, and haste into a spell-slinging backline.",
-    weapons: [
+    abilities: [
       "light-binding",
       "lucent-singularity",
       "orb-of-deception",
@@ -51,7 +51,7 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
       "primordial-burst",
       "arcane-barrage",
     ],
-    move: "arcane-bolt",
+    ability2: "arcane-bolt",
     upgrades: ["arcane-flow", "velocity", "persistence", "archmages-thesis"],
     baseStats: { might: 0.08, cooldown: 0.05 },
     growth: { everyLevels: 3, mods: { might: 0.05 } },
@@ -59,8 +59,8 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   tank: {
     label: "Tank",
     blurb: "A wall of health and armor that grinds the swarm down.",
-    weapons: ["bulwark-sweep", "iron-aura"],
-    move: "shockwave",
+    abilities: ["bulwark-sweep", "iron-aura"],
+    ability2: "shockwave",
     upgrades: ["fortitude", "bulwark", "regeneration", "aegis", "unbroken-wall"],
     baseStats: { maxHp: 0.2, armor: 1 },
     growth: { everyLevels: 3, mods: { maxHp: 0.12 } },
@@ -68,8 +68,8 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   fighter: {
     label: "Fighter",
     blurb: "Trades blows in the middle of the pack and heals through it.",
-    weapons: ["cleaver", "war-boomerang"],
-    move: "cleaving-strike",
+    abilities: ["cleaver", "war-boomerang"],
+    ability2: "cleaving-strike",
     upgrades: ["battle-fury", "bloodlust", "second-wind", "warlords-tempo"],
     baseStats: { might: 0.08, maxHp: 0.08 },
     growth: { everyLevels: 3, mods: { lifesteal: 0.01 } },
@@ -77,8 +77,8 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   assassin: {
     label: "Assassin",
     blurb: "Fast, precise, and built to punish isolated targets.",
-    weapons: ["shadow-daggers", "venom-dart"],
-    move: "shadow-strike",
+    abilities: ["shadow-daggers", "venom-dart"],
+    ability2: "shadow-strike",
     upgrades: ["deadly-precision", "shadow-step", "hunters-instinct", "executioners-mark"],
     baseStats: { moveSpeed: 0.1, might: 0.05 },
     growth: { everyLevels: 4, mods: { moveSpeed: 0.04, cooldown: 0.03 } },
@@ -86,8 +86,8 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   marksman: {
     label: "Marksman",
     blurb: "Long-range pressure, fast casts, and piercing fire.",
-    weapons: ["longbow", "piercing-arrow"],
-    move: "piercing-shot",
+    abilities: ["longbow", "piercing-arrow"],
+    ability2: "piercing-shot",
     upgrades: ["steady-aim", "piercing-rounds", "rapid-fire", "deadeye-manual"],
     baseStats: { cooldown: 0.08, projectileSpeed: 0.1 },
     growth: { everyLevels: 4, mods: { cooldown: 0.04 } },
@@ -95,8 +95,8 @@ export const CLASSES: Record<ChampionClassId, ClassDefinition> = {
   support: {
     label: "Support",
     blurb: "Controls space with auras, duration, and steady recovery.",
-    weapons: ["aegis-aura", "radiant-field"],
-    move: "renewal-pulse",
+    abilities: ["aegis-aura", "radiant-field"],
+    ability2: "renewal-pulse",
     upgrades: ["benevolence", "aura-mastery", "lasting-light", "choir-of-light"],
     baseStats: { growth: 0.08, area: 0.05 },
     growth: { everyLevels: 3, mods: { regen: 0.1, duration: 0.03 } },
@@ -113,11 +113,11 @@ export function classUpgradeIds(className: string | undefined, extra: string[] =
   return [...new Set([...COMMON_UPGRADES, ...def.upgrades, ...extra])];
 }
 
-export function classStartingWeapon(className: string | undefined, index: number): string {
+export function classStartingAbility(className: string | undefined, index: number): string {
   const def = classDefinition(className);
-  return def.weapons[Math.abs(index) % def.weapons.length] ?? def.weapons[0];
+  return def.abilities[Math.abs(index) % def.abilities.length] ?? def.abilities[0];
 }
 
-export function classPlaceholderMove(className: string | undefined): string {
-  return classDefinition(className).move;
+export function classPlaceholderAbility(className: string | undefined): string {
+  return classDefinition(className).ability2;
 }

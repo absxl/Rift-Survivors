@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_RULESET, applyChoice, createWorld, step } from "./index";
 import type { ContentPack } from "./index";
 
-// 2 weapons + 1 passive + 1 character → 3 item cards + 1 guaranteed training card.
+// 2 abilities + 1 passive + 1 character → 3 item cards + 1 guaranteed training card.
 const PROG_PACK: ContentPack = {
   id: "prog",
   schemaVersion: 1,
   enemies: [],
-  weapons: [
+  abilities: [
     {
       id: "blade",
       behavior: "sweep",
@@ -50,7 +50,7 @@ const PROG_PACK: ContentPack = {
     },
   ],
   passives: [{ id: "might", maxLevel: 5, perLevel: { might: 0.2 } }],
-  characters: [{ id: "champion", startingWeapon: "blade" }],
+  characters: [{ id: "champion", startingAbility: "blade" }],
   powerUps: [],
   synergies: [],
 };
@@ -103,15 +103,15 @@ describe("progression", () => {
     expect(world.playerStat(0, "might", 1)).toBeCloseTo(1.2);
   });
 
-  it("upgrading a weapon raises its level", () => {
+  it("upgrading a ability raises its level", () => {
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: PROG_PACK }, 1);
     world.partyXp = 100;
     step(world, []);
     const offer = world.pendingOffers()[0];
-    const idx = offer.options.findIndex((o) => o.ref.type === "weapon" && o.level !== undefined);
+    const idx = offer.options.findIndex((o) => o.ref.type === "ability" && o.level !== undefined);
     expect(idx).toBeGreaterThanOrEqual(0);
 
     applyChoice(world, 0, idx);
-    expect(world.stores.weapons.field("level")[0]).toBe(2);
+    expect(world.stores.abilities.field("level")[0]).toBe(2);
   });
 });

@@ -56,14 +56,14 @@ const CHARACTERS: CharacterDef[] = [
     name: "Alpha",
     region: "Test",
     rarity: "epic",
-    startingWeapon: "w",
+    startingAbility: "w",
   },
   {
     id: "b",
     name: "Beta",
     region: "Test",
     rarity: "rare",
-    startingWeapon: "w",
+    startingAbility: "w",
   },
 ];
 
@@ -72,7 +72,7 @@ const MULTI: CharacterDef = {
   name: "Multi",
   region: "Noxus",
   rarity: "epic",
-  startingWeapon: "w",
+  startingAbility: "w",
   profile: {
     title: "the Cross-Region",
     regions: ["Noxus", "Ionia"],

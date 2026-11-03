@@ -8,7 +8,7 @@ export function registerZoneSystem(reg: Registries): void {
 
 function zones(world: World): void {
   const zones = world.stores.zones;
-  const hitCooldown = world.num("weapon.zoneHitCooldown");
+  const hitCooldown = world.num("ability.zoneHitCooldown");
 
   zones.forEachAlive((slot) => {
     const life = zones.field("lifetime")[slot] - 1;

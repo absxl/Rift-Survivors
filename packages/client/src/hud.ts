@@ -3,14 +3,14 @@ import type { LobbyPlayer } from "@rift/shared";
 // owns only the world; every HUD element here is plain DOM (top bar, party,
 // boss bar, compact hotbar, tooltips, Tab scoreboard).
 import type {
+  AbilityDef,
   CharacterDef,
   EnemyDef,
   PassiveDef,
   RunStats,
-  WeaponDef,
   WorldSnapshot,
 } from "@rift/sim";
-import { passiveInfo, weaponInfo } from "./ability-info";
+import { abilityInfo, passiveInfo } from "./ability-info";
 import { championColor } from "./champion-colors";
 import { pickBossBar } from "./hud-boss";
 import { type LoadoutEntry, ownedIndices } from "./loadout";
@@ -23,7 +23,7 @@ interface SlotView {
   cooldown: HTMLElement;
   empty: boolean;
   key: string;
-  kind: "weapon" | "passive" | "move";
+  kind: "ability" | "passive" | "move";
   defIndex: number;
   levelNum: number;
   cooldownFrac: number;
@@ -65,7 +65,6 @@ export class Hud {
   private readonly hpText: HTMLElement;
   private readonly xpFill: HTMLElement;
   private readonly abilitySlots: SlotView[] = [];
-  private readonly moveSlots: SlotView[] = [];
   private readonly itemSlots: SlotView[] = [];
   private readonly tooltip: HTMLElement;
   private readonly tooltipTitle: HTMLElement;
@@ -76,7 +75,7 @@ export class Hud {
   private readonly scoreboardBody: HTMLElement;
   private readonly scoreboardStats: HTMLElement;
 
-  private readonly weapons: WeaponDef[];
+  private readonly abilities: AbilityDef[];
   private readonly passives: PassiveDef[];
   private readonly enemies: EnemyDef[];
   private readonly characters: CharacterDef[];
@@ -90,12 +89,12 @@ export class Hud {
   private lastStats: RunStats | null = null;
 
   constructor(
-    weapons: WeaponDef[],
+    abilities: AbilityDef[],
     passives: PassiveDef[],
     enemies: EnemyDef[],
     characters: CharacterDef[] = [],
   ) {
-    this.weapons = weapons;
+    this.abilities = abilities;
     this.passives = passives;
     this.enemies = enemies;
     this.characters = characters;
@@ -158,19 +157,16 @@ export class Hud {
     bars.append(hpTrack, xpTrack);
     identity.append(this.portraitEl, bars);
 
-    const abilities = el("div", "hud-slots hud-abilities");
-    for (let i = 0; i < 4; i++) {
-      this.abilitySlots.push(this.makeSlot(abilities, "weapon"));
-    }
-    const moves = el("div", "hud-slots hud-moves");
-    for (let i = 0; i < 4; i++) {
-      this.moveSlots.push(this.makeSlot(moves, "move"));
+    // Unified 8-slot ability bar (champion kits + learned abilities).
+    const abilityRow = el("div", "hud-slots hud-abilities");
+    for (let i = 0; i < 8; i++) {
+      this.abilitySlots.push(this.makeSlot(abilityRow, "ability"));
     }
     const items = el("div", "hud-items");
     for (let i = 0; i < 8; i++) {
       this.itemSlots.push(this.makeSlot(items, "passive", true));
     }
-    hotbar.append(identity, abilities, moves, items);
+    hotbar.append(identity, abilityRow, items);
     this.root.appendChild(hotbar);
 
     // Tooltip ---------------------------------------------------------------
@@ -254,30 +250,16 @@ export class Hud {
     const stats = s.playerStats[this.localPlayerId] ?? s.playerStats[0] ?? null;
     this.lastStats = stats;
 
-    const weaponStore = s.stores.find((st) => st.kind === "weapon");
+    const abilityStore = s.stores.find((st) => st.kind === "ability");
     const passiveStore = s.stores.find((st) => st.kind === "passive");
-    const ownedWeapons = ownedIndices(weaponStore, this.localPlayerId);
-    const normalWeapons: LoadoutEntry[] = [];
-    const moves: LoadoutEntry[] = [];
-    for (const entry of ownedWeapons) {
-      const def = this.weapons[entry.defIndex];
-      if (def?.isMove) moves.push(entry);
-      else normalWeapons.push(entry);
-    }
+    const ownedAbilities = ownedIndices(abilityStore, this.localPlayerId);
     const ownedPassives = ownedIndices(passiveStore, this.localPlayerId);
 
-    this.abilitySlots.forEach((slot, i) => this.fillWeaponSlot(slot, normalWeapons[i], stats));
-    this.moveSlots.forEach((slot, i) => this.fillWeaponSlot(slot, moves[i], stats));
-    const itemEntries: LoadoutEntry[] = [...normalWeapons.slice(4, 6)];
-    const items = [
-      ...itemEntries.map((e) => ({ kind: "weapon" as const, entry: e })),
-      ...ownedPassives.map((e) => ({ kind: "passive" as const, entry: e })),
-    ];
+    this.abilitySlots.forEach((slot, i) => this.fillAbilitySlot(slot, ownedAbilities[i], stats));
     this.itemSlots.forEach((slot, i) => {
-      const item = items[i];
-      if (!item) this.drawEmpty(slot);
-      else if (item.kind === "weapon") this.fillWeaponSlot(slot, item.entry, stats);
-      else this.fillPassiveSlot(slot, item.entry);
+      const entry = ownedPassives[i];
+      if (!entry) this.drawEmpty(slot);
+      else this.fillPassiveSlot(slot, entry);
     });
 
     this.updateBoss(s);
@@ -285,11 +267,7 @@ export class Hud {
     if (this.hoverSlot) this.refreshTooltip();
   }
 
-  private makeSlot(
-    parent: HTMLElement,
-    kind: "weapon" | "move" | "passive",
-    small = false,
-  ): SlotView {
+  private makeSlot(parent: HTMLElement, kind: "ability" | "passive", small = false): SlotView {
     const root = el(
       "div",
       `hud-slot hud-slot-${kind} hud-slot-empty${small ? " hud-slot-small" : ""}`,
@@ -331,7 +309,7 @@ export class Hud {
     return view;
   }
 
-  private fillWeaponSlot(
+  private fillAbilitySlot(
     slot: SlotView,
     entry: LoadoutEntry | undefined,
     stats: RunStats | null,
@@ -340,18 +318,18 @@ export class Hud {
       this.drawEmpty(slot);
       return;
     }
-    const def = this.weapons[entry.defIndex];
+    const def = this.abilities[entry.defIndex];
     if (!def) {
       this.drawEmpty(slot);
       return;
     }
     const base = def.base.cooldown / (stats?.cooldown ?? 1);
     slot.cooldownFrac = base > 0 ? Math.max(0, Math.min(1, entry.cooldown / base)) : 0;
-    const key = `w:${entry.defIndex}:${entry.level}`;
+    const key = `a:${entry.defIndex}:${entry.level}`;
     if (slot.key !== key) {
       slot.key = key;
       slot.empty = false;
-      slot.kind = def.isMove ? "move" : "weapon";
+      slot.kind = "ability";
       slot.defIndex = entry.defIndex;
       slot.levelNum = entry.level;
       slot.label = def.name ?? def.id;
@@ -359,13 +337,11 @@ export class Hud {
         ? "#ff7744"
         : def.tags?.includes("damage:light")
           ? "#ffe066"
-          : def.isMove
-            ? "#ffcc44"
-            : "#6fb8ff";
+          : "#6fb8ff";
       slot.glyph.textContent = (def.name ?? def.id).charAt(0).toUpperCase();
       slot.level.textContent = String(entry.level);
       slot.root.classList.remove("hud-slot-empty");
-      slot.root.style.borderColor = def.isMove ? "#c8a44a" : slot.color;
+      slot.root.style.borderColor = slot.color;
       slot.root.style.background = `linear-gradient(160deg, ${slot.color}33, #0b1019 70%)`;
       slot.root.title = "";
     }
@@ -431,8 +407,8 @@ export class Hud {
             return def ? passiveInfo(def, slot.levelNum) : null;
           })()
         : (() => {
-            const def = this.weapons[slot.defIndex];
-            return def ? weaponInfo(def, slot.levelNum, this.lastStats ?? undefined) : null;
+            const def = this.abilities[slot.defIndex];
+            return def ? abilityInfo(def, slot.levelNum, this.lastStats ?? undefined) : null;
           })();
     if (!info) return;
     this.tooltipTitle.textContent = info.title;

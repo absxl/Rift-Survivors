@@ -8,9 +8,9 @@ const EMPTY_PACK: ContentPack = {
   id: "stats-empty",
   schemaVersion: 1,
   enemies: [],
-  weapons: [],
+  abilities: [],
   passives: [],
-  characters: [{ id: "champion", startingWeapon: "none" }],
+  characters: [{ id: "champion", startingAbility: "none" }],
   powerUps: [],
   synergies: [],
 };
@@ -19,9 +19,9 @@ function projectilePack(behavior: "shoot-nearest" | "ground-pool", duration = 0)
   return {
     ...EMPTY_PACK,
     id: `stats-${behavior}`,
-    weapons: [
+    abilities: [
       {
-        id: "test-weapon",
+        id: "test-ability",
         behavior,
         params: {},
         maxLevel: 5,
@@ -41,7 +41,7 @@ function projectilePack(behavior: "shoot-nearest" | "ground-pool", duration = 0)
         damageType: "physical",
       },
     ],
-    characters: [{ id: "champion", startingWeapon: "test-weapon" }],
+    characters: [{ id: "champion", startingAbility: "test-ability" }],
   };
 }
 

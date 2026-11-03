@@ -1,5 +1,5 @@
 // Progression: XP → level-up → offer (3 cards), and applying the chosen card.
-// Passives grant stat bonuses through the modifier stack; weapons level via data.
+// Passives grant stat bonuses through the modifier stack; abilities level via data.
 import type { Registries } from "../registry";
 import type { Offer, OfferOption } from "../types";
 import type { World } from "../world";
@@ -62,20 +62,16 @@ function progression(world: World): void {
 }
 
 function buildLevelUpOffer(world: World, playerId: number): Offer {
-  const weapons = world.stores.weapons;
+  const abilities = world.stores.abilities;
   const passives = world.stores.passives;
 
-  const ownedWeapons = new Map<number, number>(); // defIndex -> level
+  const ownedAbilities = new Map<number, number>(); // defIndex -> level
   const ownedPassives = new Map<number, number>();
   const ownedPassiveIds = new Set<string>();
-  let normalWeaponCount = 0;
-  let moveCount = 0;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] === playerId) {
-      const defIndex = weapons.field("defIndex")[slot];
-      ownedWeapons.set(defIndex, weapons.field("level")[slot]);
-      if (world.content.weapons[defIndex]?.isMove) moveCount++;
-      else normalWeaponCount++;
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] === playerId) {
+      const defIndex = abilities.field("defIndex")[slot];
+      ownedAbilities.set(defIndex, abilities.field("level")[slot]);
     }
   });
   passives.forEachAlive((slot) => {
@@ -93,25 +89,16 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
     if (!banished.has(option.optionId)) options.push(option);
   };
 
-  if (normalWeaponCount < world.num("loadout.weaponSlots")) {
-    for (let i = 0; i < world.content.weapons.length; i++) {
-      const def = world.content.weapons[i];
-      if (ownedWeapons.has(i)) continue;
-      if (def.isEvolved || def.isMove) continue;
+  // One unified pool: any non-evolved ability can be learned or upgraded while
+  // the player has free slots (champion kits and class fillers alike).
+  if (ownedAbilities.size < world.num("loadout.abilitySlots")) {
+    for (let i = 0; i < world.content.abilities.length; i++) {
+      const def = world.content.abilities[i];
+      if (ownedAbilities.has(i)) continue;
+      if (def.isEvolved) continue;
       consider({
-        optionId: `new-w:${i}`,
-        ref: { type: "weapon", id: def.id },
-      });
-    }
-  }
-  if (moveCount < world.num("loadout.moveSlots")) {
-    for (let i = 0; i < world.content.weapons.length; i++) {
-      const def = world.content.weapons[i];
-      if (ownedWeapons.has(i) || !def.isMove) continue;
-      consider({
-        optionId: `new-m:${i}`,
-        ref: { type: "weapon", id: def.id },
-        isMove: true,
+        optionId: `new-a:${i}`,
+        ref: { type: "ability", id: def.id },
       });
     }
   }
@@ -124,14 +111,13 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
       });
     }
   }
-  for (const [defIndex, level] of ownedWeapons) {
-    const def = world.content.weapons[defIndex];
+  for (const [defIndex, level] of ownedAbilities) {
+    const def = world.content.abilities[defIndex];
     if (def && level < def.maxLevel) {
       consider({
-        optionId: `up-w:${defIndex}`,
-        ref: { type: "weapon", id: def.id },
+        optionId: `up-a:${defIndex}`,
+        ref: { type: "ability", id: def.id },
         level: level + 1,
-        isMove: def.isMove === true,
       });
     }
   }
@@ -147,7 +133,7 @@ function buildLevelUpOffer(world: World, playerId: number): Offer {
   }
 
   // Evolutions are level-up cards; region chests are meta rewards.
-  for (const option of evolutionOptions(world, ownedWeapons, ownedPassiveIds)) {
+  for (const option of evolutionOptions(world, ownedAbilities, ownedPassiveIds)) {
     consider(option);
   }
 
@@ -188,21 +174,21 @@ function trainingOption(world: World, playerId: number): OfferOption {
   };
 }
 
-/** Evolution cards available when a weapon is maxed and its passive is owned. */
+/** Evolution cards available when a ability is maxed and its passive is owned. */
 function evolutionOptions(
   world: World,
-  ownedWeapons: Map<number, number>,
+  ownedAbilities: Map<number, number>,
   ownedPassiveIds: Set<string>,
 ): OfferOption[] {
   const options: OfferOption[] = [];
-  for (const [defIndex, level] of ownedWeapons) {
-    const def = world.content.weapons[defIndex];
+  for (const [defIndex, level] of ownedAbilities) {
+    const def = world.content.abilities[defIndex];
     if (!def?.evolution) continue;
     if (level < def.maxLevel) continue;
     if (!ownedPassiveIds.has(def.evolution.requiresPassive)) continue;
     options.push({
       optionId: `evolve:${defIndex}`,
-      ref: { type: "weapon", id: def.evolution.evolvesTo },
+      ref: { type: "ability", id: def.evolution.evolvesTo },
       isEvolution: true,
     });
   }
@@ -211,15 +197,15 @@ function evolutionOptions(
 
 /** Chest offer: evolutions (if available) + item upgrades, 1/3/5 items by luck. */
 export function buildChestOffer(world: World, playerId: number): Offer {
-  const weapons = world.stores.weapons;
+  const abilities = world.stores.abilities;
   const passives = world.stores.passives;
 
-  const ownedWeapons = new Map<number, number>();
+  const ownedAbilities = new Map<number, number>();
   const ownedPassives = new Map<number, number>();
   const ownedPassiveIds = new Set<string>();
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] === playerId) {
-      ownedWeapons.set(weapons.field("defIndex")[slot], weapons.field("level")[slot]);
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] === playerId) {
+      ownedAbilities.set(abilities.field("defIndex")[slot], abilities.field("level")[slot]);
     }
   });
   passives.forEachAlive((slot) => {
@@ -236,17 +222,16 @@ export function buildChestOffer(world: World, playerId: number): Offer {
     if (!banished.has(option.optionId)) options.push(option);
   };
 
-  for (const option of evolutionOptions(world, ownedWeapons, ownedPassiveIds)) {
+  for (const option of evolutionOptions(world, ownedAbilities, ownedPassiveIds)) {
     consider(option);
   }
-  for (const [defIndex, level] of ownedWeapons) {
-    const def = world.content.weapons[defIndex];
+  for (const [defIndex, level] of ownedAbilities) {
+    const def = world.content.abilities[defIndex];
     if (def && level < def.maxLevel) {
       consider({
-        optionId: `up-w:${defIndex}`,
-        ref: { type: "weapon", id: def.id },
+        optionId: `up-a:${defIndex}`,
+        ref: { type: "ability", id: def.id },
         level: level + 1,
-        isMove: def.isMove === true,
       });
     }
   }
@@ -280,20 +265,20 @@ export function buildChestOffer(world: World, playerId: number): Offer {
   };
 }
 
-function evolveWeapon(world: World, playerId: number, evolvedId: string): void {
-  const evolvedIndex = world.content.weapons.findIndex((w) => w.id === evolvedId);
+function evolveAbility(world: World, playerId: number, evolvedId: string): void {
+  const evolvedIndex = world.content.abilities.findIndex((w) => w.id === evolvedId);
   if (evolvedIndex < 0) return;
-  const weapons = world.stores.weapons;
+  const abilities = world.stores.abilities;
   let sourceSlot = -1;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] !== playerId) return;
-    const def = world.content.weapons[weapons.field("defIndex")[slot]];
+  abilities.forEachAlive((slot) => {
+    if (abilities.field("owner")[slot] !== playerId) return;
+    const def = world.content.abilities[abilities.field("defIndex")[slot]];
     if (def?.evolution?.evolvesTo === evolvedId) sourceSlot = slot;
   });
   if (sourceSlot < 0) return;
-  weapons.field("defIndex")[sourceSlot] = evolvedIndex;
-  weapons.field("level")[sourceSlot] = 1;
-  weapons.field("cooldown")[sourceSlot] = 0;
+  abilities.field("defIndex")[sourceSlot] = evolvedIndex;
+  abilities.field("level")[sourceSlot] = 1;
+  abilities.field("cooldown")[sourceSlot] = 0;
 }
 
 /** Apply the chosen offer option, then refresh passive-derived modifiers. */
@@ -308,14 +293,14 @@ export function applyOfferOption(world: World, playerId: number, choiceIndex: nu
 
   try {
     const ref = option.ref;
-    if (ref.type === "weapon") {
+    if (ref.type === "ability") {
       if (option.isEvolution) {
-        evolveWeapon(world, playerId, ref.id);
+        evolveAbility(world, playerId, ref.id);
       } else {
-        const defIndex = world.content.weapons.findIndex((w) => w.id === ref.id);
+        const defIndex = world.content.abilities.findIndex((w) => w.id === ref.id);
         if (defIndex >= 0) {
-          if (option.level === undefined) addWeapon(world, playerId, defIndex);
-          else upgradeWeapon(world, playerId, defIndex, option.level);
+          if (option.level === undefined) addAbility(world, playerId, defIndex);
+          else upgradeAbility(world, playerId, defIndex, option.level);
         }
       }
     } else if (ref.type === "passive") {
@@ -395,20 +380,23 @@ export function banishOfferOption(world: World, playerId: number, optionIndex: n
   return true;
 }
 
-function addWeapon(world: World, playerId: number, defIndex: number): void {
-  const slot = world.stores.weapons.alloc();
+function addAbility(world: World, playerId: number, defIndex: number): void {
+  const slot = world.stores.abilities.alloc();
   if (slot < 0) return;
-  world.stores.weapons.field("owner")[slot] = playerId;
-  world.stores.weapons.field("defIndex")[slot] = defIndex;
-  world.stores.weapons.field("cooldown")[slot] = 0;
-  world.stores.weapons.field("level")[slot] = 1;
+  world.stores.abilities.field("owner")[slot] = playerId;
+  world.stores.abilities.field("defIndex")[slot] = defIndex;
+  world.stores.abilities.field("cooldown")[slot] = 0;
+  world.stores.abilities.field("level")[slot] = 1;
 }
 
-function upgradeWeapon(world: World, playerId: number, defIndex: number, level: number): void {
-  const weapons = world.stores.weapons;
-  weapons.forEachAlive((slot) => {
-    if (weapons.field("owner")[slot] === playerId && weapons.field("defIndex")[slot] === defIndex) {
-      weapons.field("level")[slot] = level;
+function upgradeAbility(world: World, playerId: number, defIndex: number, level: number): void {
+  const abilities = world.stores.abilities;
+  abilities.forEachAlive((slot) => {
+    if (
+      abilities.field("owner")[slot] === playerId &&
+      abilities.field("defIndex")[slot] === defIndex
+    ) {
+      abilities.field("level")[slot] = level;
     }
   });
 }

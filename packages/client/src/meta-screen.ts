@@ -2,8 +2,8 @@
 // ACHIEVEMENTS / SETTINGS. Champions are gacha-only; the Upgrades section
 // upgrades the currently selected champion's own tree.
 import { CLASSES } from "@rift/content";
-import type { CharacterDef, PowerUpDef, StageDef, WeaponDef } from "@rift/sim";
-import { statLabel, weaponName } from "./ability-info";
+import type { AbilityDef, CharacterDef, PowerUpDef, StageDef } from "@rift/sim";
+import { abilityName, statLabel } from "./ability-info";
 import type { AccountClient } from "./account";
 import { championColor } from "./champion-colors";
 import { ChestOpeningUI } from "./chest-opening";
@@ -125,7 +125,7 @@ export class MetaScreen {
     private readonly save: SaveData,
     private readonly powerUps: PowerUpDef[],
     private readonly characters: CharacterDef[],
-    private readonly weapons: WeaponDef[],
+    private readonly abilities: AbilityDef[],
     private readonly stages: StageDef[],
     private readonly account: AccountClient,
   ) {
@@ -686,22 +686,22 @@ export class MetaScreen {
       el("p", "meta-hero-desc", profile?.summary ?? selected.description ?? "A mage of the Rift."),
     );
 
-    const weapon = this.weapons.find((w) => w.id === selected.startingWeapon);
-    const move = this.weapons.find((w) => w.id === selected.startingMove);
+    const ability = this.abilities.find((w) => w.id === selected.startingAbility);
+    const ability2 = this.abilities.find((w) => w.id === selected.startingAbility2);
     const kit = el("div", "meta-kit");
     kit.appendChild(
       this.kitItem(
-        "STARTING WEAPON",
-        weaponName(weapon, selected.startingWeapon),
-        weapon?.description ?? "",
+        "SIGNATURE ABILITY",
+        abilityName(ability, selected.startingAbility),
+        ability?.description ?? "",
       ),
     );
-    if (move) {
+    if (ability2) {
       kit.appendChild(
         this.kitItem(
-          "SIGNATURE MOVE",
-          weaponName(move, selected.startingMove ?? ""),
-          move.description ?? "",
+          "ULTIMATE",
+          abilityName(ability2, selected.startingAbility2 ?? ""),
+          ability2.description ?? "",
         ),
       );
     }
@@ -1060,22 +1060,22 @@ export class MetaScreen {
 
     const kit = el("section", "meta-dossier-kit-block");
     kit.appendChild(el("div", "meta-kicker", "RIFT SURVIVORS KIT"));
-    const weapon = this.weapons.find((w) => w.id === champion.startingWeapon);
-    const move = this.weapons.find((w) => w.id === champion.startingMove);
+    const ability = this.abilities.find((w) => w.id === champion.startingAbility);
+    const ability2 = this.abilities.find((w) => w.id === champion.startingAbility2);
     const kitGrid = el("div", "meta-kit");
     kitGrid.appendChild(
       this.kitItem(
-        "STARTING WEAPON",
-        weaponName(weapon, champion.startingWeapon),
-        weapon?.description ?? "",
+        "SIGNATURE ABILITY",
+        abilityName(ability, champion.startingAbility),
+        ability?.description ?? "",
       ),
     );
-    if (move) {
+    if (ability2) {
       kitGrid.appendChild(
         this.kitItem(
-          "SIGNATURE MOVE",
-          weaponName(move, champion.startingMove ?? ""),
-          move.description ?? "",
+          "ULTIMATE",
+          abilityName(ability2, champion.startingAbility2 ?? ""),
+          ability2.description ?? "",
         ),
       );
     }
@@ -1386,12 +1386,12 @@ export class MetaScreen {
 
     card.appendChild(el("p", "meta-champion-desc", profile?.summary ?? champion.description ?? ""));
 
-    const weapon = this.weapons.find((w) => w.id === champion.startingWeapon);
-    const move = this.weapons.find((w) => w.id === champion.startingMove);
+    const ability = this.abilities.find((w) => w.id === champion.startingAbility);
+    const ability2 = this.abilities.find((w) => w.id === champion.startingAbility2);
     const kit = el("div", "meta-champion-kit");
     kit.append(
-      this.chip(`W: ${weaponName(weapon, champion.startingWeapon)}`, "kit"),
-      this.chip(`M: ${weaponName(move, champion.startingMove ?? "")}`, "kit move"),
+      this.chip(`Q: ${abilityName(ability, champion.startingAbility)}`, "kit"),
+      this.chip(`R: ${abilityName(ability2, champion.startingAbility2 ?? "")}`, "kit move"),
       ...(champion.tags?.includes("levitate") ? [this.chip("LEVITATE", "kit")] : []),
     );
     card.appendChild(kit);

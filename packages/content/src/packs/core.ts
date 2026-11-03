@@ -1,5 +1,5 @@
 // The `core` pack: generic enemies and passive items (stat sticks). Champions and
-// ability weapons live in the `lol` pack. Names are generic; League flavor is data.
+// ability abilities live in the `lol` pack. Names are generic; League flavor is data.
 import type { ContentPack, PowerUpDef } from "@rift/sim";
 import { contentPackSchema } from "../schema";
 
@@ -312,7 +312,7 @@ const corePack: ContentPack = {
       tint: 0xff2255,
     },
   ],
-  weapons: [],
+  abilities: [],
   passives: [
     {
       id: "might",

@@ -74,6 +74,6 @@ export type {
   StatusApply,
   SynergyDef,
   TagQuery,
-  WeaponDef,
-  WeaponStats,
+  AbilityDef,
+  AbilityStats,
 } from "./content-types";

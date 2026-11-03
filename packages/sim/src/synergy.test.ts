@@ -18,7 +18,7 @@ const SYNERGY_PACK: ContentPack = {
       params: {},
     },
   ],
-  weapons: [
+  abilities: [
     {
       id: "fire-a",
       tags: ["damage:fire"],
@@ -63,7 +63,7 @@ const SYNERGY_PACK: ContentPack = {
     },
   ],
   passives: [],
-  characters: [{ id: "mage", tags: ["role:mage"], startingWeapon: "fire-a" }],
+  characters: [{ id: "mage", tags: ["role:mage"], startingAbility: "fire-a" }],
   powerUps: [],
   synergies: [
     {
@@ -85,7 +85,7 @@ describe("synergy", () => {
     expect(idx).toBeGreaterThanOrEqual(0);
     applyChoice(world, 0, idx);
 
-    // Two fire weapons now → ignite active → +0.1 area.
+    // Two fire abilities now → ignite active → +0.1 area.
     expect(world.playerStat(0, "area", 1)).toBeCloseTo(1.1);
   });
 

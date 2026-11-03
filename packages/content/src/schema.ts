@@ -1,4 +1,6 @@
 import type {
+  AbilityDef,
+  AbilityStats,
   ChampionProfile,
   CharacterDef,
   ContentPack,
@@ -10,14 +12,12 @@ import type {
   StatDelta,
   SynergyDef,
   TagQuery,
-  WeaponDef,
-  WeaponStats,
 } from "@rift/sim";
-// Zod schemas for the core content pack (enemies + weapons). Typed against the
+// Zod schemas for the core content pack (enemies + abilities). Typed against the
 // sim's runtime contract so parsed data is assignable to `@rift/sim` types.
 import { z } from "zod";
 
-const weaponStatsSchema: z.ZodType<WeaponStats> = z.object({
+const abilityStatsSchema: z.ZodType<AbilityStats> = z.object({
   damage: z.number(),
   cooldown: z.number(),
   area: z.number(),
@@ -43,16 +43,15 @@ const statDeltaSchema: z.ZodType<StatDelta> = z.object({
   lifetime: z.number().optional(),
 });
 
-const weaponDefSchema: z.ZodType<WeaponDef> = z.object({
+const abilityDefSchema: z.ZodType<AbilityDef> = z.object({
   id: z.string(),
   name: z.string().optional(),
   description: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  isMove: z.boolean().optional(),
   behavior: z.string(),
   params: z.record(z.union([z.number(), z.string(), z.boolean()])),
   maxLevel: z.number().int().positive(),
-  base: weaponStatsSchema,
+  base: abilityStatsSchema,
   levels: z.array(z.object({ delta: statDeltaSchema })),
   damageType: z.enum(["physical", "magic", "true"]).optional(),
   status: z.object({ id: z.enum(["burn", "slow"]), ticks: z.number().int().positive() }).optional(),
@@ -117,8 +116,8 @@ const characterDefSchema: z.ZodType<CharacterDef> = z.object({
   class: z.string().optional(),
   starter: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
-  startingWeapon: z.string(),
-  startingMove: z.string().optional(),
+  startingAbility: z.string(),
+  startingAbility2: z.string().optional(),
   baseStats: z.record(z.number()).optional(),
   growth: z
     .object({ everyLevels: z.number().int().positive(), mods: z.record(z.number()) })
@@ -200,7 +199,7 @@ export const contentPackSchema: z.ZodType<ContentPack> = z.object({
   id: z.string(),
   schemaVersion: z.number().int().positive(),
   enemies: z.array(enemyDefSchema),
-  weapons: z.array(weaponDefSchema),
+  abilities: z.array(abilityDefSchema),
   passives: z.array(passiveDefSchema),
   characters: z.array(characterDefSchema),
   powerUps: z.array(powerUpDefSchema),
