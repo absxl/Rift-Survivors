@@ -113,9 +113,13 @@ export function defaultSave(firstCharacter: string, firstStage = "rift-field"): 
     runsPlayed: 0,
     bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
     settings: {
-      volume: 0.22,
+      volume: 0.7,
+      music: 0.5,
+      sfx: 0.8,
       shake: true,
       damageNumbers: true,
+      showFps: false,
+      shopKey: "b",
       keybinds: { up: "w", down: "s", left: "a", right: "d" },
     },
   };

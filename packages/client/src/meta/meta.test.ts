@@ -42,8 +42,12 @@ function save(overrides: Partial<SaveData> = {}): SaveData {
     bestRun: { timeSec: 0, kills: 0, gold: 0, characterId: "", stageId: "" },
     settings: {
       volume: 0.2,
+      music: 0.4,
+      sfx: 0.7,
       shake: true,
       damageNumbers: true,
+      showFps: false,
+      shopKey: "b",
       keybinds: { up: "w", down: "s", left: "a", right: "d" },
     },
     ...overrides,

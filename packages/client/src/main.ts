@@ -4,7 +4,7 @@ import type { SimEvent, WorldSnapshot } from "@rift/sim";
 import { Application, Container } from "pixi.js";
 import { AccountClient } from "./account";
 import { AdminPanel } from "./admin";
-import { Sfx } from "./audio";
+import { Music, Sfx } from "./audio";
 import { Banner } from "./banner";
 import { championColor } from "./champion-colors";
 import { ConnectionLost } from "./connection-lost";
@@ -117,13 +117,14 @@ async function main(): Promise<void> {
   );
   const shop = new ShopUI();
   shop.setItems(pack.items ?? []);
-  // B toggles the shop unless a level-up offer owns the keyboard (B = banish).
+  // The rebindable shop key toggles the shop unless a level-up offer owns
+  // the keyboard (B = banish there).
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && shop.isOpen) {
       shop.hide();
       return;
     }
-    if (e.key.toLowerCase() === "b" && !levelUp.visible && !runEnded) {
+    if (e.key.toLowerCase() === save.settings.shopKey && !levelUp.visible && !runEnded) {
       e.preventDefault();
       shop.toggle();
     }
@@ -137,6 +138,7 @@ async function main(): Promise<void> {
   input.attach();
   input.setKeybinds(save.settings.keybinds);
   const sfx = new Sfx();
+  const music = new Music();
 
   // The active choice/input senders are swapped depending on solo vs co-op.
   let activeChoice: ((index: number) => void) | null = null;
@@ -198,6 +200,11 @@ async function main(): Promise<void> {
     e.preventDefault();
     debugOverlay.style.display = debugOverlay.style.display === "none" ? "block" : "none";
   });
+  const fpsOverlay = {
+    setVisible(visible: boolean): void {
+      debugOverlay.style.display = visible ? "block" : "none";
+    },
+  };
 
   const finishRun = (title = "DEFEAT", closeConnection = false): void => {
     if (runEnded || !lastSnap) return;
@@ -266,6 +273,7 @@ async function main(): Promise<void> {
 
   const handleSnapshot = (snap: WorldSnapshot, events: SimEvent[]): void => {
     shop.update(snap);
+    music.setIntensity(Math.min(1, (snap.partyLevel - 1) / 20));
     renderer.receive(snap, events);
     lastSnap = snap;
     levelUp.setStats(snap.playerStats[localPlayerId] ?? snap.playerStats[0] ?? null);
@@ -338,14 +346,20 @@ async function main(): Promise<void> {
   );
   const admin = new AdminPanel(save, pack.characters, pack.powerUps, () => metaScreen.refresh());
   admin.onRunGold = (amount: number) => host.grantRunGold?.(amount);
-  sfx.setVolume(save.settings.volume);
+  const applyVolumes = (): void => {
+    sfx.setVolume(save.settings.sfx * save.settings.volume);
+    music.setVolume(save.settings.music * save.settings.volume);
+  };
+  applyVolumes();
   renderer.setShake(save.settings.shake);
   renderer.setDamageNumbers(save.settings.damageNumbers);
   metaScreen.onSettingsChange((settings) => {
-    sfx.setVolume(settings.volume);
+    sfx.setVolume(settings.sfx * settings.volume);
+    music.setVolume(settings.music * settings.volume);
     renderer.setShake(settings.shake);
     renderer.setDamageNumbers(settings.damageNumbers);
     input.setKeybinds(settings.keybinds);
+    fpsOverlay.setVisible(settings.showFps);
   });
 
   /** Stage intro card: name + lore line when a run begins (D-051). */
@@ -405,6 +419,8 @@ async function main(): Promise<void> {
   metaScreen.onPlay(() => {
     metaScreen.hide();
     sfx.unlock();
+    const ctx = sfx.context();
+    if (ctx) music.start(ctx);
     startSolo(save.selectedCharacter);
   });
 
@@ -451,6 +467,8 @@ async function main(): Promise<void> {
   metaScreen.onCoop(() => {
     metaScreen.hide();
     sfx.unlock();
+    const ctx = sfx.context();
+    if (ctx) music.start(ctx);
     coopCharacterId = save.selectedCharacter;
     lobby.setCharacter(coopCharacterId);
     // The Showdown-style profile name is the identity used in the lobby; there
@@ -501,11 +519,9 @@ async function main(): Promise<void> {
     finishRun("RUN ENDED", true);
   });
   pauseMenu.onSettingsChange((settings) => {
-    save.settings.volume = settings.volume;
-    save.settings.shake = settings.shake;
-    save.settings.damageNumbers = settings.damageNumbers;
+    Object.assign(save.settings, settings);
     persistSave(save);
-    sfx.setVolume(settings.volume);
+    applyVolumes();
     renderer.setShake(settings.shake);
     renderer.setDamageNumbers(settings.damageNumbers);
   });

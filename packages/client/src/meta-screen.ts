@@ -41,7 +41,7 @@ import {
   regionTheme,
 } from "./regions";
 import type { Keybinds, SaveData } from "./save/save";
-import { persistSave, resetSave } from "./save/save";
+import { migrateSave, persistSave, resetSave } from "./save/save";
 
 type Section =
   | "profile"
@@ -110,7 +110,7 @@ export class MetaScreen {
   private chestSort: ChestSort = "featured";
   private achievementQuery = "";
   private achievementSort: AchievementSort = "default";
-  private listening: keyof Keybinds | null = null;
+  private listening: keyof Keybinds | "shop" | null = null;
   private captureHandler: ((e: KeyboardEvent) => void) | null = null;
   private readonly chestOpening: ChestOpeningUI;
   private scrollTop = 0;
@@ -2023,34 +2023,81 @@ export class MetaScreen {
   private renderSettings(): HTMLElement {
     const wrap = el("div", "meta-page");
     wrap.appendChild(
-      this.sectionHead("OPTIONS", "SETTINGS", "Audio, feel, controls, and the local save."),
+      this.sectionHead(
+        "OPTIONS",
+        "SETTINGS",
+        "Audio, feel, controls, and save data. Everything applies instantly and syncs with your cloud save.",
+      ),
     );
 
     const card = el("div", "meta-settings-card");
+
+    // --- AUDIO ---------------------------------------------------------------
     const audio = el("div", "meta-settings-group");
-    audio.appendChild(el("div", "meta-settings-label", "AUDIO & FEEL"));
-    const toggles = el("div", "meta-settings-row");
-    toggles.appendChild(
-      this.toggle("SOUND", this.save.settings.volume > 0, () => {
-        this.save.settings.volume = this.save.settings.volume > 0 ? 0 : 0.22;
-        this.afterSettings();
-      }),
+    audio.appendChild(el("div", "meta-settings-label", "AUDIO"));
+    const volumes = el("div", "meta-settings-row");
+    volumes.appendChild(
+      this.slider(
+        "MASTER",
+        this.save.settings.volume,
+        (value) => {
+          this.save.settings.volume = value;
+          this.afterSettings();
+        },
+        "Overall loudness for everything.",
+      ),
     );
-    toggles.appendChild(
+    volumes.appendChild(
+      this.slider(
+        "MUSIC",
+        this.save.settings.music,
+        (value) => {
+          this.save.settings.music = value;
+          this.afterSettings();
+        },
+        "The procedural soundtrack.",
+      ),
+    );
+    volumes.appendChild(
+      this.slider(
+        "EFFECTS",
+        this.save.settings.sfx,
+        (value) => {
+          this.save.settings.sfx = value;
+          this.afterSettings();
+        },
+        "Hits, pickups, level-ups and chests.",
+      ),
+    );
+    audio.appendChild(volumes);
+    card.appendChild(audio);
+
+    // --- GAME FEEL -------------------------------------------------------------
+    const feel = el("div", "meta-settings-group");
+    feel.appendChild(el("div", "meta-settings-label", "GAME FEEL"));
+    const feelRow = el("div", "meta-settings-row");
+    feelRow.appendChild(
       this.toggle("SCREEN SHAKE", this.save.settings.shake, () => {
         this.save.settings.shake = !this.save.settings.shake;
         this.afterSettings();
       }),
     );
-    toggles.appendChild(
+    feelRow.appendChild(
       this.toggle("DAMAGE NUMBERS", this.save.settings.damageNumbers, () => {
         this.save.settings.damageNumbers = !this.save.settings.damageNumbers;
         this.afterSettings();
       }),
     );
-    audio.appendChild(toggles);
-    card.appendChild(audio);
+    feelRow.appendChild(
+      this.toggle("PERF OVERLAY", this.save.settings.showFps, () => {
+        this.save.settings.showFps = !this.save.settings.showFps;
+        this.afterSettings();
+      }),
+    );
+    feel.appendChild(feelRow);
+    card.appendChild(feel);
 
+    // --- CONTROLS ----------------------------------------------------------------
     const controls = el("div", "meta-settings-group");
     controls.appendChild(el("div", "meta-settings-label", "CONTROLS"));
     const binds = el("div", "meta-settings-row");
@@ -2069,21 +2116,85 @@ export class MetaScreen {
       button.addEventListener("click", () => this.startRebind(kind));
       binds.appendChild(button);
     }
+    const shopBind = el("button", "meta-btn");
+    shopBind.textContent =
+      this.listening === "shop"
+        ? "PRESS A KEY..."
+        : `SHOP: ${this.save.settings.shopKey.toUpperCase()}`;
+    shopBind.addEventListener("click", () => this.startRebind("shop"));
+    binds.appendChild(shopBind);
     controls.appendChild(binds);
     controls.appendChild(
-      el("div", "meta-hint", "ARROW KEYS ALWAYS MOVE · ESC CANCELS REBINDING · TAB SHOWS STATS"),
+      el(
+        "div",
+        "meta-hint",
+        "ARROW KEYS ALWAYS MOVE · ESC CANCELS REBINDING · TAB SHOWS STATS · B OPENS THE SHOP MID-RUN",
+      ),
     );
     card.appendChild(controls);
 
-    const saveGroup = el("div", "meta-settings-group");
-    saveGroup.appendChild(el("div", "meta-settings-label", "LOCAL SAVE"));
-    const saveRow = el("div", "meta-settings-row");
+    // --- DATA ------------------------------------------------------------------
+    const data = el("div", "meta-settings-group");
+    data.appendChild(el("div", "meta-settings-label", "SAVE DATA"));
+    const dataRow = el("div", "meta-settings-row");
+    const exportBtn = el("button", "meta-btn", "EXPORT SAVE");
+    exportBtn.addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(this.save, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rift-survivors-save.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+    dataRow.appendChild(exportBtn);
+    const importBtn = el("button", "meta-btn", "IMPORT SAVE");
+    const importInput = el("input") as HTMLInputElement;
+    importInput.type = "file";
+    importInput.accept = "application/json";
+    importInput.style.display = "none";
+    importInput.addEventListener("change", () => {
+      const file = importInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result)) as SaveData;
+          if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+            throw new Error("not a save file");
+          }
+          const migrated = migrateSave(parsed, "ahri", "rift-field");
+          Object.assign(this.save, migrated);
+          persistSave(this.save);
+          window.location.reload();
+        } catch {
+          const fail = el("div", "meta-achievement-toast");
+          fail.appendChild(el("div", "meta-achievement-toast-kicker", "IMPORT FAILED"));
+          fail.appendChild(el("div", "meta-achievement-toast-label", "Not a Rift Survivors save."));
+          document.body.appendChild(fail);
+          window.setTimeout(() => fail.remove(), 3600);
+        }
+      };
+      reader.readAsText(file);
+    });
+    importBtn.addEventListener("click", () => importInput.click());
+    dataRow.appendChild(importBtn);
+    dataRow.appendChild(importInput);
     const reset = el("button", "meta-btn danger", "RESET SAVE");
     reset.addEventListener("click", () => this.resetSave());
-    saveRow.appendChild(reset);
-    saveRow.appendChild(el("div", "meta-hint", "Champions, shards, gold, upgrades, and settings."));
-    saveGroup.appendChild(saveRow);
-    card.appendChild(saveGroup);
+    dataRow.appendChild(reset);
+    dataGroup: {
+      data.appendChild(dataRow);
+      data.appendChild(
+        el(
+          "div",
+          "meta-hint",
+          "Export/import a portable JSON backup. Reset clears champions, shards, gold, upgrades, and settings.",
+        ),
+      );
+      break dataGroup;
+    }
+    card.appendChild(data);
 
     wrap.appendChild(card);
     wrap.appendChild(
@@ -2094,6 +2205,30 @@ export class MetaScreen {
       ),
     );
     return wrap;
+  }
+
+  private slider(
+    label: string,
+    value: number,
+    onChange: (value: number) => void,
+    hint: string,
+  ): HTMLElement {
+    const box = el("div", "meta-slider");
+    box.appendChild(el("div", "meta-slider-label", `${label} ${Math.round(value * 100)}%`));
+    const input = el("input") as HTMLInputElement;
+    input.type = "range";
+    input.min = "0";
+    input.max = "100";
+    input.value = String(Math.round(value * 100));
+    input.setAttribute("aria-label", label);
+    input.addEventListener("input", () => {
+      const next = Number(input.value) / 100;
+      box.querySelector(".meta-slider-label")!.textContent = `${label} ${input.value}%`;
+      onChange(next);
+    });
+    input.title = hint;
+    box.appendChild(input);
+    return box;
   }
 
   private toggle(label: string, on: boolean, onClick: () => void): HTMLElement {
@@ -2121,7 +2256,7 @@ export class MetaScreen {
     window.location.reload();
   }
 
-  private startRebind(kind: keyof Keybinds): void {
+  private startRebind(kind: keyof Keybinds | "shop"): void {
     this.cancelRebind();
     this.listening = kind;
     this.render();
@@ -2134,11 +2269,21 @@ export class MetaScreen {
         return;
       }
       const key = e.key.toLowerCase();
-      const binds = this.save.settings.keybinds;
-      for (const other of Object.keys(binds) as (keyof Keybinds)[]) {
-        if (other !== kind && binds[other] === key) binds[other] = binds[kind];
+      if (kind === "shop") {
+        // The shop key is free-form: it only needs to not collide with binds.
+        for (const other of Object.keys(this.save.settings.keybinds) as (keyof Keybinds)[]) {
+          if (this.save.settings.keybinds[other] === key) {
+            this.save.settings.keybinds[other] = this.save.settings.shopKey;
+          }
+        }
+        this.save.settings.shopKey = key;
+      } else {
+        const binds = this.save.settings.keybinds;
+        for (const other of Object.keys(binds) as (keyof Keybinds)[]) {
+          if (other !== kind && binds[other] === key) binds[other] = binds[kind];
+        }
+        binds[kind] = key;
       }
-      binds[kind] = key;
       this.cancelRebind();
       this.afterSettings();
     };
