@@ -408,3 +408,24 @@ the original Vampire Survivors, with infrastructure ready for radical changes la
     saves and the save schema are untouched.
 - Consequences: collection pages expose a consistent search row with a sort control and result count;
   no new art, content records, or persistence fields are required.
+
+### D-039 - Late-run XP, time-scaled enemies, magnet drops, and official crest branding
+- Date: 2026-11-03 - Status: decided (user)
+- Decision:
+  - The XP curve keeps its early pace but becomes substantially cheaper after level 9; post-table growth
+    drops from 7 to 4 XP per level. This gives more level-up picks during the long late-run stretch.
+  - **Every minion can roll one original ranged ability** instead of only ranged/fan archetypes. The roll
+    starts at 18% and gains 1.2 percentage points per minute, with ranged/fan archetypes 1.5x as likely.
+    Elites keep two abilities, bosses four, and final threats five.
+  - Enemy movement speed starts at 1.05x and gains 1.8% per minute. Enemy contact, projectile, ability,
+    and explosion damage gains 5% per minute. Terrain slow, freeze, and shields still apply normally.
+  - Elite health bars remain always visible and gain a stronger gold frame/backplate so the elite marker
+    stays readable in a busy swarm. Other enemies still only show bars after taking damage.
+  - Magnet is now a normal minion consumable drop alongside heal/vacuum/freeze, rendered with its own
+    icon. It pulls all active gems and floor pickups to the collector, excluding other magnets so it cannot
+    chain. Run-chest magnets remain unchanged.
+  - Owner-supplied crest artwork becomes the official project branding: the transparent mark in the meta
+    topbar and favicon, the ornate crest in the README, and the solid crest for social previews.
+- Consequences: later levels arrive faster, enemy pressure ramps instead of jumping, and magnet is
+  discoverable outside run chests. No save schema changes. Binary logo files live under
+  `packages/client/public/brand/`; provenance is recorded in `ASSETS.md`.

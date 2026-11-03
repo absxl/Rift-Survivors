@@ -63,10 +63,11 @@ function terrainSpeed(
   def: EnemyDef | undefined,
   speed: number,
 ): number {
-  if (!def || world.enemyLevitates(def)) return speed;
+  const scaled = speed * world.enemySpeedScale();
+  if (!def || world.enemyLevitates(def)) return scaled;
   const enemies = world.stores.enemies;
   return (
-    speed *
+    scaled *
     world.terrain.movementMultiplier(enemies.field("x")[slot], enemies.field("y")[slot], false)
   );
 }
@@ -180,7 +181,7 @@ function ranged(world: World, slot: number, def: EnemyDef): void {
     ey,
     target.dx / target.dist,
     target.dy / target.dist,
-    numParam(def, "damage", def.damage),
+    world.enemyDamage(numParam(def, "damage", def.damage)),
     numParam(def, "speed", 3.4),
     Math.max(1, Math.floor(numParam(def, "lifetime", 120))),
   );
@@ -233,7 +234,7 @@ function fan(world: World, slot: number, def: EnemyDef): void {
       enemies.field("y")[slot],
       Math.cos(angle),
       Math.sin(angle),
-      numParam(def, "damage", def.damage),
+      world.enemyDamage(numParam(def, "damage", def.damage)),
       numParam(def, "speed", 3.2),
       Math.max(1, Math.floor(numParam(def, "lifetime", 110))),
     );

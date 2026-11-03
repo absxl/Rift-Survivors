@@ -92,13 +92,13 @@ describe("progression endgame", () => {
     first.partyXp = 140;
     step(first, []);
     expect(first.partyLevel).toBe(11);
-    expect(first.partyXpToNext).toBe(160);
+    expect(first.partyXpToNext).toBe(98);
 
     const tail = createWorld(DEFAULT_RULESET, { playerCount: 1, content: EMPTY_PACK }, 3);
     tail.partyLevel = 20;
     tail.partyXp = 223;
     step(tail, []);
     expect(tail.partyLevel).toBe(21);
-    expect(tail.partyXpToNext).toBe(230);
+    expect(tail.partyXpToNext).toBe(210);
   });
 });

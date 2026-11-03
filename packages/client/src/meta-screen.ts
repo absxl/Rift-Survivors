@@ -328,7 +328,13 @@ export class MetaScreen {
   private renderTopbar(): HTMLElement {
     const bar = el("div", "meta-topbar");
     const brand = el("div", "meta-brand");
-    const mark = el("div", "meta-brand-mark", "R");
+    const mark = el("div", "meta-brand-mark");
+    const logo = el("img", "meta-brand-logo");
+    logo.src = "/brand/rift-survivors-mark.png";
+    logo.alt = "";
+    logo.decoding = "async";
+    logo.setAttribute("aria-hidden", "true");
+    mark.appendChild(logo);
     const copy = el("div", "meta-brand-copy");
     copy.append(
       el("div", "meta-brand-title", "RIFT SURVIVORS"),

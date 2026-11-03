@@ -692,7 +692,7 @@ export class GameRenderer {
     }
   }
 
-  /** Thin bar above any enemy that has taken damage. */
+  /** Elite bars are always visible; other enemies show a bar after damage. */
   private drawEnemyHealthBars(store: StoreSnapshot | undefined): void {
     this.enemyHpBar.clear();
     if (!store) return;
@@ -722,9 +722,16 @@ export class GameRenderer {
         y = lerp(prev.fields.y[pi], y, a);
       }
       const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
-      this.enemyHpBar.rect(x - w / 2, y - 10, w, 2).fill(isElite ? 0x2a1a0c : 0x000000);
+      const barY = isElite ? y - 12 : y - 10;
+      const barH = isElite ? 3 : 2;
+      if (isElite) {
+        this.enemyHpBar.rect(x - w / 2 - 2, barY - 1, w + 4, barH + 2).fill(0x0a0703);
+        this.enemyHpBar.rect(x - w / 2 - 1, barY, w + 2, barH).fill(0x5a3b10);
+        this.enemyHpBar.rect(x - 1, barY - 5, 2, 2).fill(0xffd36b);
+      }
+      this.enemyHpBar.rect(x - w / 2, barY, w, barH).fill(isElite ? 0x2a1a0c : 0x000000);
       this.enemyHpBar
-        .rect(x - w / 2 + 1, y - 9, (w - 2) * pct, 1)
+        .rect(x - w / 2 + 1, barY + 1, (w - 2) * pct, Math.max(1, barH - 1))
         .fill(isElite ? 0xffb24d : 0xff4444);
       if (shield > 0) {
         this.enemyHpBar.circle(x, y - 4, Math.max(8, w * 0.35));

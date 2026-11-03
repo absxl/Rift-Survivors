@@ -215,7 +215,9 @@ function contactDamage(world: World): void {
     let damage = 0;
     world.enemiesInCircle(px, py, 14, (enemySlot) => {
       const def = world.content.enemies[world.stores.enemies.field("kind")[enemySlot]];
-      if (def && def.damage > damage) damage = def.damage;
+      if (!def) return;
+      const scaled = world.enemyDamage(def.damage);
+      if (scaled > damage) damage = scaled;
     });
 
     if (damage > 0) {

@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rift Survivors</title>
+    <meta
+      name="description"
+      content="Rift Survivors is an unofficial, non-commercial League-inspired survivor fan game. Work in progress, playable locally."
+    />
+    <meta name="theme-color" content="#070b12" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/brand/rift-survivors-mark.png" />
+    <link rel="apple-touch-icon" href="/brand/rift-survivors-mark.png" />
+    <meta property="og:title" content="Rift Survivors" />
+    <meta
+      property="og:description"
+      content="An unofficial, non-commercial League-inspired survivor fan game. Work in progress, playable locally."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://rift.carletti.work/brand/rift-survivors-crest-solid.png" />
+    <meta name="twitter:card" content="summary_large_image" />
     <style>
       html,
       body {
@@ -439,19 +455,18 @@
         min-width: 260px;
       }
       .meta-brand-mark {
-        width: 38px;
-        height: 38px;
+        width: 46px;
+        height: 46px;
+        flex: 0 0 auto;
         display: grid;
         place-items: center;
-        border: 1px solid var(--rift-gold);
-        color: var(--rift-gold-bright);
-        font-size: 20px;
-        font-weight: bold;
-        transform: rotate(45deg);
-        background: linear-gradient(135deg, #1b2638, #0a1019);
       }
-      .meta-brand-mark::first-letter {
-        transform: rotate(-45deg);
+      .meta-brand-logo {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+        filter: drop-shadow(0 0 8px rgba(126, 72, 255, 0.28));
       }
       .meta-brand-title {
         color: var(--rift-gold-bright);

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="packages/client/public/brand/rift-survivors-crest-ornate.png" width="180" alt="Rift Survivors crest" />
+
 # ⚔️ RIFT SURVIVORS
 
 **A browser-based, League-inspired survivor game with solo and online co-op.**
@@ -80,8 +82,11 @@ corepack pnpm --filter @rift/client dev -- --host
   tree.
 - **Two stages:** the Riftfield and the Noxian Warfront, with deterministic walls, water, lava, and
   breakable bushes.
+- **Escalating enemy pressure:** faster, harder-hitting enemies as the run progresses; ranged ability
+  rolls on minions; elite health bars; and late-run XP costs softened for more level-up picks.
 - **Survivor-style runs:** auto-firing weapons, **6 weapons + 4 moves + 6 passives**, evolutions, synergies,
   timed chests, elites, bosses, and a 30-minute final-threat target.
+- **Map-wide magnet pickups:** magnet drops pull all active gems and floor loot to the collector.
 - **44 permanent upgrades** and **26 in-run passives**, with deeper 10-rank/8-level tracks.
 - **Region gacha:** keys, champion shards, 1-pulls, 10-pulls, an Epic+ guarantee, and a Darkin chest.
 - **Collection tools:** search, filters, sorting, dossiers, source-backed champion profiles, and 67
@@ -164,7 +169,7 @@ corepack pnpm --filter @rift/client build
 corepack pnpm --filter @rift/server build
 ```
 
-Current local baseline: **179 tests passing, 2 opt-in balance tests skipped**.
+Current local baseline: **180 tests passing, 2 opt-in balance tests skipped**.
 
 ### Art contributions
 

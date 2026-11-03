@@ -68,6 +68,10 @@ describe("progression stress", () => {
     }
 
     for (let t = 0; t < 600; t++) step(world, []);
+    while (world.pendingOffers().length > 0) {
+      const offer = world.pendingOffers()[0];
+      applyChoice(world, offer.playerId, 0);
+    }
     expect(world.pendingOffers().length).toBe(0);
     expect(Number.isFinite(world.playerStat(0, "cooldown", 1))).toBe(true);
     expect(Number.isFinite(world.playerStat(0, "area", 1))).toBe(true);

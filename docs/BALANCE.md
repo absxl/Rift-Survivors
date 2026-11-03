@@ -3,7 +3,7 @@
 Measured with the headless kiting bot on the **real content pack** (`loadGamePack()`), solo, champion
 `lux`, `DEFAULT_RULESET`. Numbers are a regression baseline, not a substitute for a human playtest.
 
-- Baseline date: 2026-10-27; D-037 snapshot: 2026-10-29
+- Baseline date: 2026-10-27; current snapshot: 2026-11-03 (D-039)
 - Run command: `$env:BALANCE="1"; corepack pnpm --filter @rift/content test -- balance`
 - Seeds: 101, 202, 303
 - Reference: 30:00 final threat -> boss rush (fallback at 30:45); solo run ends on death.
@@ -22,8 +22,10 @@ Measured with the headless kiting bot on the **real content pack** (`loadGamePac
   the gacha economy needs a human check because effective pools overlap.
 - D-034 adds coherent terrain cleanup, non-blocking breakable bushes, timed run chests with a three-second hold, key drops from elites/bosses, and save v6 keys. The in-run bot baseline below predates the new chest rewards.
 - D-035 adds enemy ability kits and frost/magnet/bomb utility. D-037 adds 10/6-rank meta relics, 26
-  eight-level passives, and noticeably denser terrain/bushes. The historical D-032 table is kept below;
-  the current D-037 snapshot is recorded separately.
+  eight-level passives, and noticeably denser terrain/bushes. D-039 cheapens XP after level 9, gives every
+  minion a time-ramped ranged ability roll, scales enemy speed/damage with time, and adds magnet to the
+  normal minion drop table. The historical D-032 table is kept below; the current D-039 snapshot is
+  recorded separately.
 
 ## Enemy roster (20 types)
 
@@ -66,20 +68,21 @@ Player damage taken by source (hits):
 | 202  | 0  | 278 | 15 |
 | 303  | 6  | 84  | 6  |
 
-## Current snapshot (D-037)
+## Current snapshot (D-039)
 
-Measured after the D-037 dense-field and passive/meta changes on the same three seeds:
+Measured after the D-039 late-XP, enemy-ability, time-scaling, and magnet changes on the same three seeds:
 
 | Seed | Survived | Level (picks) | Kills | Gold | Keys found | Gems / XP | Max alive | ms/tick |
 | ---- | -------- | ------------- | ----- | ---- | ---------- | --------- | --------- | ------- |
-| 101  | 5:38 | 14 (13) | 934  | 275 | 1 | 785 / 909  | 56 | 0.1376 |
-| 202  | 6:31 | 16 (15) | 1,111 | 275 | 2 | 884 / 1,128 | 64 | 0.1218 |
-| 303  | 5:16 | 14 (13) | 855  | 250 | 2 | 741 / 857  | 53 | 0.1140 |
+| 101  | 5:19 | 16 (15) | 904  | 255 | 2 | 840 / 954  | 59 | 0.1124 |
+| 202  | 5:38 | 16 (15) | 954  | 331 | 1 | 832 / 971  | 50 | 0.1038 |
+| 303  | 5:33 | 16 (15) | 950  | 240 | 1 | 880 / 1,045 | 60 | 0.0900 |
 
-The `old pace` variant also died at 5:42 on seed 101, so this is not a terrain-density-only regression.
-The no-dodge bot is now under heavy pressure from enemy ability kits and swarm cadence; that needs a
-human pass before changing player or terrain numbers again. The D-032 table above remains the historical
-"long survival" reference.
+The bot now reaches level 16 at roughly five and a half minutes instead of level 14 under D-037. The first
+D-039 tuning pass used a flat 45% ability chance for every minion and dropped seed 303 to 1:40; the
+released 18% + 1.2%/min ramp brings all three seeds back into the five-to-six-minute band. The no-dodge bot
+still dies to ability and projectile pressure, so a human pass remains the gate for further tuning. The
+D-032 table above remains the historical "long survival" reference.
 
 ## Observations (D-032 snapshot)
 
@@ -114,7 +117,10 @@ human pass before changing player or terrain numbers again. The D-032 table abov
 - **Props and cover:** breakable bushes are in (D-034/D-037). Destructible rocks and line-of-sight cover
   remain deferred; they would add another tactical layer.
 - **Projectile pressure:** the dominant damage source on surviving seeds is still ranged/boss projectiles.
-  If human runs feel too spikey, tune ranged/boss cadence before raising player stats.
+  D-039 adds time-scaled enemy speed/damage and a ramped minion ability chance; if human runs feel too
+  spikey, tune those ramps before raising player stats.
+- **Magnet frequency:** magnets are now a 1-in-5 outcome of the normal consumable drop roll. Watch whether
+  they feel discoverable but not mandatory; adjust the drop pool weights rather than the chest magnet.
 
 ## Caveats
 

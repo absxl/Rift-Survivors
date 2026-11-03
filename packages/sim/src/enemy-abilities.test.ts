@@ -62,9 +62,9 @@ function abilityCount(kind: number, seed: number): number {
 }
 
 describe("random enemy abilities", () => {
-  it("gives ranged minions one, elites two, bosses four, and final threats five", () => {
+  it("gives minions one, elites two, bosses four, and final threats five", () => {
     expect(abilityCount(0, 1)).toBe(1);
-    expect(abilityCount(1, 2)).toBe(0);
+    expect(abilityCount(1, 2)).toBe(1);
     expect(abilityCount(2, 3)).toBe(2);
     expect(abilityCount(3, 4)).toBe(4);
     expect(abilityCount(4, 5)).toBe(5);
@@ -86,6 +86,16 @@ describe("random enemy abilities", () => {
     const before = players.field("hp")[0];
     for (let i = 0; i < 50; i++) step(world, []);
     expect(players.field("hp")[0]).toBeLessThan(before);
+  });
+
+  it("scales enemy speed and damage with elapsed run time", () => {
+    const world = createWorld(quietRules(), { playerCount: 1, content: PACK }, 66);
+    expect(world.enemySpeedScale()).toBeCloseTo(1.05);
+    expect(world.enemyDamageScale()).toBeCloseTo(1);
+    world.tick = 30 * 60 * 10;
+    expect(world.enemySpeedScale()).toBeCloseTo(1.05 * 1.18);
+    expect(world.enemyDamageScale()).toBeCloseTo(1.5);
+    expect(world.enemyDamage(10)).toBeCloseTo(15);
   });
 
   it("assigns deterministic non-duplicate abilities", () => {

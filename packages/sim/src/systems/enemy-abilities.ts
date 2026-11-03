@@ -68,10 +68,15 @@ export function assignEnemyAbilities(world: World, slot: number, def: EnemyDef):
   const picks: number[] = [];
   const category = def.category;
   if (category === "minion") {
-    const eligible = def.behavior === "ranged" || def.behavior === "fan";
-    if (!eligible || !world.rng.chance(world.num("enemy.rangedAbilityChance"))) {
-      return;
-    }
+    // Every minion can roll an original ranged ability. The chance ramps with
+    // run time so early waves are readable, and dedicated ranged/fan archetypes
+    // are more likely to have one on top of their base attack.
+    const casterBonus = def.behavior === "ranged" || def.behavior === "fan" ? 1.5 : 1;
+    const baseChance =
+      world.num("enemy.rangedAbilityChance") +
+      world.enemyTimeMinutes() * world.num("enemy.abilityChancePerMin");
+    const chance = Math.min(1, baseChance * casterBonus);
+    if (!world.rng.chance(chance)) return;
     const pick = choose(world, OFFENSIVE_ABILITIES, used);
     if (pick !== null) picks.push(pick);
   } else if (category === "elite") {
@@ -240,7 +245,7 @@ function executeAbility(
 ): boolean {
   const enemies = world.stores.enemies;
   const angle = Math.atan2(target.dy, target.dx);
-  const damage = Math.max(1, def.damage);
+  const damage = Math.max(1, world.enemyDamage(def.damage));
 
   switch (ability.id) {
     case 0: // Arc Bolt

@@ -1,11 +1,11 @@
 # 14 - Implementation status
 
 Last updated: **2026-10-29**.
-Current batch: **D-038** (search, filter, and sort controls for Champions, Chests, and Achievements) on
-top of D-037 (deeper meta/passive ranks, nine new permanent upgrades, eight hybrid passives, and denser
-terrain/bushes), D-036 (per-chest pull records and centered PLAY hero), D-035 (frost, chest utilities,
-enemy ability kits, Darkin chest, normalized crests, region achievements/dossiers, HUD/render fixes,
-focus removal), and earlier batches.
+Current batch: **D-039** (cheaper late-run XP, time-scaled enemy pressure, elite healthbar emphasis,
+droppable magnets, and official crest branding) on top of D-038 (search/filter/sort controls), D-037
+(deeper meta/passive ranks and denser terrain), D-036 (per-chest pull records and centered PLAY hero),
+D-035 (frost, chest utilities, enemy ability kits, Darkin chest, normalized crests, region
+achievements/dossiers, HUD/render fixes, focus removal), and earlier batches.
 Commits: `4f217ac` is the D-032 baseline; the D-033 batch is committed at `git log -1`.
 
 This is a snapshot of what is actually implemented in the repository. The design rationale lives in
@@ -77,9 +77,16 @@ the CHAMPIONS page; co-op uses the profile name rather than a per-session name p
 - Champion inventory is **6 weapons + 4 moves + 6 passives**.
 - Every champion starts with a class weapon and a class placeholder move; the original eight have their
   unique signature moves. Unique champion moves are the deferred moves pass.
-- A level-up has 3 cards plus 1 guaranteed repeatable Training card.
+- A level-up has 3 cards plus 1 guaranteed repeatable Training card. D-039 makes the post-level-9 XP curve
+  substantially cheaper for more late-run picks.
 - Evolutions are level-up cards (maxed weapon + required passive).
 - Elite/boss key drops and timed spawnable run chests feed the meta key wallet. Run chests open in-run after a three-second hold.
+- **Enemy pressure:** every minion can roll a ranged ability, with the chance ramping from 18% over the
+  run; elites carry two abilities, bosses four, and final threats five. Enemy speed gains 1.8%/min and
+  contact/projectile/ability/explosion damage gains 5%/min.
+- **Elites:** always show a gold-framed health bar, including before taking damage.
+- **Magnet:** drops from normal minion consumable rolls and pulls all gems and floor pickups to the
+  collector; other magnets are excluded so the effect cannot chain.
 - A run ends on death; the final threat appears at 30:00 and the run switches to a boss rush when it dies
   (or after a 45 s fallback).
 - **Terrain:** the arena is a deterministic tile field with walls, water/lava, breakable bushes, and a
@@ -554,11 +561,11 @@ Last full run (all green):
 - `biome check`: pass
 - `tsc --noEmit` for all packages: pass
 - tests:
-  - **113 sim** tests
+  - **114 sim** tests
   - **17 content** tests (+2 balance tests skipped by default)
   - **35 client** tests
   - **14 server** tests
-  - total **179 passing, 2 skipped**
+  - total **180 passing, 2 skipped**
 - Client and server production builds: pass.
 
 Coverage highlights:
@@ -610,19 +617,22 @@ Coverage highlights:
 - D-038 UI implementation: Champions, Chests, and Achievements render search rows with sort controls,
   result counts, empty states, and responsive wrapping. Browser interaction/visual verification is still
   pending for the new control rows.
+- D-039 automated coverage: every minion category can receive an ability; enemy speed/damage multipliers
+  are asserted at ten minutes; the revised XP table and post-table growth are covered; magnet loot
+  teleport/damage tests remain green. Elite health bars are renderer-only and still need a browser pass.
 
-### Balance snapshot (D-037, wall-aware bot)
+### Balance snapshot (D-039, wall-aware bot)
 
 | Seed | Survived | Level | Kills | Gold | Keys | Max alive | ms/tick |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 101 | 5:38 | 14 | 934 | 275 | 1 | 56 | 0.1376 |
-| 202 | 6:31 | 16 | 1,111 | 275 | 2 | 64 | 0.1218 |
-| 303 | 5:16 | 14 | 855 | 250 | 2 | 53 | 0.1140 |
+| 101 | 5:19 | 16 | 904 | 255 | 2 | 59 | 0.1124 |
+| 202 | 5:38 | 16 | 954 | 331 | 1 | 50 | 0.1038 |
+| 303 | 5:33 | 16 | 950 | 240 | 1 | 60 | 0.0900 |
 
-The no-dodge bot now dies around five to six and a half minutes. The `old pace` tuning variant also died
-at 5:42 on seed 101, so dense terrain is not the sole driver; enemy ability kits, swarm pressure, and the
-bot's lack of projectile dodging need a human balance pass. Density remains deterministic and the
-terrain-specific tests pass. Details are in `docs/BALANCE.md`.
+The no-dodge bot levels faster after D-039 but still dies around five and a half minutes to ability and
+projectile pressure. The first D-039 tuning pass gave every minion a 45% ability roll and dropped seed
+303 to 1:40; the released time-ramped chance restores all three seeds to roughly the same band. A human
+playtest is still the gate for further enemy-pressure tuning. Details are in `docs/BALANCE.md`.
 
 ## 9. Milestone status
 

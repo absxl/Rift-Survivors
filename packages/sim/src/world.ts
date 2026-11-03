@@ -530,6 +530,28 @@ export class World {
     );
   }
 
+  /** Elapsed run minutes, used for enemy speed/damage pressure. */
+  enemyTimeMinutes(): number {
+    return Math.max(0, this.tick) / (30 * 60);
+  }
+
+  /** Enemies get faster as the run progresses. */
+  enemySpeedScale(): number {
+    return (
+      this.num("enemy.baseSpeedScale") *
+      (1 + this.enemyTimeMinutes() * this.num("enemy.speedScalePerMin"))
+    );
+  }
+
+  /** Enemy contact, projectile, ability, and explosion damage scale with time. */
+  enemyDamageScale(): number {
+    return 1 + this.enemyTimeMinutes() * this.num("enemy.damageScalePerMin");
+  }
+
+  enemyDamage(base: number): number {
+    return base * this.enemyDamageScale();
+  }
+
   pathDirection(playerSlot: number, x: number, y: number): { x: number; y: number } | null {
     return this.pathfinder.direction(playerSlot, x, y);
   }

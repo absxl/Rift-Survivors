@@ -8,6 +8,7 @@ import {
   PICKUP_GOLD,
   PICKUP_HEAL,
   PICKUP_KEY,
+  PICKUP_MAGNET,
   PICKUP_NUKE,
   PICKUP_VACUUM,
   dropPickup,
@@ -113,7 +114,7 @@ function deaths(world: World): void {
         dropPickup(world, x, y, PICKUP_GOLD);
       }
       if (world.rng.chance(world.num("pickup.dropChance"))) {
-        const kinds = [PICKUP_HEAL, PICKUP_HEAL, PICKUP_VACUUM, PICKUP_FREEZE];
+        const kinds = [PICKUP_HEAL, PICKUP_HEAL, PICKUP_VACUUM, PICKUP_FREEZE, PICKUP_MAGNET];
         dropPickup(world, x, y, kinds[world.rng.int(0, kinds.length - 1)]);
       }
       if (world.rng.chance(world.num("pickup.nukeDropChance"))) {
@@ -132,7 +133,9 @@ function deaths(world: World): void {
         if (players.field("downed")[p] || players.field("iFrames")[p] > 0) return;
         const dx = players.field("x")[p] - x;
         const dy = players.field("y")[p] - y;
-        if (dx * dx + dy * dy <= r2) damagePlayer(world, p, explodeDamage, x, y, "explosion");
+        if (dx * dx + dy * dy <= r2) {
+          damagePlayer(world, p, world.enemyDamage(explodeDamage), x, y, "explosion");
+        }
       });
       world.emit({ type: "explosion", x, y, radius: explodeRadius });
     }
