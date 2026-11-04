@@ -59,11 +59,13 @@ async function main(): Promise<void> {
     new URLSearchParams(window.location.search).has("touch");
   if (touchCapable) document.body.classList.add("touch-mode");
 
+  // Cover-fit: the canvas always fills the viewport (slight crop on extreme
+  // aspect ratios) so there are never letterbox bars around the game.
   const fitCanvas = (): void => {
     const viewport = window.visualViewport;
     const width = viewport?.width ?? window.innerWidth;
     const height = viewport?.height ?? window.innerHeight;
-    const scale = Math.min(width / SCREEN_W, height / SCREEN_H);
+    const scale = Math.max(width / SCREEN_W, height / SCREEN_H);
     app.canvas.style.width = `${SCREEN_W * scale}px`;
     app.canvas.style.height = `${SCREEN_H * scale}px`;
   };
@@ -567,6 +569,9 @@ async function main(): Promise<void> {
   });
 
   runEnd.onContinue(() => {
+    // Return straight to the hub: the shell (boot + title) plays once per
+    // page load, not after every run.
+    sessionStorage.setItem("rk-skip-shell", "1");
     window.location.reload();
   });
 
@@ -634,18 +639,31 @@ async function main(): Promise<void> {
     inputSender(i.moveX, i.moveY);
   }, 1000 / 30);
 
-  // Game shell: boot + title over the hub (D-056). The hub renders beneath;
-  // the title dissolves into it on first input.
+  // Game shell (D-063): gated boot -> title -> hub. The hub stays hidden
+  // until the title dissolves so the raw game never flashes first. A session
+  // flag set by run-end skips the shell on return visits.
+  const skipShell = sessionStorage.getItem("rk-skip-shell") === "1";
+  if (skipShell) sessionStorage.removeItem("rk-skip-shell");
   const shell = new GameShell({
     onAudioUnlock: () => sfx.unlock(),
-    onStart: () => shell.dismissTitle(),
+    onBootComplete: () => shell.dismissBoot(),
+    onTitleComplete: () => {
+      shell.dismissTitle();
+      metaScreen.show();
+    },
     splashIds:
       save.unlockedCharacters.length > 0
         ? save.unlockedCharacters
         : ["ahri", "lux", "darius", "jinx"],
   });
-  shell.play();
-  shell.dismissBoot();
+  metaScreen.hide();
+  document.getElementById("boot-cover")?.remove();
+  if (skipShell) {
+    shell.skip();
+    metaScreen.show();
+  } else {
+    shell.play();
+  }
 
   app.ticker.add(() => {
     try {

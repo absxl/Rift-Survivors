@@ -1,12 +1,16 @@
-// Game shell: boot screen + title layer (docs/10 D-056). The boot screen
-// plays once (logo shimmer + load bar + CLICK TO START, which also unlocks
-// audio); the title layer is a full-bleed splash carousel over the hub that
-// dissolves on first input. All animation collapses under prefers-reduced-motion.
+// Game shell (docs/10 D-056/D-063): a properly gated three-stage flow —
+// boot screen ("CLICK TO START") → splash-carousel title ("CLICK TO ENTER")
+// → hub. The hub stays hidden until the title dissolves, so the raw game
+// never flashes before the wallpaper. `skip()` jumps straight to the hub for
+// return visits after a run. All animation collapses under reduced-motion.
 import { championCardURL } from "../assets/champion-sprites";
 
 export interface BootOptions {
   onAudioUnlock: () => void;
-  onStart: () => void;
+  /** Called when the boot screen's start button is pressed. */
+  onBootComplete: () => void;
+  /** Called when the title layer is dismissed (entering the hub). */
+  onTitleComplete: () => void;
   /** Champion ids with card art, for the title carousel. */
   splashIds: string[];
 }
@@ -17,46 +21,66 @@ export class GameShell {
   private titleTimer: number | null = null;
 
   constructor(options: BootOptions) {
-    this.boot = buildBoot(options);
-    this.title = buildTitle(options);
+    this.boot = buildBoot({
+      onAudioUnlock: options.onAudioUnlock,
+      onStart: () => {
+        options.onBootComplete();
+        this.dismissBoot();
+      },
+    });
+    this.title = buildTitle({
+      onAudioUnlock: options.onAudioUnlock,
+      onEnter: () => {
+        options.onTitleComplete();
+        this.dismissTitle();
+      },
+      splashIds: options.splashIds,
+    });
+    // Both stages start hidden; play() reveals the boot screen.
+    this.boot.style.display = "none";
+    this.title.style.display = "none";
     document.body.append(this.boot, this.title);
   }
 
-  /** Play the boot sequence; resolves when the player continues past it. */
+  /** Show the boot screen. Call once at startup. */
   play(): void {
     this.boot.style.display = "flex";
-    this.title.style.display = "grid";
-    this.title.classList.add("hidden");
   }
 
-  /** Called by the boot screen when the player clicks to start. */
+  /** Boot fade-out, then the title carousel becomes interactive. */
   dismissBoot(): void {
     this.boot.classList.add("boot-out");
     window.setTimeout(() => {
       this.boot.style.display = "none";
-      this.title.classList.remove("hidden");
+      this.title.style.display = "grid";
       this.title.classList.add("title-in");
-    }, 650);
+    }, 620);
   }
 
-  /** Dissolve the title layer into the hub. */
+  /** Dissolve the title into the hub. */
   dismissTitle(): void {
-    this.stopCarousel();
-    this.title.classList.add("title-out");
-    window.setTimeout(() => {
-      this.title.style.display = "none";
-    }, 900);
-  }
-
-  private stopCarousel(): void {
     if (this.titleTimer !== null) {
       window.clearInterval(this.titleTimer);
       this.titleTimer = null;
     }
+    this.title.classList.add("title-out");
+    window.setTimeout(() => {
+      this.title.style.display = "none";
+    }, 850);
+  }
+
+  /** Return visits after a run: straight to the hub, no shell replay. */
+  skip(): void {
+    if (this.titleTimer !== null) {
+      window.clearInterval(this.titleTimer);
+      this.titleTimer = null;
+    }
+    this.boot.style.display = "none";
+    this.title.style.display = "none";
   }
 }
 
-function buildBoot(options: BootOptions): HTMLElement {
+function buildBoot(options: { onAudioUnlock: () => void; onStart: () => void }): HTMLElement {
   const root = document.createElement("div");
   root.className = "boot";
   const crest = document.createElement("img");
@@ -80,17 +104,20 @@ function buildBoot(options: BootOptions): HTMLElement {
     options.onStart();
   });
 
-  // Fake-then-real load: bar fills over ~1.4s, then the prompt appears.
   window.setTimeout(() => fill.classList.add("full"), 60);
   window.setTimeout(() => {
     prompt.style.visibility = "visible";
     prompt.focus();
-  }, 1500);
+  }, 1400);
   root.append(crest, logo, bar, prompt);
   return root;
 }
 
-function buildTitle(options: BootOptions): HTMLElement {
+function buildTitle(options: {
+  onAudioUnlock: () => void;
+  onEnter: () => void;
+  splashIds: string[];
+}): HTMLElement {
   const root = document.createElement("div");
   root.className = "title-screen";
   root.setAttribute("role", "button");
@@ -120,17 +147,16 @@ function buildTitle(options: BootOptions): HTMLElement {
 
   root.append(vignette, logo, sub);
   let index = 0;
-  options.onStart; // the title continues into the hub on click below
   root.addEventListener("click", () => {
     if (root.classList.contains("title-out")) return;
     options.onAudioUnlock();
-    options.onStart();
+    options.onEnter();
   });
   window.addEventListener("keydown", (e) => {
     if (root.style.display === "none" || root.classList.contains("title-out")) return;
     if (e.key === "Enter" || e.key === " ") {
       options.onAudioUnlock();
-      options.onStart();
+      options.onEnter();
     }
   });
 

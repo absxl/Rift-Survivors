@@ -3259,11 +3259,15 @@ body.touch-mode .touch-controls.active {
   background: var(--rk-accent);
   border: 1px solid var(--rk-accent);
   color: #14100a;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   cursor: pointer;
   clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
 }
-.hud-shop-btn:hover { background: var(--rk-accent-2); }
+.hud-shop-btn:hover {
+  background: var(--rk-accent-2);
+}
 
 /* Touch-mode HUD compaction */
 body.touch-mode .hud-items {
@@ -3297,6 +3301,41 @@ body.touch-mode .hud-slot {
 .hud-score-footer .meta-btn {
   min-width: 160px;
 }
+
+/* ---- Overlay fluidity (D-063) -------------------------------------------- */
+.shop { animation: shop-in 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes shop-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.levelup { animation: fade-in 0.24s ease; }
+.pause { animation: fade-in 0.28s ease; }
+.run-end { animation: fade-in 0.35s ease; }
+.connection-lost { animation: fade-in 0.3s ease; }
+.lobby { animation: fade-in 0.3s ease; }
+.meta-dossier-panel { animation: dossier-in 0.3s cubic-bezier(0.2, 0.7, 0.2, 1); transform-origin: center; }
+@keyframes dossier-in {
+  from { opacity: 0; transform: scale(0.965) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.meta-dossier-backdrop { animation: fade-in 0.25s ease; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Press feedback on every interactive control */
+.meta-btn:active, .meta-play:active, .shop-buy:active, .shop-combine:active,
+.shop-sell:active, .boot-start:active, button.meta-nav-item:active,
+button.meta-stage-card:active, button.meta-champion-card:active,
+button.levelup-card:active, button.shop-tab:active, .touch-button:active {
+  transform: translateY(1px) scale(0.99);
+}
+.meta-btn, .meta-play, .shop-buy, .shop-combine, .shop-sell, .meta-toggle,
+button.meta-nav-item, button.shop-tab, .meta-filter-row button {
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+/* Smooth meta content scrolling feel */
+.meta-content { scroll-behavior: smooth; }
 
 /* Scrollbars */
 ::-webkit-scrollbar {
@@ -3338,6 +3377,15 @@ a:focus-visible {
 </style>
   </head>
   <body>
+    <div
+      id="boot-cover"
+      style="position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: linear-gradient(160deg, #101013 0%, #0a0a0c 60%, #0d0d10 100%); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;"
+    >
+      <div style="text-align: center">
+        <div style="font-size: 22px; font-weight: 700; letter-spacing: 0.5em; text-indent: 0.5em; color: #f2f2f4;">RIFT SURVIVORS</div>
+        <div style="font-size: 9px; letter-spacing: 0.4em; text-indent: 0.4em; color: #ff9e2c; margin-top: 10px;">LOADING</div>
+      </div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
