@@ -1,7 +1,7 @@
 # 14 - Implementation status
 
 Last updated: **2026-11-04**.
-Current batch: **D-060 shop access + component credit** on top of D-059 (real icon art + build paths) on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
+Current batch: **D-063 shell flow + fit + fluidity** on top of D-060 (shop access + component credit), D-059 (real icon art + build paths) on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
 Essence), D-054 (official-art pipeline), D-053 (settings v9), D-046..D-052 (abilities, shop,
 re-themes), D-041..D-045 (engine/server fixes, unified abilities, AP/AD).
 Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
@@ -27,6 +27,18 @@ Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git lo
   (173 captures); `process-model-hd.mjs` generalized to also emit
   `public/art/model-skin/{id}_{num}.webp`. `preloadChampionArt` loads the equipped skin's HD
   render, so buying + equipping a skin changes the in-run character.
+
+### D-063 batch summary
+
+- **No more flash-of-game on open**: a static boot cover div in index.html covers the page
+  from first paint and is removed when the shell takes over; GameShell is properly gated
+  (boot CLICK TO START -> title wallpaper -> hub) and the hub is hidden until the title
+  dissolves.
+- **Run end returns straight to the hub**: CONTINUE sets a sessionStorage skip flag and
+  reloads; the shell replays only on genuine fresh opens, not after every run.
+- **Cover-fit canvas**: fitCanvas scales to cover the viewport (no letterbox bars).
+- **Fluidity**: fade/scale-in animations for shop/level-up/pause/run-end/dossier overlays,
+  press feedback on all controls, smooth content scrolling; reduced-motion collapses them.
 
 ### D-059 batch summary
 
