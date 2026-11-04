@@ -470,11 +470,11 @@ export class MetaScreen {
     return content;
   }
 
-  private sectionHead(kicker: string, title: string, sub: string): HTMLElement {
-    const head = el("div", "meta-page-head");
+  private sectionHead(kicker: string, title: string, sub: string, minor = false): HTMLElement {
+    const head = el("div", minor ? "meta-page-head minor" : "meta-page-head");
     head.append(
       el("div", "meta-kicker", kicker),
-      el("h1", "meta-title", title),
+      el(minor ? "h2" : "h1", minor ? "meta-title meta-title-minor" : "meta-title", title),
       el("div", "meta-subtitle", sub),
     );
     return head;
@@ -760,13 +760,13 @@ export class MetaScreen {
     wrap.appendChild(hero);
 
     if (this.stages.length > 0) {
-      const stageHead = el("div", "meta-stage-head");
-      stageHead.append(
-        el("div", "meta-kicker", "DEPLOYMENT"),
-        el("div", "meta-stage-title", "STAGE SELECT"),
-        el("div", "meta-stage-hint", "The host chooses this stage for online co-op."),
+      wrap.appendChild(
+        this.sectionHead(
+          "DEPLOYMENT",
+          "STAGE SELECT",
+          "The host chooses this stage for online co-op.",
+        ),
       );
-      wrap.appendChild(stageHead);
       const stageGrid = el("div", "meta-stage-grid");
       for (const stage of this.stages) {
         const style = regionStyle(stage.region);
@@ -774,8 +774,14 @@ export class MetaScreen {
         const card = el("button", `meta-stage-card${active ? " active" : ""}`);
         card.style.setProperty("--stage-color", hex(stage.palette.accent));
         card.style.setProperty("--region-color", style.color);
+        const top = el("div", "meta-stage-top");
+        top.append(
+          this.crestStack([stage.region], "meta-stage-crest", "xs"),
+          el("span", "meta-stage-region", stage.region.toUpperCase()),
+          el("span", `meta-stage-status${active ? " on" : ""}`, active ? "SELECTED" : "AVAILABLE"),
+        );
         card.append(
-          el("span", "meta-stage-region", `${stage.region} · ${active ? "SELECTED" : "AVAILABLE"}`),
+          top,
           el("span", "meta-stage-name", stage.name),
           el("span", "meta-stage-desc", stage.description),
         );

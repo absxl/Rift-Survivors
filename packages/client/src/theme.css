@@ -65,7 +65,6 @@ button {
 .hud-kills-label,
 .meta-settings-label,
 .meta-wallet-label,
-.meta-stage-hint,
 .meta-result-count,
 .meta-shard-label,
 .meta-skin-state,
@@ -662,6 +661,17 @@ button.meta-nav-item .meta-nav-copy span:last-child {
   margin: 6px 0 4px;
   text-transform: uppercase;
 }
+/* In-page section head (D-067): same language, one step down the scale. */
+.meta-page-head.minor {
+  margin-top: 26px;
+}
+.meta-page-head.minor .meta-title {
+  font-size: 18px;
+  margin: 5px 0 3px;
+}
+.meta-page-head.minor .meta-subtitle {
+  font-size: 10px;
+}
 .meta-subtitle,
 .meta-page-head .meta-subtitle {
   font-size: 11px;
@@ -850,56 +860,73 @@ button.meta-nav-item .meta-nav-copy span:last-child {
 }
 
 /* Stage select */
-.meta-stage-head {
-  margin: 26px 0 12px;
-}
 .meta-stage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
 }
-button.meta-stage-card,
-.meta-stage-grid button {
+button.meta-stage-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
   text-align: left;
-  padding: 16px;
+  padding: 14px 16px;
   background: var(--rk-panel);
   border: 1px solid var(--rk-line);
+  border-left: 3px solid var(--stage-color, var(--rk-line-strong));
   color: var(--rk-text);
   cursor: pointer;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.meta-stage-grid button:hover {
+button.meta-stage-card:hover {
   border-color: var(--rk-accent);
   background: var(--rk-panel-2);
 }
-.meta-stage-region {
-  font-size: 9px;
-  letter-spacing: 0.3em;
-  color: var(--rk-accent);
+button.meta-stage-card.active {
+  border-color: var(--stage-color, var(--rk-accent));
+  background: color-mix(in srgb, var(--stage-color, #ff9e2c) 7%, var(--rk-panel));
 }
-.meta-stage-title {
+.meta-stage-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.meta-stage-region {
+  flex: 1;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--rk-muted);
+}
+.meta-stage-status {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  padding: 3px 8px;
+  border: 1px solid var(--rk-line-strong);
+  color: var(--rk-faint);
+}
+.meta-stage-status.on {
+  border-color: var(--rk-accent);
+  color: var(--rk-accent);
+  background: rgba(255, 158, 44, 0.08);
+}
+.meta-stage-name {
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  margin: 5px 0;
+  letter-spacing: 0.04em;
+  color: var(--rk-text);
+}
+button.meta-stage-card.active .meta-stage-name {
+  color: var(--rk-accent);
 }
 .meta-stage-desc {
   font-size: 11px;
   color: var(--rk-muted);
   line-height: 1.5;
-}
-.meta-stage-hint {
-  margin-top: 8px;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  color: var(--rk-faint);
-}
-.meta-stage-name {
-  color: var(--rk-text);
-}
-button.meta-stage-card:has(.meta-stage-name) .meta-stage-name {
-  color: var(--rk-accent-2);
 }
 
 /* Stat strip */
