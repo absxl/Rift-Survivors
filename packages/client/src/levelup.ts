@@ -2,6 +2,7 @@
 // hotkeys never collide with movement (picks 1-4, R reroll, X skip, B banish).
 import type { AbilityDef, Offer, PassiveDef, RunStats } from "@rift/sim";
 import { offerCardInfo } from "./ability-info";
+import { abilityArtURL } from "./assets/game-icons";
 import { abilityIconURL } from "./assets/icons";
 
 export class LevelUpUI {
@@ -100,7 +101,7 @@ export class LevelUpUI {
         option.ref.type === "ability"
           ? this.abilities.find((d) => d.id === option.ref.id)
           : undefined;
-      const iconURL = def ? abilityIconURL(def) : "";
+      const iconURL = def ? abilityArtURL(def) || abilityIconURL(def) : "";
       if (iconURL) {
         icon.style.backgroundImage = `url(${iconURL})`;
         icon.style.backgroundSize = "contain";

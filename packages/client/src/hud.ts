@@ -13,6 +13,7 @@ import type {
 } from "@rift/sim";
 import { abilityInfo, passiveInfo } from "./ability-info";
 import { championSpriteDataURL } from "./assets/champion-sprites";
+import { abilityArtURL } from "./assets/game-icons";
 import { abilityIconURL } from "./assets/icons";
 import { championColor } from "./champion-colors";
 import { pickBossBar } from "./hud-boss";
@@ -369,7 +370,7 @@ export class Hud {
           ? "#ffe066"
           : "#6fb8ff";
       slot.glyph.textContent = "";
-      const icon = abilityIconURL(def);
+      const icon = abilityArtURL(def) || abilityIconURL(def);
       if (icon) {
         slot.glyph.style.backgroundImage = `url(${icon})`;
         slot.glyph.style.backgroundSize = "contain";

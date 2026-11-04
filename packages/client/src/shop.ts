@@ -1,6 +1,7 @@
 // In-game shop overlay (docs/10 D-047): a League-style shop with tier tabs,
 // gold readout, combine and sell actions. The game keeps running while open.
 import type { ItemDef, WorldSnapshot } from "@rift/sim";
+import { itemArtURL } from "./assets/game-icons";
 import { itemIconURL } from "./assets/icons";
 
 export interface ShopCallbacks {
@@ -227,13 +228,20 @@ export class ShopUI {
     }
   }
 
+  /** Items whose recipes reference this id (build-path forward links). */
+  private buildsInto(itemId: string): string[] {
+    return this.items
+      .filter((item) => item.recipe?.components.includes(itemId))
+      .map((item) => item.name);
+  }
+
   private shopCard(def: ItemDef, gold: number, ownedAlready: boolean): HTMLElement {
     const card = el("div", `shop-card tier-${def.tier}`);
     card.style.setProperty("--tier-color", TIER_COLORS[def.tier]);
 
     const top = el("div", "shop-card-top");
     const icon = el("img", "shop-card-icon") as HTMLImageElement;
-    icon.src = itemIconURL(def);
+    icon.src = itemArtURL(def.id) || itemIconURL(def);
     icon.alt = "";
     top.appendChild(icon);
     top.appendChild(el("div", "shop-card-name", def.name));
@@ -247,6 +255,12 @@ export class ShopUI {
     card.appendChild(stats);
 
     if (def.description) card.appendChild(el("div", "shop-card-desc", def.description));
+
+    // Build path forward link: what this component becomes.
+    const buildsInto = this.buildsInto(def.id);
+    if (buildsInto.length > 0) {
+      card.appendChild(el("div", "shop-card-builds", `BUILDS INTO ▸ ${buildsInto.join(", ")}`));
+    }
 
     const actions = el("div", "shop-card-actions");
     if (def.recipe) {

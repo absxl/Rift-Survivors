@@ -653,9 +653,9 @@ export class GameRenderer {
         let sprite = this.playerSprites.get(slot);
         if (!sprite) {
           sprite = new Sprite(this.championTextures.get(slot) ?? this.textures.player);
-          // HD model renders are up to 512px; scale to a 52-unit tall champion
+          // HD model renders are up to 512px; scale to a 34-unit tall champion
           // so they read at gameplay size on the 2x-zoomed canvas.
-          const baseScale = 52 / Math.max(1, sprite.texture.height);
+          const baseScale = 34 / Math.max(1, sprite.texture.height);
           sprite.anchor.set(0.5, 0.82);
           sprite.scale.set(baseScale);
           this.playerSprites.set(slot, sprite);
