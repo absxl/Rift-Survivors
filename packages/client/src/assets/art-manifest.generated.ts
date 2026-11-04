@@ -28,12 +28,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  anivia: {
+  amumu: {
     icon: true,
     card: true,
     skins: [],
   },
-  amumu: {
+  anivia: {
     icon: true,
     card: true,
     skins: [],
@@ -48,7 +48,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  ahri: {
+  aurora: {
     icon: true,
     card: true,
     skins: [],
@@ -63,7 +63,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  aurora: {
+  ahri: {
     icon: true,
     card: true,
     skins: [],
@@ -78,12 +78,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  briar: {
+  bard: {
     icon: true,
     card: true,
     skins: [],
   },
-  bard: {
+  briar: {
     icon: true,
     card: true,
     skins: [],
@@ -103,17 +103,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  blitzcrank: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   cassiopeia: {
     icon: true,
     card: true,
     skins: [],
   },
-  chogath: {
+  blitzcrank: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  camille: {
     icon: true,
     card: true,
     skins: [],
@@ -123,7 +123,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  camille: {
+  chogath: {
     icon: true,
     card: true,
     skins: [],
@@ -153,17 +153,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  evelynn: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   diana: {
     icon: true,
     card: true,
     skins: [],
   },
   draven: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  evelynn: {
     icon: true,
     card: true,
     skins: [],
@@ -183,12 +183,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  galio: {
+  gangplank: {
     icon: true,
     card: true,
     skins: [],
   },
-  gangplank: {
+  galio: {
     icon: true,
     card: true,
     skins: [],
@@ -198,17 +198,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  gragas: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   garen: {
     icon: true,
     card: true,
     skins: [],
   },
-  hwei: {
+  gragas: {
     icon: true,
     card: true,
     skins: [],
@@ -218,12 +213,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  graves: {
+  hwei: {
     icon: true,
     card: true,
     skins: [],
   },
   heimerdinger: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  graves: {
     icon: true,
     card: true,
     skins: [],
@@ -253,17 +253,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  irelia: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   "jarvan-iv": {
     icon: true,
     card: true,
     skins: [],
   },
   jayce: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  irelia: {
     icon: true,
     card: true,
     skins: [],
@@ -288,12 +288,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  jinx: {
+  karthus: {
     icon: true,
     card: true,
     skins: [],
   },
-  karthus: {
+  jinx: {
     icon: true,
     card: true,
     skins: [],
@@ -333,12 +333,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  ksante: {
+  khazix: {
     icon: true,
     card: true,
     skins: [],
   },
-  khazix: {
+  ksante: {
     icon: true,
     card: true,
     skins: [],
@@ -388,7 +388,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  maokai: {
+  lucian: {
     icon: true,
     card: true,
     skins: [],
@@ -398,17 +398,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  lucian: {
+  maokai: {
     icon: true,
     card: true,
     skins: [],
   },
   malphite: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  milio: {
     icon: true,
     card: true,
     skins: [],
@@ -423,6 +418,11 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  milio: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   naafiri: {
     icon: true,
     card: true,
@@ -433,12 +433,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  "master-yi": {
+  nautilus: {
     icon: true,
     card: true,
     skins: [],
   },
-  nautilus: {
+  "master-yi": {
     icon: true,
     card: true,
     skins: [],
@@ -448,12 +448,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  morgana: {
+  nasus: {
     icon: true,
     card: true,
     skins: [],
   },
   nami: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  morgana: {
     icon: true,
     card: true,
     skins: [],
@@ -468,22 +473,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  nasus: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   nocturne: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  "nunu-willump": {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  nidalee: {
     icon: true,
     card: true,
     skins: [],
@@ -493,7 +483,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  nidalee: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   orianna: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  "nunu-willump": {
     icon: true,
     card: true,
     skins: [],
@@ -523,22 +523,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  reksai: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  qiyana: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   rell: {
     icon: true,
     card: true,
     skins: [],
   },
-  rakan: {
+  reksai: {
     icon: true,
     card: true,
     skins: [],
@@ -548,7 +538,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  rakan: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   pyke: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  qiyana: {
     icon: true,
     card: true,
     skins: [],
@@ -558,17 +558,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  renekton: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   ryze: {
     icon: true,
     card: true,
     skins: [],
   },
-  samira: {
+  renekton: {
     icon: true,
     card: true,
     skins: [],
@@ -578,17 +573,22 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  samira: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   riven: {
     icon: true,
     card: true,
     skins: [],
   },
-  shyvana: {
+  sejuani: {
     icon: true,
     card: true,
     skins: [],
   },
-  sejuani: {
+  shyvana: {
     icon: true,
     card: true,
     skins: [],
@@ -603,16 +603,6 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  shen: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  shaco: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   seraphine: {
     icon: true,
     card: true,
@@ -623,12 +613,22 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  smolder: {
+  shen: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  shaco: {
     icon: true,
     card: true,
     skins: [],
   },
   sett: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  smolder: {
     icon: true,
     card: true,
     skins: [],
@@ -663,12 +663,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  sona: {
+  soraka: {
     icon: true,
     card: true,
     skins: [],
   },
-  soraka: {
+  sona: {
     icon: true,
     card: true,
     skins: [],
@@ -683,12 +683,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  talon: {
+  trundle: {
     icon: true,
     card: true,
     skins: [],
   },
-  trundle: {
+  talon: {
     icon: true,
     card: true,
     skins: [],
@@ -718,17 +718,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  twitch: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   tristana: {
     icon: true,
     card: true,
     skins: [],
   },
-  urgot: {
+  twitch: {
     icon: true,
     card: true,
     skins: [],
@@ -738,22 +733,22 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
+  urgot: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
   vex: {
     icon: true,
     card: true,
     skins: [],
   },
-  viego: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  viktor: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
   varus: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  veigar: {
     icon: true,
     card: true,
     skins: [],
@@ -768,7 +763,12 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  veigar: {
+  viego: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  viktor: {
     icon: true,
     card: true,
     skins: [],
@@ -778,7 +778,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  wukong: {
+  vladimir: {
     icon: true,
     card: true,
     skins: [],
@@ -788,7 +788,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  vladimir: {
+  wukong: {
     icon: true,
     card: true,
     skins: [],
@@ -828,12 +828,7 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  yuumi: {
-    icon: true,
-    card: true,
-    skins: [],
-  },
-  zeri: {
+  yasuo: {
     icon: true,
     card: true,
     skins: [],
@@ -843,12 +838,17 @@ export const CHAMPION_ART: Record<string, ArtManifestEntry> = {
     card: true,
     skins: [],
   },
-  ziggs: {
+  zeri: {
     icon: true,
     card: true,
     skins: [],
   },
-  yasuo: {
+  yuumi: {
+    icon: true,
+    card: true,
+    skins: [],
+  },
+  ziggs: {
     icon: true,
     card: true,
     skins: [],

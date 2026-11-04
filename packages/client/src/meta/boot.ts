@@ -36,24 +36,26 @@ export class GameShell {
       },
       splashIds: options.splashIds,
     });
-    // Both stages start hidden; play() reveals the boot screen.
+    // The title is visible UNDER the boot screen from the start, so the
+    // boot fade-out reveals it directly — the raw game never peeks through.
     this.boot.style.display = "none";
     this.title.style.display = "none";
     document.body.append(this.boot, this.title);
   }
 
-  /** Show the boot screen. Call once at startup. */
+  /** Show the boot screen; the title sits ready beneath it. */
   play(): void {
     this.boot.style.display = "flex";
+    this.title.style.display = "grid";
+    this.title.classList.add("title-under");
   }
 
-  /** Boot fade-out, then the title carousel becomes interactive. */
+  /** Boot fade-out reveals the title that was already beneath it. */
   dismissBoot(): void {
     this.boot.classList.add("boot-out");
     window.setTimeout(() => {
       this.boot.style.display = "none";
-      this.title.style.display = "grid";
-      this.title.classList.add("title-in");
+      this.title.classList.remove("title-under");
     }, 620);
   }
 

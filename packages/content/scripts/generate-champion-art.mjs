@@ -18,8 +18,8 @@ const DDRAGON_VERSION = "16.21.1";
 const DDRAGON = `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}`;
 
 const ICON_SIZE = 16;
-const CARD_W = 120;
-const CARD_H = 68;
+const CARD_W = 480;
+const CARD_H = 272;
 
 // The 8 hand-authored champions from lol.ts (roster.ts holds the other 165).
 const CUSTOM_IDS = ["lux", "brand", "ahri", "ryze", "syndra", "veigar", "annie", "xerath"];

@@ -300,16 +300,11 @@ export class MetaScreen {
     node.dataset.motif = theme.motifs[0] ?? "runes";
   }
 
-  private crestStack(regions: string[], className = ""): HTMLElement {
-    const size = className.includes("hero")
-      ? "xl"
-      : className.includes("dossier")
-        ? "xl"
-        : className.includes("champion")
-          ? "lg"
-          : className.includes("region")
-            ? "sm"
-            : "md";
+  private crestStack(
+    regions: string[],
+    className = "",
+    size: "xs" | "sm" | "md" = "sm",
+  ): HTMLElement {
     return crestMark(regions, size, className);
   }
 
@@ -687,13 +682,28 @@ export class MetaScreen {
     this.applyRegionTheme(hero, regions);
 
     const art = el("div", "meta-hero-art");
-    const stageWrap = el("div", "meta-hero-stage-wrap");
-    const stage = el("div", "meta-hero-stage");
-    const halo = el("div", "meta-hero-halo");
-    halo.textContent = selected.name?.charAt(0).toUpperCase() ?? "?";
-    stage.append(this.crestStack(regions, "meta-hero-crest"), halo);
-    stageWrap.append(stage, el("div", "meta-hero-art-label", regions.join(" + ")));
-    art.appendChild(stageWrap);
+    // Champion splash art fills the art panel (D-064); small crest top-left.
+    const splash = championCardURL(selected.id);
+    if (splash) {
+      const splashLayer = el("div", "meta-hero-splash");
+      splashLayer.style.backgroundImage = `url(${splash})`;
+      art.appendChild(splashLayer);
+      art.appendChild(el("div", "meta-hero-splash-shade"));
+      const sprite = el("img", "meta-hero-model") as HTMLImageElement;
+      sprite.src = `art/model/${selected.id}.webp`;
+      sprite.alt = "";
+      art.appendChild(sprite);
+    } else {
+      const stageWrap = el("div", "meta-hero-stage-wrap");
+      const stage = el("div", "meta-hero-stage");
+      const halo = el("div", "meta-hero-halo");
+      halo.textContent = selected.name?.charAt(0).toUpperCase() ?? "?";
+      stage.append(this.crestStack(regions, "meta-hero-crest", "sm"), halo);
+      stageWrap.append(stage, el("div", "meta-hero-art-label", regions.join(" + ")));
+      art.appendChild(stageWrap);
+    }
+    art.appendChild(this.crestStack(regions, "meta-hero-crest", "xs"));
+    art.appendChild(el("div", "meta-hero-art-label", regions[0] ?? "Runeterra"));
 
     const copy = el("div", "meta-hero-copy");
     const chips = el("div", "meta-chip-row");
@@ -1054,7 +1064,7 @@ export class MetaScreen {
         art.appendChild(sprite);
       }
     } else {
-      art.appendChild(this.crestStack(regions, "meta-dossier-crest"));
+      art.appendChild(this.crestStack(regions, "meta-dossier-crest", "sm"));
     }
     art.append(el("div", "meta-dossier-art-label", regions[0] ?? "Runeterra"));
     const heading = el("div", "meta-dossier-heading");
@@ -1064,6 +1074,17 @@ export class MetaScreen {
       el("h2", "meta-dossier-name", champion.name ?? champion.id),
       this.regionChips(regions),
     );
+    // SELECT action lives in the hero so it's reachable without scrolling.
+    if (unlocked) {
+      const selectTop = el("button", "meta-play small", selected ? "SELECTED" : "SELECT");
+      selectTop.disabled = selected;
+      selectTop.addEventListener("click", () => {
+        this.save.selectedCharacter = champion.id;
+        this.persist();
+        this.render();
+      });
+      heading.appendChild(selectTop);
+    }
     const roleRow = el("div", "meta-dossier-role-row");
     for (const role of roles) roleRow.appendChild(this.chip(role, "class"));
     roleRow.appendChild(
@@ -1163,18 +1184,21 @@ export class MetaScreen {
       skinsBlock.appendChild(
         el("div", "meta-kicker", `SKINS · ${this.save.blueEssence} BLUE ESSENCE`),
       );
+      // Horizontal slider: scroll-snap cards, no vertical scroll marathon.
+      const slider = el("div", "meta-skin-slider");
       const ownedSkins = this.save.ownedSkins[champion.id] ?? [];
       const equipped = this.save.equippedSkin[champion.id];
       for (const skin of skinData.obtainable) {
         const owned = ownedSkins.includes(skin.num);
         const isEquipped = equipped === skin.num;
-        const row = el("div", "meta-skin-row holo");
-        const thumbURL = championIconURL(champion.id, skin.num);
+        const card = el("div", "meta-skin-card holo");
+        const thumbURL =
+          championCardURL(champion.id, skin.num) || championIconURL(champion.id, skin.num);
         if (thumbURL) {
           const thumb = el("img", "meta-skin-thumb") as HTMLImageElement;
           thumb.src = thumbURL;
-          thumb.alt = "";
-          row.appendChild(thumb);
+          thumb.alt = skin.name;
+          card.appendChild(thumb);
         }
         const info = el("div", "meta-skin-info");
         info.append(
@@ -1182,10 +1206,10 @@ export class MetaScreen {
           el(
             "div",
             "meta-skin-state",
-            isEquipped ? "EQUIPPED" : owned ? "OWNED" : `${SKIN_COST} BLUE ESSENCE`,
+            isEquipped ? "EQUIPPED" : owned ? "OWNED" : `${SKIN_COST} BE`,
           ),
         );
-        row.appendChild(info);
+        card.appendChild(info);
         const action = el(
           "button",
           "meta-btn small",
@@ -1201,9 +1225,10 @@ export class MetaScreen {
           this.persist();
           this.render();
         });
-        row.appendChild(action);
-        skinsBlock.appendChild(row);
+        card.appendChild(action);
+        slider.appendChild(card);
       }
+      skinsBlock.appendChild(slider);
       collection.appendChild(skinsBlock);
     }
 
@@ -1285,7 +1310,7 @@ export class MetaScreen {
     const hero = el("header", "meta-dossier-hero");
     const art = el("div", "meta-dossier-art");
     art.append(
-      this.crestStack([region], "meta-dossier-crest"),
+      this.crestStack([region], "meta-dossier-crest", "sm"),
       el("div", "meta-dossier-art-label", "REGION CHEST"),
     );
     const heading = el("div", "meta-dossier-heading");
@@ -1468,37 +1493,28 @@ export class MetaScreen {
       card.style.removeProperty("--my");
     });
 
-    card.appendChild(this.crestStack(regions, "meta-champion-crest"));
+    // Horizontal banner card (D-064): full-bleed splash art, small region
+    // crest top-left, name/title overlay on the art, compact meta row below.
+    card.appendChild(this.crestStack(regions, "meta-champion-crest", "xs"));
 
     const top = el("div", "meta-champion-top");
-    const portrait = el("div", "meta-champion-portrait");
-    const iconURL = championIconURL(champion.id);
-    if (iconURL) {
-      const portraitImg = el("img", "meta-champion-icon") as HTMLImageElement;
-      portraitImg.src = iconURL;
-      portraitImg.alt = "";
-      portraitImg.style.imageRendering = "pixelated";
-      portrait.appendChild(portraitImg);
-    } else {
-      portrait.append(el("span", "meta-champion-initial", champion.name?.charAt(0) ?? "?"));
-    }
     const info = el("div", "meta-champion-info");
     info.append(
       el("div", "meta-champion-name", champion.name ?? champion.id),
       el("div", "meta-champion-title", profile?.title ?? ""),
-      el("div", "meta-champion-region", regions.join(" \u00b7 ")),
     );
     const rarity = el(
       "div",
       `meta-rarity rarity-${champion.rarity ?? "rare"}`,
       RARITY_LABELS[champion.rarity ?? "rare"],
     );
-    top.append(portrait, info, rarity);
-    if (regions.length > 1) top.appendChild(el("span", "meta-cross-region", "CROSS-REGION"));
-    if (isDarkinChampion(champion)) top.appendChild(el("span", "meta-darkin-mark", "DARKIN"));
+    const badges = el("div", "meta-champion-badges");
+    if (regions.length > 1) badges.appendChild(el("span", "meta-cross-region", "CROSS-REGION"));
+    if (isDarkinChampion(champion)) badges.appendChild(el("span", "meta-darkin-mark", "DARKIN"));
+    top.append(info, rarity);
     card.appendChild(top);
-
-    card.appendChild(el("p", "meta-champion-desc", profile?.summary ?? champion.description ?? ""));
+    card.appendChild(el("div", "meta-champion-region", regions.join(" · ")));
+    if (badges.childElementCount > 0) card.appendChild(badges);
 
     const ability = this.abilities.find((w) => w.id === champion.startingAbility);
     const ability2 = this.abilities.find((w) => w.id === champion.startingAbility2);
@@ -1526,7 +1542,6 @@ export class MetaScreen {
     } else {
       const required = shardsRequired(champion);
       const shards = shardsFor(this.save, champion.id);
-      // Shard liquid: the card fills from the bottom by unlock progress.
       const liquid = el("div", "meta-shard-liquid");
       liquid.style.setProperty("--fill", `${Math.min(100, (shards / required) * 100)}%`);
       card.appendChild(liquid);
@@ -1539,7 +1554,7 @@ export class MetaScreen {
         el(
           "div",
           "meta-shard-label",
-          `${shards} / ${required} SHARDS \u00b7 ${regions.join(" + ")} CHESTS`,
+          `${shards} / ${required} SHARDS · ${regions.join(" + ")} CHESTS`,
         ),
         bar,
       );
