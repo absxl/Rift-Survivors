@@ -16,6 +16,18 @@ Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git lo
 - New sim test covers the component-credit math; the full loop test was updated to the
   consume semantics.
 
+### D-061/D-062 batch summary
+
+- **Juice pass**: `KillStreakTracker` (pure, tested) drives DOUBLE/TRIPLE/QUADRA/PENTA KILL and
+  RAMPAGE banners for chained kills; boss/final-threat spawns announce with a warning banner,
+  double shockwave rings and camera shake (a first-snapshot baseline keeps reconnect bosses
+  silent); level-up fires a ring + celebration burst at the local player; every kill leaves a
+  radial spark burst. Renderer gained public `addRing`/`spawnBurst`/`bossIntro` FX.
+- **HD skin renders**: captured every first-obtainable skin's 3D model from the model viewer
+  (173 captures); `process-model-hd.mjs` generalized to also emit
+  `public/art/model-skin/{id}_{num}.webp`. `preloadChampionArt` loads the equipped skin's HD
+  render, so buying + equipping a skin changes the in-run character.
+
 ### D-059 batch summary
 
 - **Real game icon art**: `generate-game-icons.mjs` pulls all 346 authored kit ability icons
