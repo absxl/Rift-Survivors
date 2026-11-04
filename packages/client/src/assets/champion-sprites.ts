@@ -74,8 +74,7 @@ export async function preloadChampionArt(
   for (const id of characterIds) {
     const skin = equippedSkins[id];
     if (skin !== undefined && CHAMPION_ART[id]?.skins.includes(skin)) {
-      // Skin renders arrive with the model-viewer skin pass; base for now.
-      jobs.push(load(`champ:${id}:${skin}`, `art/model/${id}.webp`));
+      jobs.push(load(`champ:${id}:${skin}`, `art/model-skin/${id}_${skin}.webp`));
     } else {
       jobs.push(load(`champ:${id}:default`, `art/model/${id}.webp`));
     }

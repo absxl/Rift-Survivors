@@ -14,6 +14,7 @@ import sharp from "sharp";
 const ROOT = path.dirname(path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url)))));
 const CAPTURES = path.join(ROOT, ".art-captures");
 const OUT = path.join(ROOT, "packages/client/public/art/model");
+const OUT_SKINS = path.join(ROOT, "packages/client/public/art/model-skin");
 const BG = [23, 23, 23]; // viewer background #171717
 const KEY_TOLERANCE = 38;
 const MAX_DIM = 512; // HD render bound (fits a 96px on-screen unit at 5x zoom)
@@ -73,7 +74,7 @@ function contentBounds(mask, width, height) {
   return count > 300 ? { minX, minY, maxX, maxY, count } : null;
 }
 
-async function processOne(id) {
+async function processOne(id, outDir) {
   const input = path.join(CAPTURES, `${id}.png`);
   try {
     await fs.access(input);
@@ -179,19 +180,20 @@ async function processOne(id) {
   await sharp(crop, { raw: { width: cropW, height: cropH, channels: 4 } })
     .resize(MAX_DIM, MAX_DIM, { fit: "inside", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .webp({ quality: 92, alphaQuality: 90 })
-    .toFile(path.join(OUT, `${id}.webp`));
+    .toFile(path.join(outDir, `${id}.webp`));
   return `${best.label} ${cropW}x${cropH}`;
 }
 
 async function main() {
   await fs.mkdir(OUT, { recursive: true });
+  await fs.mkdir(OUT_SKINS, { recursive: true });
   const keyMap = JSON.parse(await fs.readFile(path.join(CAPTURES, "keymap.json"), "utf8"));
-  const ids = Object.keys(keyMap).sort();
+  const skinQueue = JSON.parse(await fs.readFile(path.join(CAPTURES, "skin-queue.json"), "utf8"));
   const failed = [];
   let ok = 0;
-  for (const id of ids) {
+  for (const id of Object.keys(keyMap).sort()) {
     try {
-      const result = await processOne(id);
+      const result = await processOne(id, OUT);
       if (result === "missing" || result === "empty") failed.push(id);
       else ok++;
     } catch (error) {
@@ -199,7 +201,17 @@ async function main() {
       failed.push(id);
     }
   }
-  console.log(`OK ${ok}/${ids.length} HD renders -> ${OUT}`);
+  for (const entry of skinQueue) {
+    try {
+      const result = await processOne(entry.id, OUT_SKINS);
+      if (result === "missing" || result === "empty") failed.push(entry.id);
+      else ok++;
+    } catch (error) {
+      console.error(` ${entry.id}: ERR ${error.message.slice(0, 60)}`);
+      failed.push(entry.id);
+    }
+  }
+  console.log(`OK ${ok} HD renders -> ${OUT}`);
   if (failed.length > 0) console.log("failed:", failed.join(", "));
 }
 
