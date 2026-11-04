@@ -1,10 +1,23 @@
 # 14 - Implementation status
 
 Last updated: **2026-11-04**.
-Current batch: **D-057/D-058 HD models + full site theme replacement** on top of D-055 (skins/Blue
+Current batch: **D-059 real icon art + shop build paths** on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
 Essence), D-054 (official-art pipeline), D-053 (settings v9), D-046..D-052 (abilities, shop,
 re-themes), D-041..D-045 (engine/server fixes, unified abilities, AP/AD).
 Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
+
+### D-059 batch summary
+
+- **Real game icon art**: `generate-game-icons.mjs` pulls all 346 authored kit ability icons
+  (Q + R per champion) from Data Dragon spell images and 69/69 shop item icons from
+  CommunityDragon — including removed nostalgia items (Deathfire Grasp, Heart of Gold, etc.)
+  and the Luden's Echo current-name mapping. Files: `public/art/ability/*.webp`,
+  `public/art/item/*.webp` + `icon-manifest.generated.ts`.
+- HUD hotbar, level-up cards, and shop cards prefer real art with the generated pixel icons
+  as fallback (class filler abilities, unmatched items).
+- Playable champions scaled 52 -> 34 world units (owner feedback).
+- Shop shows forward build paths: every component/epic lists "BUILDS INTO" targets computed
+  from the recipe graph.
 
 ### D-057/D-058 batch summary
 
