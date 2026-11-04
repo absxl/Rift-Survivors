@@ -1,10 +1,29 @@
 # 14 - Implementation status
 
-Last updated: **2026-11-03**.
-Current batch: **D-041 engine/server correctness pass** on top of D-040 (mobile touch joystick,
-pause/stats buttons, compact touch HUD), D-039 (late-run XP, time-scaled enemies, elite bars, magnet
-drops, crest branding), D-038, D-037, D-036, D-035, and earlier batches.
+Last updated: **2026-11-04**.
+Current batch: **D-057/D-058 HD models + full site theme replacement** on top of D-055 (skins/Blue
+Essence), D-054 (official-art pipeline), D-053 (settings v9), D-046..D-052 (abilities, shop,
+re-themes), D-041..D-045 (engine/server fixes, unified abilities, AP/AD).
 Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
+
+### D-057/D-058 batch summary
+
+- **HD playable champions**: automated capture of all 173 base champion models from
+  modelviewer.lol (chroma-friendly dark background, paused idle, recentered); the processor
+  (`process-model-hd.mjs`) flood-fill-keys the background, excludes the viewport divider,
+  drops small UI remnants, and writes 512px WebP cutouts to `public/art/model/{id}.webp`.
+  Champions in-run are the real 3D-model renders (no pixelation), facing-flipped, with
+  template-sprite fallback preserved.
+- **Engine re-resolution**: canvas 1600x900 antialiased (was 480x270 pixelated), world zoom 2
+  with camera math in world units, 2x ground texture detail, damage numbers/HUD unaffected
+  (DOM). Sim untouched.
+- **Full theme replacement**: the entire old League-client stylesheet is scrapped (~4400 lines
+  -> ~1300) in favor of the "RHODES" Arknights-style theme (near-black panels, amber accent,
+  diagonal clip-path cuts, scanlines, HUD micro-typography). Only the crest icon carries over.
+  Boot/title, hub shell, nav rail, champion cards, dossier + skin carousel, gacha cinematics,
+  shop, level-up, HUD, scoreboard, run end, pause, lobby, admin, and touch controls are
+  restyled. Audio frozen per owner request.
+- Tests: 201 green (127 sim / 21 content / 37 client / 16 server); client + server builds pass.
 
 ### D-041 batch summary
 
