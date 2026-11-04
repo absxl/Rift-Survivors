@@ -2316,17 +2316,14 @@ export class MetaScreen {
     const reset = el("button", "meta-btn danger", "RESET SAVE");
     reset.addEventListener("click", () => this.resetSave());
     dataRow.appendChild(reset);
-    dataGroup: {
-      data.appendChild(dataRow);
-      data.appendChild(
-        el(
-          "div",
-          "meta-hint",
-          "Export/import a portable JSON backup. Reset clears champions, shards, gold, upgrades, and settings.",
-        ),
-      );
-      break dataGroup;
-    }
+    data.appendChild(dataRow);
+    data.appendChild(
+      el(
+        "div",
+        "meta-hint",
+        "Export/import a portable JSON backup. Reset clears champions, shards, gold, upgrades, and settings.",
+      ),
+    );
     card.appendChild(data);
 
     wrap.appendChild(card);
@@ -2356,7 +2353,8 @@ export class MetaScreen {
     input.setAttribute("aria-label", label);
     input.addEventListener("input", () => {
       const next = Number(input.value) / 100;
-      box.querySelector(".meta-slider-label")!.textContent = `${label} ${input.value}%`;
+      const labelNode = box.querySelector(".meta-slider-label");
+      if (labelNode) labelNode.textContent = `${label} ${input.value}%`;
       onChange(next);
     });
     input.title = hint;

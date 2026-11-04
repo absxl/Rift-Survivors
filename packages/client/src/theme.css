@@ -225,8 +225,8 @@ select.meta-sort-control {
   pointer-events: none;
 }
 .boot-crest {
-  width: 88px;
-  height: 88px;
+  width: 56px;
+  height: 56px;
   filter: drop-shadow(0 0 16px rgba(255, 158, 44, 0.4));
   animation: boot-float 3.4s ease-in-out infinite;
 }
@@ -1064,7 +1064,10 @@ button.meta-stage-card:has(.meta-stage-name) .meta-stage-name {
     clip-path: inset(calc(100% - var(--fill, 0%) + 1.5%) 0 0 0);
   }
 }
-.meta-champion-card > *:not(.meta-card-art):not(.meta-card-art-shade):not(.meta-shard-liquid) {
+.meta-champion-card
+  > *:not(.meta-card-art):not(.meta-card-art-shade):not(.meta-shard-liquid):not(
+    .meta-champion-crest
+  ) {
   position: relative;
   z-index: 2;
 }
@@ -1072,7 +1075,7 @@ button.meta-stage-card:has(.meta-stage-name) .meta-stage-name {
 .meta-champion-crest {
   position: absolute;
   top: 10px;
-  right: 10px;
+  left: 10px;
   z-index: 3;
 }
 .meta-champion-top {
@@ -1491,6 +1494,12 @@ button.meta-stage-card:has(.meta-stage-name) .meta-stage-name {
   position: relative;
   overflow: hidden;
   min-height: 220px;
+}
+.meta-dossier-crest {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 3;
 }
 .meta-dossier-splash {
   position: absolute;
@@ -3461,13 +3470,63 @@ body.touch-mode .hud-slot {
   border-color: var(--rk-accent);
   color: var(--rk-accent);
 }
-.rift-crest-badge,
-.rift-crest-primary,
-.rift-crest-more,
-.rift-crest-badges,
+/* Region crests are indicators, not artwork (D-065): tiny marks anchored to
+   text rows or art corners. The 256px source PNGs must never render raw —
+   every size goes through --crest-size. xs 16 / sm 20 / md 24 / lg 28 / xl 32. */
+.rift-crest {
+  display: inline-flex;
+  align-items: flex-end;
+  flex: none;
+  opacity: 0.95;
+}
+.rift-crest-primary {
+  position: relative;
+  width: var(--crest-size, 24px);
+  height: var(--crest-size, 24px);
+  border-bottom: 1px solid var(--region-accent, var(--rk-accent));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65));
+}
 .rift-crest-image,
 .rift-crest-badge-image {
-  /* crest identity renders via crest-identity.ts; themed inline there */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.rift-crest-xs {
+  --crest-size: 16px;
+}
+.rift-crest-sm {
+  --crest-size: 20px;
+}
+.rift-crest-md {
+  --crest-size: 24px;
+}
+.rift-crest-lg {
+  --crest-size: 28px;
+}
+.rift-crest-xl {
+  --crest-size: 32px;
+}
+.rift-crest-badges {
+  display: inline-flex;
+  align-items: flex-end;
+}
+.rift-crest-badge {
+  width: calc(var(--crest-size, 24px) * 0.62);
+  height: calc(var(--crest-size, 24px) * 0.62);
+  display: grid;
+  place-items: center;
+  margin-left: -4px;
+  border-bottom: 1px solid var(--badge-color, var(--rk-accent));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.65));
+}
+.rift-crest-more {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--rk-muted);
+  margin-left: 2px;
 }
 .hud-score-footer .meta-btn {
   min-width: 160px;

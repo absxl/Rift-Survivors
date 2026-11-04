@@ -1,10 +1,42 @@
 # 14 - Implementation status
 
 Last updated: **2026-11-04**.
-Current batch: **D-063 shell flow + fit + fluidity** on top of D-060 (shop access + component credit), D-059 (real icon art + build paths) on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
+Current batch: **D-065 crest indicators + D-064 coherent champion UI** on top of D-063 (shell flow + fit + fluidity), D-060 (shop access + component credit), D-059 (real icon art + build paths) on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
 Essence), D-054 (official-art pipeline), D-053 (settings v9), D-046..D-052 (abilities, shop,
 re-themes), D-041..D-045 (engine/server fixes, unified abilities, AP/AD).
 Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
+
+### D-065 batch summary
+
+- **Crests are indicators, not artwork.** Root cause of the oversized crests: the `.rift-crest`
+  system had **no sizing CSS at all**, so the 256px source PNGs rendered raw. A `--crest-size`
+  scale now constrains every crest: xs 16 / sm 20 / md 24 / lg 28 / xl 32, badges at 0.62×,
+  with a subtle region-accent underline and drop shadow for legibility over splash art.
+- The live stylesheet is the inline theme in `index.html`; `src/theme.css` is an unmirrored
+  dead copy kept in sync (D-064's "crest discipline" landed only in the dead file, which is
+  why sizes never applied).
+- Champion card crests are excluded from the child-lifting rule (they were forced into the
+  flex flow and stretched card-wide) and pinned top-left; badges own the top-right. Dossier
+  crest gets real absolute positioning. Boot logo crest 88 → 56px.
+- Browser-verified sizes: champion cards 24×16px, PLAY hero 16px, region chest cards 15×20px,
+  chest-opening header 20px, achievements 45×16px.
+- Also fixed two pre-existing biome errors in `meta-screen.ts` (labeled block, non-null
+  assertion).
+
+### D-064 batch summary
+
+- **Champion cards are horizontal splash banners**: 480×272 regenerated card art full-bleed,
+  name/title overlaid on the art, rarity badges top-right, kit chips and shard progress below;
+  no portrait box.
+- **PLAY hero** shows the champion splash + HD model render with a small region crest; the
+  dossier hero hosts SELECTED/SELECT in the heading.
+- **Dossier skins are a horizontal scroll-snap slider** with real skin splash thumbnails and
+  BUY/EQUIP per card.
+- **Boot → title flow**: title wallpaper is visible under the boot screen from the start
+  (`title-under`), so the boot fade reveals the wallpaper directly; the static `#boot-cover`
+  div kills any pre-JS flash; run-end CONTINUE skips the shell replay.
+- **Typography coherence**: unified title (18–26px), kicker (9px/0.3em), and muted body scale
+  across hub pages, level-up, run-end, and dossiers; chest opening force-centered.
 
 ### D-060 batch summary
 
