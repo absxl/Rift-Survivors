@@ -71,7 +71,7 @@ interface DamageEntry {
 }
 
 interface FireEffect {
-  kind: "arc" | "ring";
+  kind: "arc" | "ring" | "burst";
   x: number;
   y: number;
   angle: number;
@@ -637,6 +637,37 @@ export class GameRenderer {
   setLocalPlayer(playerId: number): void {
     this.localPlayerId = playerId;
     this.resetPrediction();
+  }
+
+  /** Expanding shockwave ring (level-ups, boss intros, detonations). */
+  addRing(x: number, y: number, color: number, radius: number, life = 14): void {
+    this.effects.push({ kind: "ring", x, y, angle: 0, arc: 0, radius, life, maxLife: life, color });
+  }
+
+  /** Radial spark burst: kill impacts, pickups, level-up celebrations. */
+  spawnBurst(x: number, y: number, color: number, sparks = 8): void {
+    for (let i = 0; i < sparks; i++) {
+      const angle = (i / sparks) * Math.PI * 2 + (i % 3) * 0.21;
+      const dist = 6 + (i % 4) * 5;
+      this.effects.push({
+        kind: "arc",
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        angle,
+        arc: 0.9,
+        radius: 9,
+        life: 5 + (i % 3),
+        maxLife: 7,
+        color,
+      });
+    }
+  }
+
+  /** Boss intro: big double ring + camera shake. */
+  bossIntro(x: number, y: number): void {
+    this.addRing(x, y, 0xff5c5c, 90, 22);
+    this.addRing(x, y, 0xff9e2c, 60, 16);
+    this.addShake(6);
   }
 
   /** Render every player, interpolating between snapshots and leading the local one. */
@@ -1210,7 +1241,21 @@ export class GameRenderer {
     this.fxGraphics.clear();
     for (const fx of this.effects) {
       const alpha = fx.life / fx.maxLife;
-      if (fx.kind === "arc") {
+      if (fx.kind === "burst") {
+        this.drawAnnularSector(
+          this.fxGraphics,
+          fx.x,
+          fx.y,
+          fx.radius * 0.3,
+          fx.radius,
+          fx.angle - fx.arc / 2,
+          fx.angle + fx.arc / 2,
+          fx.color,
+          alpha * 0.55,
+        );
+        fx.x += Math.cos(fx.angle) * 2.2;
+        fx.y += Math.sin(fx.angle) * 2.2;
+      } else if (fx.kind === "arc") {
         // Fill an annular sector instead of stroking an arc. Stroked sub-pixel
         // arcs are the source of the jagged debris around melee slashes.
         this.drawAnnularSector(

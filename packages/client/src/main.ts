@@ -12,6 +12,7 @@ import { ConnectionLost } from "./connection-lost";
 import { WorkerHost } from "./host";
 import { Hud } from "./hud";
 import { Input } from "./input";
+import { KillStreakTracker } from "./juice";
 import { LevelUpUI } from "./levelup";
 import { Lobby } from "./lobby";
 import { MetaScreen } from "./meta-screen";
@@ -186,6 +187,9 @@ async function main(): Promise<void> {
   const pauseMenu = new PauseMenu();
   const connectionLost = new ConnectionLost();
   let runEnded = false;
+  const killStreaks = new KillStreakTracker();
+  const knownBossSlots = new Set<string>();
+  let bossBaselineDone = false;
   let lastSnap: WorldSnapshot | null = null;
   let activeNetHost: NetHost | null = null;
 
@@ -294,12 +298,54 @@ async function main(): Promise<void> {
     renderer.receive(snap, events);
     lastSnap = snap;
     levelUp.setStats(snap.playerStats[localPlayerId] ?? snap.playerStats[0] ?? null);
+    // Boss intro: a boss/final-threat slot that wasn't seen before gets a
+    // full-screen announcement + shockwave (D-061). Bosses alive in the very
+    // first snapshot (reconnect into a live run) stay silent.
+    const enemyStore = snap.stores.find((st) => st.kind === "enemy");
+    if (enemyStore) {
+      const bossSlots: { key: string; name: string; x: number; y: number }[] = [];
+      for (let i = 0; i < enemyStore.slots.length; i++) {
+        const def = pack.enemies[enemyStore.fields.kind[i]];
+        if (!def || (def.category !== "boss" && def.category !== "final-threat")) continue;
+        bossSlots.push({
+          key: `${enemyStore.slots[i]}:${enemyStore.generations[i]}`,
+          name: def.name ?? def.id.toUpperCase(),
+          x: enemyStore.fields.x[i],
+          y: enemyStore.fields.y[i],
+        });
+      }
+      if (!bossBaselineDone) {
+        for (const boss of bossSlots) knownBossSlots.add(boss.key);
+        bossBaselineDone = true;
+      } else {
+        for (const boss of bossSlots) {
+          if (knownBossSlots.has(boss.key)) continue;
+          knownBossSlots.add(boss.key);
+          banner.show(`⚠ ${boss.name} ⚠`);
+          renderer.bossIntro(boss.x, boss.y);
+          sfx.play("chest");
+        }
+      }
+    }
     for (const e of events) {
       if (e.type === "hit") sfx.play("hit");
-      else if (e.type === "enemy-died") sfx.play("kill");
-      else if (e.type === "gem-pickup") sfx.play("pickup");
-      else if (e.type === "level-up") sfx.play("levelup");
-      else if (e.type === "ability-fire") sfx.play("fire");
+      else if (e.type === "enemy-died") {
+        sfx.play("kill");
+        // Kill streaks + kill burst (all cosmetic).
+        const streak = killStreaks.registerKill(snap.tick * 33);
+        if (streak) banner.show(streak);
+        renderer.spawnBurst(e.x, e.y, 0xff9e2c, 6);
+      } else if (e.type === "gem-pickup") {
+        sfx.play("pickup");
+      } else if (e.type === "level-up") {
+        sfx.play("levelup");
+        const players = snap.stores.find((st) => st.kind === "player");
+        const idx = players ? players.slots.indexOf(localPlayerId) : -1;
+        if (players && idx >= 0) {
+          renderer.addRing(players.fields.x[idx], players.fields.y[idx], 0xff9e2c, 70, 18);
+          renderer.spawnBurst(players.fields.x[idx], players.fields.y[idx], 0xffdf9b, 12);
+        }
+      } else if (e.type === "ability-fire") sfx.play("fire");
       else if (e.type === "boss-rush") banner.show("BOSS RUSH");
       else if (e.type === "explosion") sfx.play("kill");
       else if (e.type === "bush-break") {
@@ -391,6 +437,9 @@ async function main(): Promise<void> {
     lastSnap = null;
     activeNetHost = null;
     currentMode = "solo";
+    killStreaks.reset();
+    knownBossSlots.clear();
+    bossBaselineDone = false;
     currentCharacterId = characterId;
     localPlayerId = 0;
     metaScreen.hide();
@@ -447,6 +496,9 @@ async function main(): Promise<void> {
   lobby.onStart((netHost: NetHost, yourPlayerId: number) => {
     runEnded = false;
     lastSnap = null;
+    killStreaks.reset();
+    knownBossSlots.clear();
+    bossBaselineDone = false;
     activeNetHost = netHost;
     currentMode = "coop";
     currentCharacterId = coopCharacterId;
