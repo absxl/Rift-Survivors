@@ -100,6 +100,7 @@ export class GameRenderer {
   private readonly playerSprites = new Map<number, Sprite>();
   private readonly championTextures = new Map<number, Texture>();
   private readonly playerBaseScale = new Map<number, number>();
+  private readonly gemPrevPos = new Map<number, { x: number; y: number }>();
   private localPlayerId = 0;
   private readonly bushLayer: Container;
   private readonly gemLayer: Container;
@@ -1160,6 +1161,40 @@ export class GameRenderer {
     }
   }
 
+  /**
+   * Gem trails: when a gem moved fast this frame (magnet pull), draw a fading
+   * streak from its previous position. Client-only, costs nothing in the sim.
+   */
+  private drawGemTrails(): void {
+    const gemStore = this.curr ? getStore(this.curr, "gem") : undefined;
+    if (!gemStore) return;
+    for (let i = 0; i < gemStore.slots.length; i++) {
+      const slot = gemStore.slots[i];
+      const x = gemStore.fields.x[i];
+      const y = gemStore.fields.y[i];
+      const prev = this.gemPrevPos.get(slot);
+      this.gemPrevPos.set(slot, { x, y });
+      if (!prev) continue;
+      const dx = x - prev.x;
+      const dy = y - prev.y;
+      const dist2 = dx * dx + dy * dy;
+      if (dist2 < 9) continue; // slower than ~1.5 units/frame: no trail
+      const speed = Math.sqrt(dist2);
+      const alpha = Math.min(0.55, speed * 0.12);
+      this.fxGraphics
+        .moveTo(prev.x, prev.y)
+        .lineTo(x, y)
+        .stroke({ color: 0x66ddff, width: 2, alpha, cap: "round" });
+    }
+    // Evict stale entries (freed gems) so the map stays small.
+    if (this.gemPrevPos.size > gemStore.slots.length * 2 + 64) {
+      const live = new Set(gemStore.slots);
+      for (const slot of Array.from(this.gemPrevPos.keys())) {
+        if (!live.has(slot)) this.gemPrevPos.delete(slot);
+      }
+    }
+  }
+
   /** Filled ring segment; used for slashes and shockwaves. */
   private drawAnnularSector(
     graphics: Graphics,
@@ -1239,6 +1274,7 @@ export class GameRenderer {
   /** Transient ability-fire visuals (arcs/rings). */
   private drawEffects(): void {
     this.fxGraphics.clear();
+    this.drawGemTrails();
     for (const fx of this.effects) {
       const alpha = fx.life / fx.maxLife;
       if (fx.kind === "burst") {
