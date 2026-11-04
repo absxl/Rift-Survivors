@@ -1,10 +1,20 @@
 # 14 - Implementation status
 
 Last updated: **2026-11-04**.
-Current batch: **D-059 real icon art + shop build paths** on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
+Current batch: **D-060 shop access + component credit** on top of D-059 (real icon art + build paths) on top of D-057/D-058 (HD models + site theme replacement) on top of D-055 (skins/Blue
 Essence), D-054 (official-art pipeline), D-053 (settings v9), D-046..D-052 (abilities, shop,
 re-themes), D-041..D-045 (engine/server fixes, unified abilities, AP/AD).
 Commits: `4f217ac` is the D-032 baseline; later batches are committed at `git log -1`.
+
+### D-060 batch summary
+
+- Shop opens via **P**, the rebindable shop key (B), or an amber **SHOP button** in the HUD
+  hotbar; all gated off while a level-up offer owns the keyboard, as before.
+- `buyItem` now consumes owned recipe components and credits their costs League-style: buying
+  Sheen while holding Pickaxe + Sapphire Crystal charges only the 75 G combine cost.
+  `buyCharge` exposes the live discounted price to the UI; shop BUY buttons show it.
+- New sim test covers the component-credit math; the full loop test was updated to the
+  consume semantics.
 
 ### D-059 batch summary
 
