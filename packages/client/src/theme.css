@@ -595,13 +595,6 @@ button.meta-nav-item .meta-nav-copy span:last-child {
   overflow-y: auto;
   padding: 26px 30px 40px;
   scrollbar-width: thin;
-  scrollbar-color: var(--rk-line-strong) transparent;
-}
-.meta-content::-webkit-scrollbar {
-  width: 6px;
-}
-.meta-content::-webkit-scrollbar-thumb {
-  background: var(--rk-line-strong);
 }
 
 .meta-page-enter {
@@ -1393,15 +1386,6 @@ button.meta-stage-card:has(.meta-stage-name) .meta-stage-name {
       rgba(10, 10, 12, 0.75) 92%,
       var(--rk-panel) 100%
     ), linear-gradient(0deg, rgba(10, 10, 12, 0.55), transparent 45%);
-}
-.meta-hero-model {
-  position: absolute;
-  left: 18px;
-  bottom: 0;
-  height: 92%;
-  object-fit: contain;
-  object-position: bottom left;
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.75));
 }
 .meta-hero-crest {
   position: absolute;
@@ -3620,19 +3604,37 @@ button.shop-tab,
   scroll-behavior: smooth;
 }
 
-/* Scrollbars */
+/* Scrollbars (D-066): thin RHODES bars — near-black track, amber thumb.
+   Standard properties serve Firefox; the webkit pseudos serve Chromium. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 158, 44, 0.45) rgba(16, 16, 19, 0.92);
+}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--rk-bg);
+  background: rgba(16, 16, 19, 0.92);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--rk-line-strong);
+  background: linear-gradient(180deg, rgba(255, 158, 44, 0.55), rgba(255, 158, 44, 0.3));
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--rk-accent);
+  background: linear-gradient(180deg, rgba(255, 158, 44, 0.85), rgba(255, 158, 44, 0.5));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 158, 44, 0.9);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Focus visibility */

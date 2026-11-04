@@ -689,10 +689,6 @@ export class MetaScreen {
       splashLayer.style.backgroundImage = `url(${splash})`;
       art.appendChild(splashLayer);
       art.appendChild(el("div", "meta-hero-splash-shade"));
-      const sprite = el("img", "meta-hero-model") as HTMLImageElement;
-      sprite.src = `art/model/${selected.id}.webp`;
-      sprite.alt = "";
-      art.appendChild(sprite);
     } else {
       const stageWrap = el("div", "meta-hero-stage-wrap");
       const stage = el("div", "meta-hero-stage");
