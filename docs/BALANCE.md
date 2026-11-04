@@ -129,3 +129,18 @@ D-032 table above remains the historical "long survival" reference.
 - A human kites worse in the open but uses terrain, training, and dodges better; only a playtest settles
   the feel.
 - Balance numbers are deterministic for the recorded seeds but content/pathing tweaks will move them.
+
+## D-061 snapshot (2026-11-04, unified abilities + pacing 2.2)
+
+Bot: greedy scoring, kiting movement, no shop usage, no dodge. Seeds 202/303 after the
+pacing-2.2 retune and director easing:
+
+| seed | survived | level | kills | maxAlive | ms/tick |
+|------|----------|-------|-------|----------|---------|
+| 202  | 605s     | 24    | 1580  | 14       | 0.062   |
+| 303  | 278s     | 15    | 702   | 28       | 0.050   |
+
+Seed 202 reaches 10 minutes at level 24; seed 303 still dies early to contact pressure —
+the bot does not use the item shop (armor/resist items would extend it) and does not dodge
+projectiles, so human runs should land well above these numbers. Balance remains provisional
+pending the owner's human playtest.
