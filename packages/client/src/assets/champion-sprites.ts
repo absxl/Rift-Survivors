@@ -56,8 +56,9 @@ function darken(color: number, factor: number): number {
 const artTextures = new Map<string, Texture>();
 
 /**
- * Preload the official-art icon sprites referenced by the run/party roster.
- * Call once at boot before the first run; misses fall back to template art.
+ * Preload the playable HD model renders for the run/party roster. Every
+ * champion has a base render; equipped skins fall back to the base render
+ * until skin renders are captured. Call once at boot.
  */
 export async function preloadChampionArt(
   characterIds: string[],
@@ -71,11 +72,12 @@ export async function preloadChampionArt(
     });
   };
   for (const id of characterIds) {
-    if (!CHAMPION_ART[id]?.icon) continue;
-    jobs.push(load(`champ:${id}:default`, `art/icon/${id}.png`));
     const skin = equippedSkins[id];
     if (skin !== undefined && CHAMPION_ART[id]?.skins.includes(skin)) {
-      jobs.push(load(`champ:${id}:${skin}`, `art/icon/${id}_${skin}.png`));
+      // Skin renders arrive with the model-viewer skin pass; base for now.
+      jobs.push(load(`champ:${id}:${skin}`, `art/model/${id}.webp`));
+    } else {
+      jobs.push(load(`champ:${id}:default`, `art/model/${id}.webp`));
     }
   }
   await Promise.allSettled(jobs);

@@ -37,7 +37,8 @@ export function createTerrainGroundTexture(colors: {
   floorAlt: string;
   floorSpeck: string;
 }): Texture {
-  const size = 192;
+  // 2x resolution so the HD canvas (world zoom 2) keeps crisp detail.
+  const size = 384;
   return makeTexture(size, (ctx) => {
     ctx.fillStyle = colors.floor;
     ctx.fillRect(0, 0, size, size);
@@ -46,17 +47,17 @@ export function createTerrainGroundTexture(colors: {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 4294967296;
     };
-    for (let i = 0; i < 760; i++) {
+    for (let i = 0; i < 3040; i++) {
       const x = Math.floor(rand() * size);
       const y = Math.floor(rand() * size);
       const r = rand();
       ctx.fillStyle = r > 0.72 ? colors.floorAlt : colors.floorSpeck;
       ctx.globalAlpha = r > 0.72 ? 0.24 + rand() * 0.2 : 0.18 + rand() * 0.25;
-      ctx.fillRect(x, y, 1 + Math.floor(rand() * 3), 1);
-      if (rand() > 0.86) ctx.fillRect(x, y - 1, 1, 2);
+      ctx.fillRect(x, y, 2 + Math.floor(rand() * 6), 2);
+      if (rand() > 0.86) ctx.fillRect(x, y - 2, 2, 4);
     }
     ctx.globalAlpha = 0.32;
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 88; i++) {
       const x = Math.floor(rand() * size);
       const y = Math.floor(rand() * size);
       ctx.fillStyle = colors.floorSpeck;

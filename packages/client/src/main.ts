@@ -20,7 +20,7 @@ import { awardRun, checkAchievements, computeMetaBonuses } from "./meta/meta";
 import type { NetHost } from "./net-host";
 import { PauseMenu } from "./pause-menu";
 import { championRegions, isDarkinChampion } from "./regions";
-import { GameRenderer, VIEW_H, VIEW_W } from "./renderer";
+import { GameRenderer, SCREEN_H, SCREEN_W, ZOOM } from "./renderer";
 import { RunEndUI } from "./run-end";
 import {
   loadSave,
@@ -41,11 +41,11 @@ function formatTime(secs: number): string {
 async function main(): Promise<void> {
   const app = new Application();
   await app.init({
-    width: VIEW_W,
-    height: VIEW_H,
+    width: SCREEN_W,
+    height: SCREEN_H,
     resolution: 1,
     autoDensity: false,
-    antialias: false,
+    antialias: true,
     background: 0x0d0f1a,
   });
 
@@ -62,10 +62,9 @@ async function main(): Promise<void> {
     const viewport = window.visualViewport;
     const width = viewport?.width ?? window.innerWidth;
     const height = viewport?.height ?? window.innerHeight;
-    const scale = Math.min(width / VIEW_W, height / VIEW_H);
-    app.canvas.style.width = `${VIEW_W * scale}px`;
-    app.canvas.style.height = `${VIEW_H * scale}px`;
-    app.canvas.style.imageRendering = "pixelated";
+    const scale = Math.min(width / SCREEN_W, height / SCREEN_H);
+    app.canvas.style.width = `${SCREEN_W * scale}px`;
+    app.canvas.style.height = `${SCREEN_H * scale}px`;
   };
   window.addEventListener("resize", fitCanvas);
   window.addEventListener("orientationchange", fitCanvas);
@@ -112,7 +111,9 @@ async function main(): Promise<void> {
   persistSave(save);
   if (account.account && !restored?.save) account.queueSave(save);
 
+  // HD canvas: world units are scaled up; sim math and camera stay in units.
   const worldLayer = new Container();
+  worldLayer.scale.set(ZOOM);
   app.stage.addChild(worldLayer);
 
   const renderer = new GameRenderer(worldLayer, pack.abilities, pack.enemies, pack.stages ?? []);

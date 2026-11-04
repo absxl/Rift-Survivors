@@ -27,8 +27,13 @@ import {
   createTerrainGroundTexture,
 } from "./assets/placeholder";
 
-export const VIEW_W = 480;
-export const VIEW_H = 270;
+/** World units visible per axis (camera math operates in world units). */
+export const VIEW_W = 800;
+export const VIEW_H = 450;
+/** Canvas is HD; the world container scales world units to screen pixels. */
+export const ZOOM = 2;
+export const SCREEN_W = VIEW_W * ZOOM;
+export const SCREEN_H = VIEW_H * ZOOM;
 
 const MAX_DAMAGE = 96;
 const FLASH_FRAMES = 5;
@@ -94,6 +99,7 @@ export class GameRenderer {
   private readonly playerHpBar: Graphics;
   private readonly playerSprites = new Map<number, Sprite>();
   private readonly championTextures = new Map<number, Texture>();
+  private readonly playerBaseScale = new Map<number, number>();
   private localPlayerId = 0;
   private readonly bushLayer: Container;
   private readonly gemLayer: Container;
@@ -647,9 +653,14 @@ export class GameRenderer {
         let sprite = this.playerSprites.get(slot);
         if (!sprite) {
           sprite = new Sprite(this.championTextures.get(slot) ?? this.textures.player);
-          sprite.anchor.set(0.5, 0.5);
+          // HD model renders are up to 512px; scale to a 52-unit tall champion
+          // so they read at gameplay size on the 2x-zoomed canvas.
+          const baseScale = 52 / Math.max(1, sprite.texture.height);
+          sprite.anchor.set(0.5, 0.82);
+          sprite.scale.set(baseScale);
           this.playerSprites.set(slot, sprite);
           this.playerLayer.addChild(sprite);
+          this.playerBaseScale.set(slot, baseScale);
         }
         const downed = store.fields.downed[i] === 1;
         let x = store.fields.x[i];
@@ -664,13 +675,15 @@ export class GameRenderer {
           y += this.predictionY;
         }
         sprite.position.set(x, y);
-        sprite.tint = downed
-          ? 0x666666
-          : slot === this.localPlayerId
-            ? this.championColor
-            : 0x88aaff;
+        const base = this.playerBaseScale.get(slot) ?? 1;
         sprite.alpha = downed ? 0.65 : 1;
-        sprite.scale.x = store.fields.facingX[i] < 0 ? -1 : 1;
+        // HD renders carry their own colors: no tint when healthy; state
+        // tints (downed grey, local highlight when no render) still apply.
+        if (downed) sprite.tint = 0x777777;
+        else if (!this.championTextures.has(slot)) sprite.tint = this.championColor;
+        else sprite.tint = 0xffffff;
+        sprite.scale.x = (store.fields.facingX[i] < 0 ? -1 : 1) * base;
+        sprite.scale.y = base;
 
         // HP / revive bar under the player (same interpolated position).
         this.playerHpBar.rect(x - hpWidth / 2, y + 9, hpWidth, 2).fill(0x000000);
