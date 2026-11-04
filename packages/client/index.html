@@ -3252,6 +3252,19 @@ body.touch-mode .touch-controls.active {
   color: var(--rk-accent);
 }
 
+/* HUD shop opener */
+.hud-shop-btn {
+  margin-left: 10px;
+  padding: 10px 16px;
+  background: var(--rk-accent);
+  border: 1px solid var(--rk-accent);
+  color: #14100a;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.hud-shop-btn:hover { background: var(--rk-accent-2); }
+
 /* Touch-mode HUD compaction */
 body.touch-mode .hud-items {
   display: none;

@@ -78,7 +78,7 @@ export class PauseMenu {
     const hint = document.createElement("div");
     hint.className = "pause-hint";
     hint.textContent =
-      "MOVE: WASD / ARROWS / GAMEPAD / TOUCH    STATS: TAB    SHOP: B    PAUSE: ESC    ADMIN: H";
+      "MOVE: WASD / ARROWS / GAMEPAD / TOUCH    STATS: TAB    SHOP: P / B    PAUSE: ESC    ADMIN: H";
     this.root.appendChild(hint);
 
     document.body.appendChild(this.root);

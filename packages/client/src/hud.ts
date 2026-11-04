@@ -59,6 +59,7 @@ export class Hud {
   private readonly goldEl: HTMLElement;
   private readonly keysEl: HTMLElement;
   private readonly essenceEl: HTMLElement;
+  private openShopCb: (() => void) | null = null;
   private readonly partyEl: HTMLElement;
   private readonly bossEl: HTMLElement;
   private readonly bossName: HTMLElement;
@@ -177,7 +178,13 @@ export class Hud {
     for (let i = 0; i < 16; i++) {
       this.itemSlots.push(this.makeSlot(itemRow, "passive", true));
     }
-    hotbar.append(identity, abilityRow, itemRow);
+    // SHOP button: clickable opener next to the inventory (P works too).
+    const shopBtn = el("button", "hud-shop-btn", "SHOP") as HTMLButtonElement;
+    shopBtn.type = "button";
+    shopBtn.setAttribute("aria-label", "Open the item shop (P)");
+    shopBtn.title = "Open the item shop (P)";
+    shopBtn.addEventListener("click", () => this.openShopCb?.());
+    hotbar.append(identity, abilityRow, itemRow, shopBtn);
     this.root.appendChild(hotbar);
 
     // Tooltip ---------------------------------------------------------------
@@ -226,6 +233,11 @@ export class Hud {
   /** Lobby roster for party frames; names/colors come from the lobby. */
   setParty(players: LobbyPlayer[]): void {
     this.party = players;
+  }
+
+  /** Wire the HUD SHOP button to the shop overlay. */
+  onOpenShop(cb: () => void): void {
+    this.openShopCb = cb;
   }
 
   /** Tab scoreboard toggle, also driven by the HUD's own Tab handler. */

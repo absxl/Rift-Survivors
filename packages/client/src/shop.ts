@@ -235,9 +235,21 @@ export class ShopUI {
       .map((item) => item.name);
   }
 
+  /** League-style charge: item cost minus owned recipe components' costs. */
+  private chargeFor(def: ItemDef): number {
+    const ownedIds = new Set(this.ownedSlots().map((o) => this.items[o.defIndex]?.id ?? ""));
+    let credit = 0;
+    for (const componentId of def.recipe?.components ?? []) {
+      const component = this.items.find((i) => i.id === componentId);
+      if (ownedIds.has(componentId) && component) credit += component.cost;
+    }
+    return Math.max(0, def.cost - credit);
+  }
+
   private shopCard(def: ItemDef, gold: number, ownedAlready: boolean): HTMLElement {
     const card = el("div", `shop-card tier-${def.tier}`);
     card.style.setProperty("--tier-color", TIER_COLORS[def.tier]);
+    const charge = this.chargeFor(def);
 
     const top = el("div", "shop-card-top");
     const icon = el("img", "shop-card-icon") as HTMLImageElement;
@@ -245,7 +257,13 @@ export class ShopUI {
     icon.alt = "";
     top.appendChild(icon);
     top.appendChild(el("div", "shop-card-name", def.name));
-    top.appendChild(el("div", "shop-card-cost", `${def.cost} G`));
+    top.appendChild(
+      el(
+        "div",
+        "shop-card-cost",
+        charge === def.cost ? `${def.cost} G` : `${charge} G (of ${def.cost})`,
+      ),
+    );
     card.appendChild(top);
 
     const stats = el("div", "shop-card-stats");
@@ -272,8 +290,12 @@ export class ShopUI {
         ),
       );
     }
-    const buy = el("button", "shop-buy", ownedAlready ? "OWNED" : "BUY") as HTMLButtonElement;
-    const affordable = gold >= def.cost;
+    const buy = el(
+      "button",
+      "shop-buy",
+      ownedAlready ? "OWNED" : `BUY ${charge} G`,
+    ) as HTMLButtonElement;
+    const affordable = gold >= charge;
     const slotsFull = this.ownedSlots().length >= 16;
     buy.disabled = ownedAlready || !affordable || slotsFull;
     buy.addEventListener("click", () => this.callbacks?.onBuy(def.id));

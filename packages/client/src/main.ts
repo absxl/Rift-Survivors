@@ -133,10 +133,14 @@ async function main(): Promise<void> {
       shop.hide();
       return;
     }
-    if (e.key.toLowerCase() === save.settings.shopKey && !levelUp.visible && !runEnded) {
+    const key = e.key.toLowerCase();
+    if ((key === save.settings.shopKey || key === "p") && !levelUp.visible && !runEnded) {
       e.preventDefault();
       shop.toggle();
     }
+  });
+  hud.onOpenShop(() => {
+    if (!runEnded) shop.toggle();
   });
   shop.setCallbacks({
     onBuy: (itemId: string) => shopSender?.({ type: "buy", itemId }),

@@ -920,18 +920,63 @@ export class World {
     refreshSynergies(this);
   }
 
-  /** Buy an item outright (components included) if affordable and slottable. */
+  /** Buy an item outright if affordable and slottable. Recipe components the
+   * player already owns are consumed and credited League-style: the charge is
+   * the item cost minus the costs of the owned components it consumes. */
   buyItem(playerId: number, itemId: string): boolean {
     const def = this.content.items?.find((i) => i.id === itemId);
-    if (!def) return false;
+    const items = this.content.items;
+    if (!def || !items) return false;
     const gold = this.stores.players.field("gold")[playerId];
-    if (gold < def.cost) return false;
-    const defIndex = this.content.items?.indexOf(def) ?? -1;
-    if (defIndex < 0 || !this.addItemSlot(playerId, defIndex)) return false;
-    this.stores.players.field("gold")[playerId] = gold - def.cost;
+
+    // Consume owned recipe components and credit their costs.
+    let credit = 0;
+    const consumed: number[] = [];
+    if (def.recipe) {
+      for (const componentId of def.recipe.components) {
+        const entry = this.ownedItems(playerId).find((e) => items[e.defIndex]?.id === componentId);
+        if (!entry) continue;
+        credit += items[entry.defIndex]?.cost ?? 0;
+        consumed.push(entry.slot);
+      }
+    }
+    const charge = Math.max(0, def.cost - credit);
+    if (gold < charge) return false;
+    const defIndex = items.indexOf(def);
+    if (defIndex < 0) return false;
+    // Slot math: consumed components free their slots first, then one slot
+    // must be available for the new item (16-slot cap enforced here).
+    for (const slot of consumed) this.stores.items.free(slot);
+    if (this.ownedItems(playerId).length >= this.num("loadout.itemSlots")) return false;
+    const slot = this.stores.items.alloc();
+    if (slot < 0) {
+      this.refreshItemModifiers(playerId);
+      return false;
+    }
+    this.stores.items.field("owner")[slot] = playerId;
+    this.stores.items.field("defIndex")[slot] = defIndex;
+    this.stores.players.field("gold")[playerId] = gold - charge;
     this.refreshItemModifiers(playerId);
     this.emit({ type: "item-bought", playerId, itemId });
     return true;
+  }
+
+  /** Gold charge for buying `itemId` right now, crediting owned components. */
+  buyCharge(playerId: number, itemId: string): number {
+    const def = this.content.items?.find((i) => i.id === itemId);
+    if (!def) return Number.MAX_SAFE_INTEGER;
+    let credit = 0;
+    if (def.recipe) {
+      const owned = new Set(
+        this.ownedItems(playerId).map((e) => this.content.items?.[e.defIndex]?.id ?? ""),
+      );
+      for (const componentId of def.recipe.components) {
+        if (owned.has(componentId)) {
+          credit += this.content.items?.find((i) => i.id === componentId)?.cost ?? 0;
+        }
+      }
+    }
+    return Math.max(0, def.cost - credit);
   }
 
   /** Combine an owned recipe's components into the finished item. */

@@ -82,6 +82,38 @@ describe("co-op progression (real pack)", () => {
     expect(world.playerStat(0, "attackDamage", 0)).toBe(0);
   });
 
+  it("credits owned components when buying the finished item", () => {
+    const pack = loadGamePack();
+    const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: pack }, 11);
+    const items = world.content.items ?? [];
+    const sheen = items.find((i) => i.id === "sheen");
+    expect(sheen?.recipe).toBeTruthy();
+    world.stores.players.field("gold")[0] = 10_000;
+
+    // Buy Sheen outright: full cost, one slot.
+    expect(world.buyItem(0, "sheen")).toBe(true);
+    const goldAfterOutright = world.stores.players.field("gold")[0];
+    expect(goldAfterOutright).toBe(10_000 - sheen!.cost);
+
+    // Sell it back, then buy its components and re-buy: charge is discounted.
+    world.sellItem(0, world.ownedItems(0)[0].slot);
+    const goldBeforeParts = world.stores.players.field("gold")[0];
+    let partsCost = 0;
+    for (const component of sheen!.recipe!.components) {
+      expect(world.buyItem(0, component)).toBe(true);
+      partsCost += items.find((i) => i.id === component)!.cost;
+    }
+    // Charge is the combine path: cost minus component credit + combine cost.
+    const charge = world.buyCharge(0, "sheen");
+    expect(charge).toBe(sheen!.recipe!.combineCost);
+    expect(world.combineItem(0, "sheen")).toBe(true);
+    // Net spend equals the item cost exactly (components + combine cost).
+    expect(goldBeforeParts - world.stores.players.field("gold")[0]).toBe(
+      partsCost + sheen!.recipe!.combineCost,
+    );
+    expect(world.stores.players.field("gold")[0]).toBeLessThanOrEqual(goldBeforeParts);
+  });
+
   it("caps the inventory at loadout.itemSlots per player", () => {
     const pack = loadGamePack();
     const world = createWorld(DEFAULT_RULESET, { playerCount: 1, content: pack }, 7);
